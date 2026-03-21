@@ -19,7 +19,7 @@ app.post("/api/chat", async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey });
     const chat = ai.chats.create({
-      model: model || "gemini-1.5-flash",
+      model: model || "gemini-3-flash-preview",
       config: { systemInstruction },
       history: history.map((m: any) => ({
         role: m.role,
@@ -46,7 +46,7 @@ app.post("/api/generate", async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: [{ parts: [{ text: prompt }] }],
       config: config || { responseMimeType: "application/json" }
     });

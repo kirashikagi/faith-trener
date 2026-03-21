@@ -196,7 +196,7 @@ export default function App() {
 
     try {
       const response = await getChatResponse(
-        "gemini-1.5-flash",
+        "gemini-3-flash-preview",
         selectedScenario.systemInstruction,
         messages, // Pass only previous messages as history
         textToSend,
@@ -346,7 +346,7 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-[10px] font-mono opacity-30 hidden sm:block">v1.0.3-stable</div>
+          <div className="text-[10px] font-mono opacity-30 hidden sm:block">v1.0.4-stable</div>
           {apiKeyMissing && (
             <div className="hidden md:flex items-center gap-2 bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-rose-100">
               <ShieldAlert className="w-3 h-3" />
