@@ -224,7 +224,10 @@ export default function App() {
       const errorMessage = error?.message || "Неизвестная ошибка";
       
       let finalMessage = `Ошибка API: ${errorMessage}. (Ключ: ${maskedKey}).`;
-      if (isPlaceholder || !apiKey) {
+      
+      if (errorMessage.includes("Failed to fetch")) {
+        finalMessage = "Ошибка сети: Не удалось связаться с сервером. Возможно, домен заблокирован вашим провайдером. Попробуйте использовать другой браузер или привязать свой домен в Cloudflare.";
+      } else if (isPlaceholder || !apiKey) {
         finalMessage += ` Пожалуйста, добавьте новый секрет с именем "VITE_GEMINI_API_KEY" и вашим реальным ключом в разделе Secrets, затем нажмите "Apply changes". Также вы можете ввести ключ вручную в настройках приложения.`;
         setShowKeyInput(true);
       } else {
