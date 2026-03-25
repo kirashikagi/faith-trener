@@ -10,8 +10,8 @@ app.use(express.json());
 // Gemini Proxy Routes
 app.post("/api/chat", async (req, res) => {
   try {
-    const { model, systemInstruction, history, message } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
+    const apiKey = clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
     
     if (!apiKey) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
@@ -37,8 +37,8 @@ app.post("/api/chat", async (req, res) => {
 
 app.post("/api/generate", async (req, res) => {
   try {
-    const { prompt, config } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    const { prompt, config, apiKey: clientApiKey } = req.body;
+    const apiKey = clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
     
     if (!apiKey) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });

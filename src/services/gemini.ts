@@ -31,7 +31,8 @@ export async function getChatResponse(
         model: modelName,
         systemInstruction,
         history,
-        message: userInput
+        message: userInput,
+        apiKey: providedApiKey
       })
     });
 
@@ -85,7 +86,7 @@ export async function getResponseOptions(
     const response = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, apiKey: providedApiKey })
     });
 
     if (!response.ok) {
@@ -135,7 +136,7 @@ export async function getFeedback(
     const response = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, apiKey: providedApiKey })
     });
 
     if (!response.ok) {

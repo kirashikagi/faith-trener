@@ -680,7 +680,7 @@ export default function App() {
             </div>
             <div className="p-10 space-y-8">
               <div className="prose prose-emerald max-w-none">
-                <p className="text-lg text-gray-700 leading-relaxed font-medium italic text-center">
+                <p className="text-lg text-gray-700 leading-relaxed font-medium text-center">
                   {PHILOSOPHY.content}
                 </p>
               </div>
@@ -950,28 +950,10 @@ export default function App() {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
-                  {!feedback.isUnlocked && (
-                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-8 bg-white/60 backdrop-blur-md rounded-3xl border border-white/50 shadow-xl">
-                      <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4">
-                        <Lock className="w-8 h-8" />
-                      </div>
-                      <h4 className="text-xl font-black text-gray-900 mb-2">Анализ заблокирован</h4>
-                      <p className="text-sm text-gray-500 mb-6 max-w-xs">
-                        Узнайте свои сильные стороны, ошибки и получите советы по духовному росту
-                      </p>
-                      <button 
-                        onClick={() => setFeedback({...feedback, isUnlocked: true})}
-                        className="px-10 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 uppercase tracking-widest"
-                      >
-                        Разблокировать (199₽)
-                      </button>
-                    </div>
-                  )}
-
-                  <div className={cn("space-y-4", !feedback.isUnlocked && "blur-sm select-none")}>
+                  <div className="space-y-4">
                     <h3 className="flex items-center gap-2 font-bold text-gray-900">
                       <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                      Сильные стороны
+                      Ваши сильные стороны
                     </h3>
                     <ul className="space-y-3">
                       {feedback.strengths.map((s, i) => (
@@ -982,33 +964,61 @@ export default function App() {
                       ))}
                     </ul>
                   </div>
-                  <div className={cn("space-y-4", !feedback.isUnlocked && "blur-sm select-none")}>
-                    <h3 className="flex items-center gap-2 font-bold text-gray-900">
-                      <AlertCircle className="w-5 h-5 text-amber-500" />
-                      Области для роста
-                    </h3>
-                    <ul className="space-y-3">
-                      {feedback.improvements.map((s, i) => (
-                        <li key={i} className="flex gap-3 text-gray-600 text-sm bg-amber-50/50 p-3 rounded-xl border border-amber-100/50">
-                          <span className="font-bold text-amber-600">{i + 1}.</span>
-                          {s}
-                        </li>
-                      ))}
-                    </ul>
+
+                  <div className="relative">
+                    {!feedback.isUnlocked && (
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-white/80 backdrop-blur-sm rounded-3xl border border-emerald-100/50 shadow-lg">
+                        <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mb-3 shadow-lg shadow-emerald-200">
+                          <Zap className="w-6 h-6" />
+                        </div>
+                        <h4 className="text-lg font-black text-gray-900 mb-1">Глубокий разбор</h4>
+                        <p className="text-[10px] text-gray-500 mb-4 max-w-[200px] leading-tight">
+                          Узнайте скрытые ошибки, психологические триггеры и получите персональный план роста
+                        </p>
+                        <button 
+                          onClick={() => setFeedback({...feedback, isUnlocked: true})}
+                          className="w-full py-3 bg-emerald-600 text-white font-black rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 uppercase tracking-widest text-[10px]"
+                        >
+                          Открыть за 199₽
+                        </button>
+                      </div>
+                    )}
+                    
+                    <div className={cn("space-y-4", !feedback.isUnlocked && "blur-md select-none")}>
+                      <h3 className="flex items-center gap-2 font-bold text-gray-900">
+                        <AlertCircle className="w-5 h-5 text-amber-500" />
+                        Зоны роста и ошибки
+                      </h3>
+                      <ul className="space-y-3">
+                        {feedback.improvements.map((s, i) => (
+                          <li key={i} className="flex gap-3 text-gray-600 text-sm bg-amber-50/50 p-3 rounded-xl border border-amber-100/50">
+                            <span className="font-bold text-amber-600">{i + 1}.</span>
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 relative overflow-hidden">
-                  <h3 className="flex items-center gap-2 font-bold text-gray-900 mb-3">
-                    <Info className="w-5 h-5 text-blue-500" />
-                    Резюме наставника
-                  </h3>
-                  
-                  <div className="relative">
-                    <p className={cn(
-                      "text-gray-700 leading-relaxed italic transition-all duration-500",
-                      !feedback.isUnlocked && "blur-md select-none"
-                    )}>
+                <div className="relative">
+                  {!feedback.isUnlocked && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center">
+                      <div className="bg-white/90 px-4 py-2 rounded-full border border-emerald-100 shadow-sm flex items-center gap-2">
+                        <Lock className="w-3 h-3 text-emerald-600" />
+                        <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Резюме наставника скрыто</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className={cn(
+                    "bg-gray-50 p-6 rounded-2xl border border-gray-100 transition-all duration-700",
+                    !feedback.isUnlocked && "blur-xl grayscale opacity-50"
+                  )}>
+                    <h3 className="flex items-center gap-2 font-bold text-gray-900 mb-3">
+                      <Info className="w-5 h-5 text-blue-500" />
+                      Резюме наставника
+                    </h3>
+                    <p className="text-gray-700 leading-relaxed italic">
                       "{feedback.summary}"
                     </p>
                   </div>
