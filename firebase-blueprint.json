@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user information and roles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "User role" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Feedback": {
+      "title": "User Feedback",
+      "description": "Stores feedback submitted by users.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "User who submitted feedback" },
+        "email": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "message", "createdAt"]
+    },
+    "Session": {
+      "title": "Training Session",
+      "description": "Stores results of training sessions.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "scenarioId": { "type": "string" },
+        "score": { "type": "number" },
+        "detailedAnalysis": { "type": "string", "description": "Detailed AI feedback (locked behind paywall)" },
+        "isUnlocked": { "type": "boolean", "description": "Whether the detailed analysis is paid for" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "scenarioId", "score", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "User feedback submissions"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "Session",
+      "description": "Training session results"
+    }
+  }
+}

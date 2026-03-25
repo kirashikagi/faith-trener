@@ -43,6 +43,7 @@ export interface Feedback {
     respect: number;
     speed: number;
   };
+  isUnlocked?: boolean;
 }
 
 export interface Achievement {
@@ -61,4 +62,30 @@ export interface UserStats {
     sessions: number;
     bestScore: number;
   }>;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName?: string;
+  role: 'user' | 'admin';
+  createdAt: number;
+}
+
+export interface FeedbackSubmission {
+  id: string;
+  uid: string;
+  email?: string;
+  message: string;
+  createdAt: number;
+}
+
+export interface SessionRecord {
+  id: string;
+  uid: string;
+  scenarioId: string;
+  score: number;
+  detailedAnalysis: string;
+  isUnlocked: boolean;
+  createdAt: number;
 }

@@ -28,15 +28,44 @@ import {
   Flag,
   Sun,
   Smile,
-  Heart
+  Heart,
+  LogIn,
+  UserPlus,
+  LogOut,
+  Settings,
+  ShieldCheck,
+  Mail,
+  Lock,
+  MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged, 
+  User as FirebaseUser 
+} from 'firebase/auth';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy,
+  Timestamp,
+  getDocFromServer
+} from 'firebase/firestore';
 
-import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats } from './types';
-import { SCENARIOS, ACHIEVEMENTS } from './constants';
+import { auth, db } from './firebase';
+import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission } from './types';
+import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY } from './constants';
 import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
 
 function cn(...inputs: ClassValue[]) {
@@ -68,6 +97,19 @@ const AchievementIcons: Record<string, React.ReactNode> = {
 };
 
 export default function App() {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [showIntro, setShowIntro] = useState(true);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [adminFeedback, setAdminFeedback] = useState<FeedbackSubmission[]>([]);
+  const [showAdmin, setShowAdmin] = useState(false);
+
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -77,6 +119,98 @@ export default function App() {
   const [options, setOptions] = useState<ResponseOption[]>([]);
   const [showStats, setShowStats] = useState(false);
   
+  // Firebase Auth & Profile
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        try {
+          const docRef = doc(db, 'users', currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setUserProfile(docSnap.data() as UserProfile);
+          } else {
+            // Create profile if it doesn't exist
+            const newProfile: UserProfile = {
+              uid: currentUser.uid,
+              email: currentUser.email || '',
+              role: 'user',
+              createdAt: Date.now()
+            };
+            await setDoc(docRef, newProfile);
+            setUserProfile(newProfile);
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+        }
+      } else {
+        setUserProfile(null);
+      }
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    try {
+      if (authMode === 'login') {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        const { user: newUser } = await createUserWithEmailAndPassword(auth, email, password);
+        const newProfile: UserProfile = {
+          uid: newUser.uid,
+          email: newUser.email || '',
+          role: 'user',
+          createdAt: Date.now()
+        };
+        await setDoc(doc(db, 'users', newUser.uid), newProfile);
+        setUserProfile(newProfile);
+      }
+    } catch (error: any) {
+      setAuthError(error.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    reset();
+  };
+
+  const submitFeedback = async () => {
+    if (!feedbackMessage.trim() || !user) return;
+    try {
+      await addDoc(collection(db, 'feedback'), {
+        uid: user.uid,
+        email: user.email,
+        message: feedbackMessage,
+        createdAt: Timestamp.now()
+      });
+      setFeedbackMessage('');
+      setShowFeedbackForm(false);
+      alert("Спасибо за отзыв! Мы обязательно его прочтем.");
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+    }
+  };
+
+  const fetchAdminFeedback = async () => {
+    if (userProfile?.role !== 'admin') return;
+    try {
+      const q = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const feedback = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FeedbackSubmission[];
+      setAdminFeedback(feedback);
+      setShowAdmin(true);
+    } catch (error) {
+      console.error("Error fetching admin feedback:", error);
+    }
+  };
+
   // Telegram Web App Integration
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
@@ -256,7 +390,24 @@ export default function App() {
     setIsAnalyzing(true);
     try {
       const result = await getFeedback(messages, getEffectiveApiKey());
-      setFeedback(result);
+      const feedbackWithLock: Feedback = { ...result, isUnlocked: false };
+      setFeedback(feedbackWithLock);
+
+      // Save to Firestore
+      if (user && selectedScenario) {
+        try {
+          await addDoc(collection(db, 'sessions'), {
+            uid: user.uid,
+            scenarioId: selectedScenario.id,
+            score: result.score,
+            detailedAnalysis: result.summary,
+            isUnlocked: false,
+            createdAt: Timestamp.now()
+          });
+        } catch (err) {
+          console.error("Error saving session to Firestore:", err);
+        }
+      }
 
       // Update Stats
       setStats(prev => {
@@ -300,6 +451,8 @@ export default function App() {
     setFeedback(null);
     setOptions([]);
     setShowStats(false);
+    setShowAdmin(false);
+    setShowFeedbackForm(false);
   };
 
   return (
@@ -341,15 +494,38 @@ export default function App() {
       <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-lg border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-vibrant-gradient rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200/50">
-            <Compass className="w-6 h-6" />
+            <MessageCircle className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight bg-vibrant-gradient bg-clip-text text-transparent font-display">Вера Тренажёр</h1>
-            <p className="text-[8px] text-gray-400 font-bold uppercase tracking-[0.3em]">AI Faith Simulator</p>
+            <h1 className="text-xl font-bold tracking-tight bg-vibrant-gradient bg-clip-text text-transparent font-display">Слово</h1>
+            <p className="text-[8px] text-gray-400 font-bold uppercase tracking-[0.3em]">AI Christian Training</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="text-[10px] font-mono opacity-30 hidden sm:block">v1.0.5-stable</div>
+          {userProfile?.role === 'admin' && (
+            <button 
+              onClick={fetchAdminFeedback}
+              className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all"
+              title="Админ-панель"
+            >
+              <ShieldCheck className="w-5 h-5" />
+            </button>
+          )}
+          <button 
+            onClick={() => setShowFeedbackForm(true)}
+            className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all"
+            title="Обратная связь"
+          >
+            <MessageSquare className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={handleLogout}
+            className="p-2.5 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-all"
+            title="Выйти"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
           {apiKeyMissing && (
             <div className="hidden md:flex items-center gap-2 bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-rose-100">
               <ShieldAlert className="w-3 h-3" />
@@ -378,7 +554,149 @@ export default function App() {
       </header>
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6">
-        {apiKeyMissing && (
+        {isAuthLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <RefreshCcw className="w-8 h-8 animate-spin text-emerald-600" />
+          </div>
+        ) : !user ? (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-md mx-auto bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-2xl"
+          >
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <LogIn className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-black text-gray-900">Добро пожаловать</h2>
+              <p className="text-gray-500 text-sm mt-2">Войдите, чтобы сохранять свой прогресс</p>
+            </div>
+
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-2">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input 
+                    type="email" 
+                    required 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-100 p-3.5 pl-11 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    placeholder="your@email.com"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-2">Пароль</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input 
+                    type="password" 
+                    required 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-100 p-3.5 pl-11 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              {authError && (
+                <div className="text-rose-500 text-xs font-bold text-center bg-rose-50 p-3 rounded-xl border border-rose-100">
+                  {authError}
+                </div>
+              )}
+
+              <button 
+                type="submit"
+                className="w-full bg-emerald-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
+              >
+                {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <button 
+                onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+                className="text-sm font-bold text-emerald-600 hover:underline"
+              >
+                {authMode === 'login' ? 'Нет аккаунта? Зарегистрируйтесь' : 'Уже есть аккаунт? Войдите'}
+              </button>
+            </div>
+          </motion.div>
+        ) : showIntro ? (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl overflow-hidden"
+          >
+            <div className="bg-vibrant-gradient p-12 text-white text-center relative">
+              <div className="relative z-10">
+                <h2 className="text-4xl font-black mb-4 tracking-tight">{PHILOSOPHY.title}</h2>
+                <div className="w-20 h-1 bg-white/30 mx-auto rounded-full" />
+              </div>
+            </div>
+            <div className="p-10 space-y-8">
+              <div className="prose prose-emerald max-w-none">
+                <p className="text-lg text-gray-700 leading-relaxed font-medium italic text-center">
+                  {PHILOSOPHY.content}
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <Info className="w-4 h-4" />
+                  Как это работает
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {PHILOSOPHY.instruction.map((text, i) => (
+                    <div key={i} className="flex gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                      <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center font-black shrink-0">
+                        {i + 1}
+                      </div>
+                      <p className="text-sm text-gray-600 font-medium leading-relaxed">{text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setShowIntro(false)}
+                className="w-full bg-emerald-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 text-lg uppercase tracking-widest"
+              >
+                Начать обучение
+              </button>
+            </div>
+          </motion.div>
+        ) : showAdmin ? (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-black text-gray-900">Панель администратора</h2>
+              <button onClick={() => setShowAdmin(false)} className="text-emerald-600 font-bold">Назад</button>
+            </div>
+            <div className="space-y-4">
+              <h3 className="font-bold text-gray-500 uppercase text-xs tracking-widest">Обратная связь от пользователей</h3>
+              {adminFeedback.length === 0 ? (
+                <div className="bg-white p-8 rounded-3xl border border-dashed border-gray-200 text-center text-gray-400">
+                  Пока нет отзывов
+                </div>
+              ) : (
+                adminFeedback.map(f => (
+                  <div key={f.id} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="font-bold text-emerald-600 text-sm">{f.email}</div>
+                      <div className="text-[10px] text-gray-400">{(f.createdAt as any).toDate().toLocaleString()}</div>
+                    </div>
+                    <p className="text-gray-700 text-sm leading-relaxed">{f.message}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {apiKeyMissing && (
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -621,14 +939,36 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 relative overflow-hidden">
                   <h3 className="flex items-center gap-2 font-bold text-gray-900 mb-3">
                     <Info className="w-5 h-5 text-blue-500" />
                     Резюме наставника
                   </h3>
-                  <p className="text-gray-700 leading-relaxed italic">
-                    "{feedback.summary}"
-                  </p>
+                  
+                  <div className="relative">
+                    <p className={cn(
+                      "text-gray-700 leading-relaxed italic transition-all duration-500",
+                      !feedback.isUnlocked && "blur-md select-none"
+                    )}>
+                      "{feedback.summary}"
+                    </p>
+                    
+                    {!feedback.isUnlocked && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-white/40 backdrop-blur-sm rounded-xl">
+                        <Lock className="w-8 h-8 text-emerald-600 mb-2" />
+                        <h4 className="font-bold text-gray-900 text-sm">Подробный анализ заблокирован</h4>
+                        <p className="text-[10px] text-gray-500 mb-4 max-w-[200px]">
+                          Получите глубокий разбор ваших слов и советы по духовному росту
+                        </p>
+                        <button 
+                          onClick={() => setFeedback({...feedback, isUnlocked: true})}
+                          className="px-6 py-2 bg-emerald-600 text-white text-xs font-black rounded-full shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all uppercase tracking-widest"
+                        >
+                          Разблокировать (199₽)
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex gap-4">
@@ -838,7 +1178,59 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
-      </main>
+      </>
+    )}
+  </main>
+      {/* Feedback Modal */}
+      <AnimatePresence>
+        {showFeedbackForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFeedbackForm(false)}
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 overflow-hidden"
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare className="w-8 h-8" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900">Ваш отзыв</h3>
+                <p className="text-gray-500 text-sm mt-2">Помогите нам сделать «Слово» лучше</p>
+              </div>
+              
+              <textarea 
+                value={feedbackMessage}
+                onChange={(e) => setFeedbackMessage(e.target.value)}
+                placeholder="Что вам понравилось? Что можно улучшить?"
+                className="w-full h-32 bg-gray-50 border border-gray-100 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none mb-6"
+              />
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowFeedbackForm(false)}
+                  className="flex-1 px-6 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+                >
+                  Отмена
+                </button>
+                <button 
+                  onClick={submitFeedback}
+                  className="flex-1 px-6 py-4 bg-emerald-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all"
+                >
+                  Отправить
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
