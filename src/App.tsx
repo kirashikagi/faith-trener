@@ -47,6 +47,8 @@ import {
   createUserWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged, 
+  signInWithPopup,
+  GoogleAuthProvider,
   User as FirebaseUser 
 } from 'firebase/auth';
 import { 
@@ -154,22 +156,36 @@ export default function App() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
+    // Convert name to email format for Firebase Auth
+    const internalEmail = email.includes('@') ? email : `${email.trim().toLowerCase()}@slovo.app`;
+    
     try {
       if (authMode === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, internalEmail, password);
       } else {
-        const { user: newUser } = await createUserWithEmailAndPassword(auth, email, password);
+        const { user: newUser } = await createUserWithEmailAndPassword(auth, internalEmail, password);
         const newProfile: UserProfile = {
           uid: newUser.uid,
           email: newUser.email || '',
           role: 'user',
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          displayName: email // Store the original name
         };
         await setDoc(doc(db, 'users', newUser.uid), newProfile);
         setUserProfile(newProfile);
       }
     } catch (error: any) {
-      setAuthError(error.message);
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        setAuthError('Неверное имя или пароль');
+      } else if (error.code === 'auth/email-already-in-use') {
+        setAuthError('Это имя уже занято');
+      } else if (error.code === 'auth/weak-password') {
+        setAuthError('Пароль должен быть не менее 6 символов');
+      } else if (error.code === 'auth/operation-not-allowed') {
+        setAuthError('Вход по имени/паролю не включен в консоли Firebase. Пожалуйста, следуйте инструкциям в чате.');
+      } else {
+        setAuthError('Ошибка: ' + error.message);
+      }
     }
   };
 
@@ -574,16 +590,16 @@ export default function App() {
 
             <form onSubmit={handleAuth} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-2">Email</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-2">Имя</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input 
-                    type="email" 
+                    type="text" 
                     required 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-100 p-3.5 pl-11 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    placeholder="your@email.com"
+                    placeholder="Ваше имя"
                   />
                 </div>
               </div>
@@ -613,6 +629,31 @@ export default function App() {
                 className="w-full bg-emerald-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
               >
                 {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
+              </button>
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-100"></div>
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-bold text-gray-400">
+                  <span className="bg-white px-4">Или</span>
+                </div>
+              </div>
+
+              <button 
+                type="button"
+                onClick={async () => {
+                  try {
+                    const provider = new GoogleAuthProvider();
+                    await signInWithPopup(auth, provider);
+                  } catch (error: any) {
+                    setAuthError('Ошибка входа через Google: ' + error.message);
+                  }
+                }}
+                className="w-full bg-white border border-gray-200 text-gray-600 font-bold py-4 rounded-2xl hover:bg-gray-50 transition-all flex items-center justify-center gap-3"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+                Войти через Google
               </button>
             </form>
 
@@ -908,8 +949,26 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
+                  {!feedback.isUnlocked && (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-8 bg-white/60 backdrop-blur-md rounded-3xl border border-white/50 shadow-xl">
+                      <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4">
+                        <Lock className="w-8 h-8" />
+                      </div>
+                      <h4 className="text-xl font-black text-gray-900 mb-2">Анализ заблокирован</h4>
+                      <p className="text-sm text-gray-500 mb-6 max-w-xs">
+                        Узнайте свои сильные стороны, ошибки и получите советы по духовному росту
+                      </p>
+                      <button 
+                        onClick={() => setFeedback({...feedback, isUnlocked: true})}
+                        className="px-10 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 uppercase tracking-widest"
+                      >
+                        Разблокировать (199₽)
+                      </button>
+                    </div>
+                  )}
+
+                  <div className={cn("space-y-4", !feedback.isUnlocked && "blur-sm select-none")}>
                     <h3 className="flex items-center gap-2 font-bold text-gray-900">
                       <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                       Сильные стороны
@@ -923,7 +982,7 @@ export default function App() {
                       ))}
                     </ul>
                   </div>
-                  <div className="space-y-4">
+                  <div className={cn("space-y-4", !feedback.isUnlocked && "blur-sm select-none")}>
                     <h3 className="flex items-center gap-2 font-bold text-gray-900">
                       <AlertCircle className="w-5 h-5 text-amber-500" />
                       Области для роста
@@ -952,22 +1011,6 @@ export default function App() {
                     )}>
                       "{feedback.summary}"
                     </p>
-                    
-                    {!feedback.isUnlocked && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-white/40 backdrop-blur-sm rounded-xl">
-                        <Lock className="w-8 h-8 text-emerald-600 mb-2" />
-                        <h4 className="font-bold text-gray-900 text-sm">Подробный анализ заблокирован</h4>
-                        <p className="text-[10px] text-gray-500 mb-4 max-w-[200px]">
-                          Получите глубокий разбор ваших слов и советы по духовному росту
-                        </p>
-                        <button 
-                          onClick={() => setFeedback({...feedback, isUnlocked: true})}
-                          className="px-6 py-2 bg-emerald-600 text-white text-xs font-black rounded-full shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all uppercase tracking-widest"
-                        >
-                          Разблокировать (199₽)
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
 
