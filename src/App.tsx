@@ -138,14 +138,21 @@ export default function App() {
         try {
           const docRef = doc(db, 'users', currentUser.uid);
           const docSnap = await getDoc(docRef);
+          const isAdminEmail = currentUser.email === 'arunavsharmanaba@gmail.com';
+          
           if (docSnap.exists()) {
-            setUserProfile(docSnap.data() as UserProfile);
+            const profile = docSnap.data() as UserProfile;
+            if (isAdminEmail && profile.role !== 'admin') {
+              profile.role = 'admin';
+              await setDoc(docRef, { role: 'admin' }, { merge: true });
+            }
+            setUserProfile(profile);
           } else {
             // Create profile if it doesn't exist
             const newProfile: UserProfile = {
               uid: currentUser.uid,
               email: currentUser.email || '',
-              role: 'user',
+              role: isAdminEmail ? 'admin' : 'user',
               createdAt: Date.now()
             };
             await setDoc(docRef, newProfile);
@@ -165,18 +172,20 @@ export default function App() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
+    
     // Convert name to email format for Firebase Auth
-    const internalEmail = email.includes('@') ? email : `${email.trim().toLowerCase()}@slovo.app`;
+    const internalEmail = email.includes('@') ? email : `${email.trim().toLowerCase()}@vera.plus`;
     
     try {
       if (authMode === 'login') {
         await signInWithEmailAndPassword(auth, internalEmail, password);
       } else {
         const { user: newUser } = await createUserWithEmailAndPassword(auth, internalEmail, password);
+        const isAdminEmail = internalEmail === 'admin@vera.plus' || newUser.email === 'arunavsharmanaba@gmail.com';
         const newProfile: UserProfile = {
           uid: newUser.uid,
           email: newUser.email || '',
-          role: 'user',
+          role: isAdminEmail ? 'admin' : 'user',
           createdAt: Date.now(),
           displayName: email // Store the original name
         };
@@ -190,8 +199,6 @@ export default function App() {
         setAuthError('Это имя уже занято');
       } else if (error.code === 'auth/weak-password') {
         setAuthError('Пароль должен быть не менее 6 символов');
-      } else if (error.code === 'auth/operation-not-allowed') {
-        setAuthError('Вход по имени/паролю не включен в консоли Firebase. Пожалуйста, следуйте инструкциям в чате.');
       } else {
         setAuthError('Ошибка: ' + error.message);
       }
@@ -524,30 +531,30 @@ export default function App() {
           </div>
         )}
 
-        <header className="sticky top-0 z-50 glass-panel border-b border-border px-8 py-6 flex items-center justify-between transition-all duration-300">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-vibrant-gradient rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-emerald-500/20">
-            <MessageCircle className="w-7 h-7" />
+        <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between transition-all duration-300">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20">
+            <MessageCircle className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tighter bg-vibrant-gradient bg-clip-text text-transparent font-display">Вера +1</h1>
-            <p className="text-[10px] text-muted font-bold uppercase tracking-[0.4em]">AI Faith Training</p>
+            <h1 className="text-xl font-semibold tracking-tight text-fg">Вера +1</h1>
+            <p className="text-[9px] text-muted font-bold uppercase tracking-[0.3em]">AI Faith Training</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button 
             onClick={toggleTheme}
-            className="p-3 rounded-2xl bg-card border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm"
+            className="p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm"
           >
-            {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
           </button>
           
-          <div className="h-8 w-[1px] bg-border mx-2 hidden sm:block" />
+          <div className="h-6 w-[1px] bg-border mx-1 hidden sm:block" />
 
           {userProfile?.role === 'admin' && (
             <button 
               onClick={fetchAdminFeedback}
-              className="p-3 bg-card border border-border text-muted rounded-2xl hover:border-accent hover:text-accent transition-all shadow-sm"
+              className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
               title="Админ-панель"
             >
               <ShieldCheck className="w-5 h-5" />
@@ -556,7 +563,7 @@ export default function App() {
           
           <button 
             onClick={() => setShowFeedbackForm(true)}
-            className="p-3 bg-card border border-border text-muted rounded-2xl hover:border-accent hover:text-accent transition-all shadow-sm"
+            className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
             title="Обратная связь"
           >
             <MessageSquare className="w-5 h-5" />
@@ -565,24 +572,24 @@ export default function App() {
           {!selectedScenario ? (
             <button 
               onClick={() => setShowStats(!showStats)}
-              className="flex items-center gap-3 bg-card border border-border text-muted px-5 py-3 rounded-2xl hover:border-accent hover:text-accent transition-all shadow-sm group"
+              className="flex items-center gap-3 bg-bg border border-border text-muted px-4 py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95"
             >
               <Trophy className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline text-[10px] font-black uppercase tracking-[0.2em]">Путь</span>
+              <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Путь</span>
             </button>
           ) : (
             <button 
               onClick={reset}
-              className="flex items-center gap-3 bg-card border border-border text-muted px-5 py-3 rounded-2xl hover:border-accent hover:text-accent transition-all shadow-sm group"
+              className="flex items-center gap-3 bg-bg border border-border text-muted px-4 py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95"
             >
               <ChevronLeft className="w-5 h-5 group-hover:translate-x-[-2px] transition-transform" />
-              <span className="hidden sm:inline text-[10px] font-black uppercase tracking-[0.2em]">Назад</span>
+              <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Назад</span>
             </button>
           )}
 
           <button 
             onClick={handleLogout}
-            className="p-3 bg-card border border-border text-muted rounded-2xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm"
+            className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95"
             title="Выйти"
           >
             <LogOut className="w-5 h-5" />
@@ -598,134 +605,106 @@ export default function App() {
         ) : !user ? (
           <motion.div 
             key="login"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-xl mx-auto glass-panel p-12 rounded-[3rem] shadow-2xl border border-border relative overflow-hidden"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-md mx-auto sber-card"
           >
-            <div className="absolute top-0 left-0 w-full h-1 bg-vibrant-gradient" />
-            
-            <div className="text-center mb-12 space-y-6">
+            <div className="text-center mb-8 space-y-3">
               <motion.div 
-                initial={{ scale: 0.8 }}
+                initial={{ scale: 0.9 }}
                 animate={{ scale: 1 }}
-                className="w-20 h-20 bg-accent/10 text-accent rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-accent/20 shadow-xl shadow-accent/5"
+                className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mx-auto mb-4 border border-accent/20"
               >
-                <MessageCircle className="w-10 h-10" />
+                <MessageCircle className="w-7 h-7" />
               </motion.div>
-              <h2 className="text-4xl font-black text-fg tracking-tighter font-display">Добро пожаловать</h2>
-              <p className="text-muted text-lg font-medium leading-relaxed max-w-xs mx-auto">
-                «Где двое или трое собраны во имя Мое, там Я посреди них»
+              <h2 className="text-2xl font-semibold text-fg tracking-tight">Вера +1</h2>
+              <p className="text-muted text-sm font-medium leading-relaxed max-w-[240px] mx-auto">
+                Интеллектуальный тренажер <br/> духовного общения
               </p>
             </div>
 
-            <div className="space-y-6">
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Имя</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
+                  placeholder="Ваше имя"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Пароль</label>
+                <input 
+                  type="password" 
+                  required 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {authError && (
+                <div className="text-rose-500 text-[10px] font-bold text-center bg-rose-500/5 p-3 rounded-xl border border-rose-500/10">
+                  {authError}
+                </div>
+              )}
+
               <button 
-                type="button"
-                onClick={async () => {
-                  try {
-                    const provider = new GoogleAuthProvider();
-                    await signInWithPopup(auth, provider);
-                  } catch (error: any) {
-                    setAuthError('Ошибка входа через Google: ' + error.message);
-                  }
-                }}
-                className="w-full bg-fg text-bg font-black py-6 rounded-2xl hover:opacity-90 transition-all flex items-center justify-center gap-4 shadow-2xl shadow-fg/10 uppercase tracking-[0.3em] text-xs"
+                type="submit"
+                className="sber-button w-full"
               >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
-                Войти через Google
+                {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
               </button>
 
-              <div className="relative py-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border"></div>
-                </div>
-                <div className="relative flex justify-center text-[10px] uppercase tracking-[0.4em] font-black text-muted">
-                  <span className="bg-card px-6">Или используйте почту</span>
-                </div>
-              </div>
-
-              <form onSubmit={handleAuth} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-[0.3em] ml-4">Имя / Почта</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-bg border border-border p-5 rounded-2xl outline-none focus:ring-2 focus:ring-accent transition-all text-fg font-medium"
-                    placeholder="Ваше имя"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-[0.3em] ml-4">Пароль</label>
-                  <input 
-                    type="password" 
-                    required 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-bg border border-border p-5 rounded-2xl outline-none focus:ring-2 focus:ring-accent transition-all text-fg font-medium"
-                    placeholder="••••••••"
-                  />
-                </div>
-
-                {authError && (
-                  <div className="text-rose-500 text-xs font-black text-center bg-rose-500/5 p-4 rounded-2xl border border-rose-500/10">
-                    {authError}
-                  </div>
-                )}
-
+              <div className="text-center pt-2">
                 <button 
-                  type="submit"
-                  className="w-full bg-accent text-white font-black py-6 rounded-2xl shadow-2xl shadow-accent/20 hover:bg-emerald-600 transition-all active:scale-95 uppercase tracking-[0.3em] text-xs"
-                >
-                  {authMode === 'login' ? 'Войти в систему' : 'Создать аккаунт'}
-                </button>
-              </form>
-
-              <div className="text-center pt-4">
-                <button 
+                  type="button"
                   onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                  className="text-[10px] font-black text-muted hover:text-accent uppercase tracking-[0.2em] transition-colors"
+                  className="text-[10px] font-bold text-muted hover:text-accent uppercase tracking-widest transition-colors"
                 >
-                  {authMode === 'login' ? 'Нет аккаунта? Зарегистрируйтесь' : 'Уже есть аккаунт? Войдите'}
+                  {authMode === 'login' ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Вход'}
                 </button>
               </div>
-            </div>
+            </form>
           </motion.div>
         ) : showIntro ? (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="glass-panel rounded-[3rem] shadow-2xl overflow-hidden max-w-5xl mx-auto"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="sber-card max-w-4xl mx-auto overflow-hidden"
           >
-            <div className="bg-vibrant-gradient p-16 text-white text-center relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute -top-24 -left-24 w-96 h-96 bg-white rounded-full blur-[120px]" />
-                <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white rounded-full blur-[120px]" />
-              </div>
-              <div className="relative z-10">
-                <h2 className="text-5xl font-black mb-6 tracking-tighter font-display">{PHILOSOPHY.title}</h2>
-                <div className="w-24 h-1 bg-white/40 mx-auto rounded-full" />
+            <div className="bg-accent p-12 text-white text-center relative">
+              <div className="relative z-10 space-y-2">
+                <h2 className="text-3xl font-semibold tracking-tight">{PHILOSOPHY.title}</h2>
+                <p className="text-white/70 text-[10px] font-bold uppercase tracking-[0.3em]">The Art of Spiritual Communication</p>
               </div>
             </div>
-            <div className="p-16 space-y-12">
-              <div className="max-w-3xl mx-auto">
-                <p className="text-2xl text-fg/80 leading-relaxed font-light text-center">
-                  {PHILOSOPHY.content}
+            <div className="p-10 space-y-12">
+              <div className="max-w-2xl mx-auto">
+                <p className="text-lg text-fg/80 leading-relaxed font-medium text-center italic">
+                  «Слово ваше да будет всегда с благодатию, приправлено солью, чтобы вы знали, как отвечать каждому» (Кол. 4:6)
                 </p>
               </div>
               
               <div className="space-y-6">
-                <h3 className="text-xs font-black text-muted uppercase tracking-[0.3em] text-center">
-                  Механика обучения
-                </h3>
+                <div className="flex items-center gap-4">
+                  <div className="h-[1px] flex-1 bg-border" />
+                  <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">
+                    Механика обучения
+                  </h3>
+                  <div className="h-[1px] flex-1 bg-border" />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {PHILOSOPHY.instruction.map((text, i) => (
-                    <div key={i} className="flex gap-6 p-6 bg-card rounded-[2rem] border border-border hover:border-accent transition-all group">
-                      <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center font-black shrink-0 group-hover:bg-accent group-hover:text-white transition-colors">
+                    <div key={i} className="flex gap-5 p-6 bg-bg border border-border rounded-2xl hover:border-accent/30 transition-all group">
+                      <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center font-bold shrink-0 group-hover:bg-accent group-hover:text-white transition-all">
                         {i + 1}
                       </div>
-                      <p className="text-base text-muted font-medium leading-relaxed group-hover:text-fg transition-colors">{text}</p>
+                      <p className="text-sm text-muted font-medium leading-relaxed group-hover:text-fg transition-colors">{text}</p>
                     </div>
                   ))}
                 </div>
@@ -733,41 +712,44 @@ export default function App() {
 
               <button 
                 onClick={() => setShowIntro(false)}
-                className="w-full max-w-md mx-auto block bg-accent text-white font-black py-6 rounded-[2rem] shadow-2xl shadow-accent/20 hover:bg-emerald-600 transition-all active:scale-95 text-xl uppercase tracking-[0.2em]"
+                className="sber-button w-full max-w-xs mx-auto block text-lg"
               >
                 Начать обучение
               </button>
             </div>
           </motion.div>
         ) : showAdmin ? (
-          <div className="space-y-10">
+          <div className="space-y-10 max-w-4xl mx-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-black text-fg tracking-tight font-display">Панель администратора</h2>
+              <h2 className="text-3xl font-semibold text-fg tracking-tight">Панель администратора</h2>
               <button 
                 onClick={() => setShowAdmin(false)} 
-                className="text-[10px] font-black text-accent uppercase tracking-[0.3em] hover:text-emerald-600 transition-colors"
+                className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm uppercase tracking-[0.1em] text-[10px] font-bold"
               >
-                Назад в приложение
+                Закрыть
               </button>
             </div>
             <div className="space-y-6">
-              <h3 className="text-[10px] font-black text-muted uppercase tracking-[0.4em] flex items-center gap-3">
-                <div className="w-6 h-[1px] bg-accent" />
-                Обратная связь
-              </h3>
+              <div className="flex items-center gap-4">
+                <div className="h-[1px] flex-1 bg-border" />
+                <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Обратная связь</h3>
+                <div className="h-[1px] flex-1 bg-border" />
+              </div>
+              
               {adminFeedback.length === 0 ? (
-                <div className="glass-panel p-16 rounded-[3rem] border border-dashed border-border text-center text-muted font-medium italic">
+                <div className="sber-card p-16 text-center text-muted font-medium italic opacity-60">
                   Пока нет отзывов от пользователей
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {adminFeedback.map(f => (
-                    <div key={f.id} className="bg-card p-8 rounded-[2rem] border border-border shadow-sm space-y-4 hover:border-accent transition-all">
+                    <div key={f.id} className="sber-card space-y-6 hover:border-accent/30 transition-all group relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-accent opacity-20 group-hover:opacity-100 transition-opacity" />
                       <div className="flex justify-between items-start">
-                        <div className="font-black text-accent text-xs uppercase tracking-[0.1em]">{f.email}</div>
-                        <div className="text-[10px] font-black text-muted uppercase tracking-[0.1em]">{(f.createdAt as any).toDate().toLocaleString()}</div>
+                        <div className="font-bold text-accent text-[10px] uppercase tracking-[0.1em] bg-accent/10 px-3 py-1 rounded-lg border border-accent/20">{f.email}</div>
+                        <div className="text-[9px] font-bold text-muted/60 uppercase tracking-[0.1em]">{(f.createdAt as any).toDate().toLocaleDateString()}</div>
                       </div>
-                      <p className="text-fg/80 text-sm leading-relaxed italic">"{f.message}"</p>
+                      <p className="text-fg/90 text-lg leading-relaxed font-medium italic">«{f.message}»</p>
                     </div>
                   ))}
                 </div>
@@ -780,15 +762,15 @@ export default function App() {
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-10 glass-panel border border-rose-500/20 p-8 rounded-[2rem] flex items-start gap-6 shadow-2xl shadow-rose-500/5"
+            className="mb-8 bg-rose-500/5 border border-rose-500/20 p-6 rounded-2xl flex items-start gap-5 shadow-sm"
           >
-            <div className="w-14 h-14 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center shrink-0 border border-rose-500/20">
-              <ShieldAlert className="w-7 h-7" />
+            <div className="w-12 h-12 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center shrink-0 border border-rose-500/20">
+              <ShieldAlert className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-black text-rose-500 text-sm uppercase tracking-[0.2em]">Внимание: API ключ не настроен</h3>
-              <p className="text-fg/60 text-xs mt-2 leading-relaxed font-medium">
-                Для работы приложения необходимо добавить <strong className="text-fg">GEMINI_API_KEY</strong> в настройках AI Studio. Без этого ИИ не сможет отвечать на ваши сообщения.
+              <h3 className="font-bold text-rose-500 text-[10px] uppercase tracking-[0.1em]">Внимание: API ключ не настроен</h3>
+              <p className="text-muted text-xs mt-1.5 leading-relaxed font-medium">
+                Для работы приложения необходимо добавить <strong className="text-fg">GEMINI_API_KEY</strong> в настройках. Без этого ИИ не сможет отвечать на ваши сообщения.
               </p>
             </div>
           </motion.div>
@@ -797,56 +779,62 @@ export default function App() {
           {showStats ? (
             <motion.div
               key="stats"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              className="space-y-12"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-10 max-w-4xl mx-auto"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-4xl font-black text-fg tracking-tighter font-display">Ваш путь</h2>
+                <h2 className="text-3xl font-semibold text-fg tracking-tight">Ваш путь</h2>
                 <button 
                   onClick={() => setShowStats(false)} 
-                  className="text-[10px] font-black text-accent uppercase tracking-[0.3em] hover:text-emerald-600 transition-colors"
+                  className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm uppercase tracking-[0.1em] text-[10px] font-bold"
                 >
                   Закрыть
                 </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                  <div className="text-gray-400 mb-1 font-bold text-xs uppercase tracking-widest">Всего сессий</div>
-                  <div className="text-4xl font-black text-emerald-600">{stats.totalSessions}</div>
+                <div className="sber-card">
+                  <div className="text-muted mb-2 font-bold text-[10px] uppercase tracking-[0.2em]">Всего сессий</div>
+                  <div className="text-3xl font-bold text-fg tracking-tight">{stats.totalSessions}</div>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                  <div className="text-gray-400 mb-1 font-bold text-xs uppercase tracking-widest">Средний балл</div>
-                  <div className="text-4xl font-black text-emerald-600">{stats.averageScore.toFixed(1)}</div>
+                <div className="sber-card">
+                  <div className="text-muted mb-2 font-bold text-[10px] uppercase tracking-[0.2em]">Средний балл</div>
+                  <div className="text-3xl font-bold text-fg tracking-tight">{stats.averageScore.toFixed(1)}</div>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                  <div className="text-gray-400 mb-1 font-bold text-xs uppercase tracking-widest">Достижения</div>
-                  <div className="text-4xl font-black text-emerald-600">{stats.achievements.filter(a => a.unlocked).length}/{stats.achievements.length}</div>
+                <div className="sber-card">
+                  <div className="text-muted mb-2 font-bold text-[10px] uppercase tracking-[0.2em]">Достижения</div>
+                  <div className="text-3xl font-bold text-fg tracking-tight">{stats.achievements.filter(a => a.unlocked).length}/{stats.achievements.length}</div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <h3 className="text-xl font-bold text-gray-900">Достижения</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-[1px] flex-1 bg-border" />
+                  <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Достижения</h3>
+                  <div className="h-[1px] flex-1 bg-border" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {stats.achievements.map(a => (
                     <div 
                       key={a.id} 
                       className={cn(
-                        "flex items-center gap-4 p-4 rounded-2xl border transition-all",
-                        a.unlocked ? "bg-white border-emerald-100 shadow-sm" : "bg-gray-50 border-gray-100 opacity-50 grayscale"
+                        "flex items-center gap-5 p-6 rounded-2xl border transition-all relative overflow-hidden",
+                        a.unlocked 
+                          ? "bg-card border-accent/20 shadow-sm" 
+                          : "bg-bg border-border opacity-40 grayscale"
                       )}
                     >
                       <div className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center",
-                        a.unlocked ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-400"
+                        "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
+                        a.unlocked ? "bg-accent text-white" : "bg-muted/10 text-muted"
                       )}>
-                        {AchievementIcons[a.icon]}
+                        <div className="scale-110">{AchievementIcons[a.icon]}</div>
                       </div>
                       <div>
-                        <div className="font-bold text-gray-900">{a.title}</div>
-                        <div className="text-sm text-gray-500">{a.description}</div>
+                        <div className="font-bold text-fg text-base tracking-tight">{a.title}</div>
+                        <div className="text-muted text-[10px] font-medium mt-1 uppercase tracking-tight">{a.description}</div>
                       </div>
                     </div>
                   ))}
@@ -856,57 +844,60 @@ export default function App() {
           ) : !selectedScenario ? (
             <motion.div 
               key="selector"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-8"
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-12"
             >
-              <div className="text-center space-y-6 max-w-2xl mx-auto mb-20">
+              <div className="text-center space-y-4 max-w-2xl mx-auto mb-12">
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="inline-block px-4 py-1 bg-accent/10 text-accent rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-4"
+                  className="inline-block px-3 py-1 bg-accent/10 text-accent rounded-full text-[9px] font-bold uppercase tracking-[0.2em] mb-2"
                 >
                   Интеллектуальный тренажер
                 </motion.div>
-                <h2 className="text-5xl sm:text-6xl font-black text-fg tracking-tighter leading-[1] font-display">
+                <h2 className="text-3xl sm:text-4xl font-semibold text-fg tracking-tight leading-tight">
                   Готовы ли вы к <br/>
-                  <span className="bg-vibrant-gradient bg-clip-text text-transparent">сложным вопросам?</span>
+                  <span className="text-accent">сложным вопросам?</span>
                 </h2>
-                <p className="text-lg text-muted font-medium leading-relaxed max-w-lg mx-auto">
+                <p className="text-base text-muted font-medium leading-relaxed max-w-lg mx-auto">
                   Выберите режим и попрактикуйтесь в ведении диалога о вере, смысле жизни и Боге.
                 </p>
               </div>
 
-              <div className="space-y-24">
+              <div className="space-y-16">
                 <section>
-                  <div className="flex items-center gap-6 mb-12">
-                    <h3 className="text-[12px] font-black text-muted uppercase tracking-[0.4em] whitespace-nowrap font-display">
+                  <div className="flex items-center gap-4 mb-8">
+                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] whitespace-nowrap">
                       Свободный диалог
                     </h3>
                     <div className="flex-1 h-[1px] bg-border" />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {SCENARIOS.filter(s => s.mode === 'chat').map((scenario) => (
                       <motion.button
                         key={scenario.id}
-                        whileHover={{ scale: 1.02, y: -4 }}
+                        whileHover={{ y: -4 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => startScenario(scenario)}
-                        className="group relative bg-card p-10 rounded-[3rem] border border-border hover:border-accent transition-all text-left flex flex-col h-full overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-accent/10"
+                        className="group sber-card text-left flex flex-col h-full"
                       >
-                        <div className="relative z-10">
-                          <div className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-6 group-hover:text-accent transition-colors">
-                            Сценарий {scenario.id}
+                        <div className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 group-hover:text-accent transition-colors">
+                          Сценарий {scenario.id}
+                        </div>
+                        <h3 className="text-xl font-semibold text-fg mb-3 group-hover:text-accent transition-colors leading-tight tracking-tight">
+                          {scenario.title}
+                        </h3>
+                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
+                          {scenario.description}
+                        </p>
+                        <div className="mt-6 pt-6 border-t border-border flex items-center justify-between">
+                          <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-all">
+                            {scenario.icon}
                           </div>
-                          <h3 className="text-2xl font-black text-fg mb-4 group-hover:text-accent transition-colors font-display leading-tight">
-                            {scenario.title}
-                          </h3>
-                          <p className="text-muted text-sm font-medium leading-relaxed flex-grow">
-                            {scenario.description}
-                          </p>
-                          <div className="mt-10 flex items-center gap-2 text-[10px] font-black text-accent uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0">
-                            Начать сессию <ChevronRight className="w-4 h-4" />
+                          <div className="text-accent font-bold text-[10px] uppercase tracking-[0.1em] group-hover:translate-x-1 transition-transform">
+                            Начать <ChevronRight className="w-3 h-3 inline" />
                           </div>
                         </div>
                       </motion.button>
@@ -915,33 +906,36 @@ export default function App() {
                 </section>
 
                 <section>
-                  <div className="flex items-center gap-6 mb-12">
-                    <h3 className="text-[12px] font-black text-muted uppercase tracking-[0.4em] whitespace-nowrap font-display">
+                  <div className="flex items-center gap-4 mb-8">
+                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] whitespace-nowrap">
                       Работа с критикой
                     </h3>
                     <div className="flex-1 h-[1px] bg-border" />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {SCENARIOS.filter(s => s.mode === 'criticism').map((scenario) => (
                       <motion.button
                         key={scenario.id}
-                        whileHover={{ scale: 1.02, y: -4 }}
+                        whileHover={{ y: -4 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => startScenario(scenario)}
-                        className="group relative bg-card p-10 rounded-[3rem] border border-border hover:border-rose-500 transition-all text-left flex flex-col h-full overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-rose-500/10"
+                        className="group sber-card text-left flex flex-col h-full"
                       >
-                        <div className="relative z-10">
-                          <div className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-6 group-hover:text-rose-500 transition-colors">
-                            Сценарий {scenario.id}
+                        <div className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 group-hover:text-rose-500 transition-colors">
+                          Сценарий {scenario.id}
+                        </div>
+                        <h3 className="text-xl font-semibold text-fg mb-3 group-hover:text-rose-500 transition-colors leading-tight tracking-tight">
+                          {scenario.title}
+                        </h3>
+                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
+                          {scenario.description}
+                        </p>
+                        <div className="mt-6 pt-6 border-t border-border flex items-center justify-between">
+                          <div className="w-10 h-10 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all">
+                            {scenario.icon}
                           </div>
-                          <h3 className="text-2xl font-black text-fg mb-4 group-hover:text-rose-500 transition-colors font-display leading-tight">
-                            {scenario.title}
-                          </h3>
-                          <p className="text-muted text-sm font-medium leading-relaxed flex-grow">
-                            {scenario.description}
-                          </p>
-                          <div className="mt-10 flex items-center gap-2 text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0">
-                            Начать сессию <ChevronRight className="w-4 h-4" />
+                          <div className="text-rose-500 font-bold text-[10px] uppercase tracking-[0.1em] group-hover:translate-x-1 transition-transform">
+                            Начать <ChevronRight className="w-3 h-3 inline" />
                           </div>
                         </div>
                       </motion.button>
@@ -953,32 +947,28 @@ export default function App() {
           ) : feedback ? (
             <motion.div 
               key="feedback"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="glass-panel rounded-[3rem] shadow-2xl overflow-hidden max-w-5xl mx-auto"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="sber-card max-w-4xl mx-auto overflow-hidden !p-0"
             >
-              <div className="bg-vibrant-gradient p-16 text-white text-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
-                  <div className="absolute -top-20 -left-20 w-96 h-96 bg-white rounded-full blur-[120px]" />
-                  <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-white rounded-full blur-[120px]" />
-                </div>
+              <div className="bg-accent p-12 text-white text-center relative">
                 <div className="relative z-10">
                   <motion.div 
-                    initial={{ scale: 0, rotate: -20 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    className="inline-flex items-center justify-center w-28 h-28 bg-white/20 rounded-[2.5rem] mb-8 backdrop-blur-md border border-white/30 shadow-2xl"
+                    initial={{ scale: 0.9 }}
+                    animate={{ scale: 1 }}
+                    className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-2xl mb-6 backdrop-blur-md border border-white/30"
                   >
-                    <Star className="w-14 h-14 fill-white" />
+                    <Star className="w-10 h-10 fill-white" />
                   </motion.div>
-                  <h2 className="text-5xl font-black mb-4 tracking-tighter font-display">Анализ завершен</h2>
-                  <div className="text-8xl font-black mb-4 drop-shadow-2xl">{feedback.score}<span className="text-4xl opacity-60">/10</span></div>
-                  <p className="text-white/70 font-bold uppercase tracking-[0.4em] text-[10px]">Ваш итоговый балл</p>
+                  <h2 className="text-2xl font-semibold mb-4 tracking-tight">Анализ завершен</h2>
+                  <div className="text-6xl font-bold mb-4">{feedback.score}<span className="text-2xl opacity-60">/10</span></div>
+                  <p className="text-white/70 font-bold uppercase tracking-[0.3em] text-[10px]">Ваш итоговый балл</p>
                 </div>
               </div>
 
-              <div className="p-16 space-y-16">
+              <div className="p-10 space-y-12">
                 {feedback.metrics && (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {[
                       { label: 'Вежливость', val: feedback.metrics.politeness },
                       { label: 'Тактичность', val: feedback.metrics.tact },
@@ -986,26 +976,26 @@ export default function App() {
                       { label: 'Уважение', val: feedback.metrics.respect },
                       { label: 'Скорость', val: feedback.metrics.speed, suffix: 'с' },
                     ].map((m, i) => (
-                      <div key={i} className="bg-card p-6 rounded-[2rem] border border-border text-center shadow-sm">
-                        <div className="text-muted text-[10px] font-black uppercase tracking-[0.2em] mb-2">
+                      <div key={i} className="bg-bg border border-border p-5 rounded-2xl text-center">
+                        <div className="text-muted text-[9px] font-bold uppercase tracking-[0.2em] mb-2">
                           {m.label}
                         </div>
-                        <div className="text-3xl font-black text-fg">{m.val}{m.suffix}</div>
+                        <div className="text-xl font-bold text-fg tracking-tight">{m.val}{m.suffix}</div>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative">
-                  <div className="space-y-6">
-                    <h3 className="text-xs font-black text-muted uppercase tracking-[0.3em] flex items-center gap-3">
-                      <div className="w-6 h-[1px] bg-accent" />
-                      Ваши сильные стороны
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] flex items-center gap-2">
+                      <div className="w-4 h-[1px] bg-accent" />
+                      Сильные стороны
                     </h3>
-                    <ul className="space-y-4">
+                    <ul className="space-y-3">
                       {feedback.strengths.map((s, i) => (
-                        <li key={i} className="flex gap-4 text-fg/80 text-base bg-accent/5 p-5 rounded-2xl border border-accent/10">
-                          <span className="font-black text-accent">{i + 1}.</span>
+                        <li key={i} className="flex gap-4 text-sm text-fg/90 bg-accent/5 p-5 rounded-xl border border-accent/10 font-medium">
+                          <span className="font-bold text-accent">{i + 1}.</span>
                           {s}
                         </li>
                       ))}
@@ -1014,32 +1004,32 @@ export default function App() {
 
                   <div className="relative">
                     {!feedback.isUnlocked && (
-                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-8 glass-panel rounded-[2.5rem] shadow-2xl">
-                        <div className="w-16 h-16 bg-accent text-white rounded-[1.5rem] flex items-center justify-center mb-6 shadow-xl shadow-accent/20">
-                          <Zap className="w-8 h-8" />
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-card/80 backdrop-blur-sm rounded-2xl border border-border">
+                        <div className="w-12 h-12 bg-accent text-white rounded-xl flex items-center justify-center mb-4">
+                          <Zap className="w-6 h-6" />
                         </div>
-                        <h4 className="text-2xl font-black text-fg mb-2 tracking-tight">Глубокий разбор</h4>
-                        <p className="text-sm text-muted mb-8 max-w-[240px] leading-relaxed">
-                          Узнайте скрытые ошибки, психологические триггеры и получите персональный план роста
+                        <h4 className="text-lg font-bold text-fg mb-1 tracking-tight">Глубокий разбор</h4>
+                        <p className="text-xs text-muted mb-6 max-w-[200px] leading-relaxed">
+                          Узнайте скрытые ошибки и получите план роста
                         </p>
                         <button 
                           onClick={() => setFeedback({...feedback, isUnlocked: true})}
-                          className="w-full py-5 bg-accent text-white font-black rounded-2xl shadow-2xl shadow-accent/20 hover:bg-emerald-600 transition-all active:scale-95 uppercase tracking-[0.2em] text-xs"
+                          className="sber-button w-full py-3 text-sm"
                         >
                           Открыть за 199₽
                         </button>
                       </div>
                     )}
                     
-                    <div className={cn("space-y-6", !feedback.isUnlocked && "blur-xl select-none")}>
-                      <h3 className="text-xs font-black text-muted uppercase tracking-[0.3em] flex items-center gap-3">
-                        <div className="w-6 h-[1px] bg-amber-500" />
-                        Зоны роста и ошибки
+                    <div className={cn("space-y-4", !feedback.isUnlocked && "blur-md select-none")}>
+                      <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] flex items-center gap-2">
+                        <div className="w-4 h-[1px] bg-amber-500" />
+                        Зоны роста
                       </h3>
-                      <ul className="space-y-4">
+                      <ul className="space-y-3">
                         {feedback.improvements.map((s, i) => (
-                          <li key={i} className="flex gap-4 text-fg/80 text-base bg-amber-500/5 p-5 rounded-2xl border border-amber-500/10">
-                            <span className="font-black text-amber-500">{i + 1}.</span>
+                          <li key={i} className="flex gap-4 text-sm text-fg/90 bg-amber-500/5 p-5 rounded-xl border border-amber-500/10 font-medium">
+                            <span className="font-bold text-amber-500">{i + 1}.</span>
                             {s}
                           </li>
                         ))}
@@ -1051,35 +1041,35 @@ export default function App() {
                 <div className="relative">
                   {!feedback.isUnlocked && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center">
-                      <div className="bg-card/90 px-6 py-3 rounded-full border border-border shadow-2xl flex items-center gap-3">
-                        <Lock className="w-4 h-4 text-accent" />
-                        <span className="text-xs font-black text-accent uppercase tracking-[0.2em]">Резюме наставника скрыто</span>
+                      <div className="bg-card px-4 py-2 rounded-full border border-border shadow-lg flex items-center gap-2">
+                        <Lock className="w-3 h-3 text-accent" />
+                        <span className="text-[9px] font-bold text-accent uppercase tracking-[0.1em]">Резюме скрыто</span>
                       </div>
                     </div>
                   )}
                   <div className={cn(
-                    "bg-card p-10 rounded-[2.5rem] border border-border transition-all duration-1000",
-                    !feedback.isUnlocked && "blur-[30px] grayscale opacity-30"
+                    "bg-bg p-6 rounded-2xl border border-border transition-all duration-500",
+                    !feedback.isUnlocked && "blur-md opacity-30"
                   )}>
-                    <h3 className="text-xs font-black text-muted uppercase tracking-[0.3em] mb-6">
+                    <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mb-4">
                       Резюме наставника
                     </h3>
-                    <p className="text-xl text-fg/90 leading-relaxed italic font-light">
+                    <p className="text-lg text-fg/90 leading-relaxed italic font-medium">
                       "{feedback.summary}"
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-6">
+                <div className="flex gap-4">
                   <button 
                     onClick={reset}
-                    className="flex-1 bg-accent text-white font-black py-6 rounded-2xl shadow-2xl shadow-accent/20 hover:bg-emerald-600 transition-all active:scale-95 uppercase tracking-[0.2em]"
+                    className="sber-button flex-1"
                   >
                     Новая тренировка
                   </button>
                   <button 
                     onClick={() => setFeedback(null)}
-                    className="px-10 bg-card border border-border text-muted font-black rounded-2xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.2em] text-xs"
+                    className="px-8 bg-bg border border-border text-muted font-bold rounded-xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.1em] text-[10px]"
                   >
                     Диалог
                   </button>
@@ -1089,20 +1079,20 @@ export default function App() {
           ) : (
             <motion.div 
               key="chat"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col h-[calc(100vh-220px)] glass-panel rounded-[3rem] border border-border shadow-2xl overflow-hidden"
+              className="flex flex-col h-[calc(100vh-180px)] sber-card overflow-hidden !p-0"
             >
-              <div className="bg-card border-b border-border px-10 py-8 flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <div className="w-14 h-14 bg-accent/10 rounded-2xl flex items-center justify-center text-accent border border-accent/20">
-                    <User className="w-7 h-7" />
+              <div className="bg-card border-b border-border px-8 py-6 flex items-center justify-between backdrop-blur-md">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center text-accent border border-accent/20">
+                    <User className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-fg tracking-tight leading-tight">{selectedScenario.title}</h3>
+                    <h3 className="text-lg font-semibold text-fg tracking-tight leading-tight">{selectedScenario.title}</h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                      <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">В сети</span>
+                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                      <span className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">В сети</span>
                     </div>
                   </div>
                 </div>
@@ -1110,8 +1100,8 @@ export default function App() {
                   onClick={handleFinish}
                   disabled={isAnalyzing || messages.length < 3}
                   className={cn(
-                    "px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] transition-all flex items-center gap-3 shadow-xl",
-                    isAnalyzing ? "bg-border text-muted" : "bg-accent text-white hover:bg-emerald-600 shadow-accent/20"
+                    "px-6 py-3 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center gap-3 active:scale-95",
+                    isAnalyzing ? "bg-bg text-muted" : "sber-button"
                   )}
                 >
                   {isAnalyzing ? (
@@ -1130,23 +1120,23 @@ export default function App() {
 
               <div 
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-10 space-y-10 scroll-smooth"
+                className="flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth bg-bg/30"
               >
                 {messages.map((m, i) => (
                   <motion.div
                     key={i}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     className={cn(
-                      "flex flex-col max-w-[80%]",
+                      "flex flex-col max-w-[85%]",
                       m.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
                     )}
                   >
                     <div className={cn(
-                      "px-8 py-6 rounded-[2rem] text-base leading-relaxed shadow-sm",
+                      "p-5 rounded-2xl text-sm leading-relaxed font-medium",
                       m.role === 'user' 
-                        ? "bg-accent text-white rounded-tr-none shadow-accent/10" 
-                        : "bg-card text-fg rounded-tl-none border border-border"
+                        ? "bg-accent text-white rounded-tr-none" 
+                        : "bg-card border border-border text-fg rounded-tl-none"
                     )}>
                       <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-inherit dark:prose-invert">
                         <ReactMarkdown>
@@ -1154,24 +1144,24 @@ export default function App() {
                         </ReactMarkdown>
                       </div>
                     </div>
-                    <span className="text-[9px] font-black text-muted mt-3 uppercase tracking-[0.2em]">
+                    <span className="text-[9px] font-bold text-muted mt-2 uppercase tracking-[0.2em] px-2">
                       {m.role === 'user' ? 'Вы' : selectedScenario.title} • {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </motion.div>
                 ))}
                 {isLoading && (
-                  <div className="flex flex-col mr-auto items-start w-full max-w-[80%]">
-                    <div className="bg-card px-8 py-6 rounded-[2rem] rounded-tl-none border border-border w-full">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                        <span className="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Вера печатает...</span>
+                  <div className="flex flex-col mr-auto items-start w-full max-w-[85%]">
+                    <div className="bg-card px-6 py-4 rounded-2xl rounded-tl-none border border-border w-full">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
+                        <span className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">Вера печатает...</span>
                       </div>
-                      <div className="h-[2px] w-full bg-border rounded-full overflow-hidden">
+                      <div className="h-[1.5px] w-full bg-border rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: "0%" }}
                           animate={{ width: "100%" }}
                           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="h-full bg-vibrant-gradient rounded-full"
+                          className="h-full bg-accent rounded-full"
                         />
                       </div>
                     </div>
@@ -1180,12 +1170,12 @@ export default function App() {
 
                 {options.length > 0 && !isLoading && (
                   <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="space-y-3 pt-4 border-t border-gray-50"
+                    className="space-y-4 pt-8 border-t border-border"
                   >
-                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                      <BarChart3 className="w-3 h-3" />
+                    <div className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] flex items-center gap-2">
+                      <BarChart3 className="w-3.5 h-3.5 text-accent" />
                       Выберите вариант ответа:
                     </div>
                     <div className="grid grid-cols-1 gap-3">
@@ -1193,17 +1183,17 @@ export default function App() {
                         <button
                           key={i}
                           onClick={() => handleOptionSelect(opt)}
-                          className="group relative bg-white border border-gray-200 p-4 rounded-2xl text-left hover:border-emerald-500 hover:shadow-lg transition-all"
+                          className="group sber-card !p-5 text-left hover:border-accent/50 transition-all"
                         >
-                          <div className="text-[15px] text-gray-800 mb-2 font-medium">{opt.text}</div>
+                          <div className="text-sm text-fg mb-2 font-medium leading-relaxed group-hover:text-accent transition-colors">{opt.text}</div>
                           <div className="flex items-center justify-between">
-                            <div className="text-[11px] text-gray-400 italic group-hover:text-emerald-600 transition-colors">
+                            <div className="text-[10px] text-muted font-medium italic group-hover:text-fg transition-colors opacity-60">
                               {opt.explanation}
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-3">
                               {Object.entries(opt.metrics).map(([key, val]) => (
-                                <div key={key} className="flex items-center gap-0.5 text-[9px] font-bold text-gray-400">
-                                  <div className="w-1 h-1 rounded-full bg-emerald-500" style={{ opacity: val / 10 }} />
+                                <div key={key} className="flex items-center gap-1 text-[9px] font-bold text-muted">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-accent" style={{ opacity: val / 10 }} />
                                   {val}
                                 </div>
                               ))}
@@ -1229,24 +1219,24 @@ export default function App() {
                         }
                       }}
                       placeholder="Напишите ваш ответ..."
-                      className="flex-1 bg-bg border border-border p-6 rounded-2xl outline-none focus:ring-2 focus:ring-accent transition-all text-fg font-medium resize-none h-[72px]"
+                      className="flex-1 bg-bg border border-border p-4 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium resize-none h-[64px] placeholder:text-muted/30"
                     />
                     <button 
                       onClick={() => handleSend()}
                       disabled={!input.trim() || isLoading}
-                      className="w-14 h-14 bg-accent text-white rounded-2xl flex items-center justify-center shadow-xl shadow-accent/20 hover:bg-emerald-600 transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
+                      className="w-16 h-16 bg-accent text-white rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 hover:bg-brand-secondary transition-all active:scale-95 disabled:opacity-50"
                     >
                       <Send className="w-6 h-6" />
                     </button>
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <p className="text-xs font-black text-muted uppercase tracking-[0.3em]">
+                    <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">
                       Выберите один из вариантов выше, чтобы продолжить
                     </p>
                   </div>
                 )}
-                <p className="text-[10px] text-muted text-center mt-4 font-black uppercase tracking-[0.3em] opacity-50">
+                <p className="text-[9px] text-muted text-center mt-4 font-bold uppercase tracking-[0.2em] opacity-40">
                   {selectedScenario.mode === 'chat' ? 'Shift + Enter для новой строки' : 'Анализируйте варианты перед выбором'}
                 </p>
               </div>
