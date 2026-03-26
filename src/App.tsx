@@ -185,49 +185,51 @@ export default function App() {
   // Firebase Auth & Profile
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        try {
-          const docRef = doc(db, 'users', currentUser.uid);
-          const docSnap = await getDoc(docRef);
-          const isAdminEmail = currentUser.email === 'arunavsharmanaba@gmail.com';
-          
-          if (docSnap.exists()) {
-            const profile = docSnap.data() as UserProfile;
-            if (isAdminEmail && profile.role !== 'admin') {
-              profile.role = 'admin';
+      try {
+        setUser(currentUser);
+        if (currentUser) {
+          try {
+            const docRef = doc(db, 'users', currentUser.uid);
+            const docSnap = await getDoc(docRef);
+            const isAdminEmail = currentUser.email === 'arunavsharmanaba@gmail.com';
+            
+            if (docSnap.exists()) {
+              const profile = docSnap.data() as UserProfile;
+              if (isAdminEmail && profile.role !== 'admin') {
+                profile.role = 'admin';
+                try {
+                  await updateDoc(docRef, { role: 'admin' });
+                } catch (e) {
+                  handleFirestoreError(e, 'update', `users/${currentUser.uid}`);
+                }
+              }
+              setUserProfile(profile);
+            } else {
+              // Create profile if it doesn't exist
+              const newProfile: UserProfile = {
+                uid: currentUser.uid,
+                email: currentUser.email || '',
+                role: isAdminEmail ? 'admin' : 'user',
+                createdAt: Timestamp.now() as any
+              };
               try {
-                await updateDoc(docRef, { role: 'admin' });
+                await setDoc(docRef, newProfile);
+                setUserProfile(newProfile);
               } catch (e) {
-                handleFirestoreError(e, 'update', `users/${currentUser.uid}`);
+                handleFirestoreError(e, 'create', `users/${currentUser.uid}`);
               }
             }
-            setUserProfile(profile);
-          } else {
-            // Create profile if it doesn't exist
-            const newProfile: UserProfile = {
-              uid: currentUser.uid,
-              email: currentUser.email || '',
-              role: isAdminEmail ? 'admin' : 'user',
-              createdAt: Timestamp.now() as any // Cast to any to match type if needed, but rules expect timestamp
-            };
-            try {
-              await setDoc(docRef, newProfile);
-              setUserProfile(newProfile);
-            } catch (e) {
-              handleFirestoreError(e, 'create', `users/${currentUser.uid}`);
-            }
+          } catch (error) {
+            console.error("Error fetching user profile:", error);
+            // We don't want to throw here and block the UI from loading
+            // But we can log it for diagnosis
           }
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
-          if (error instanceof Error && error.message.includes('permission')) {
-             handleFirestoreError(error, 'get', `users/${currentUser?.uid}`);
-          }
+        } else {
+          setUserProfile(null);
         }
-      } else {
-        setUserProfile(null);
+      } finally {
+        setIsAuthLoading(false);
       }
-      setIsAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -1613,74 +1615,6 @@ export default function App() {
               </div>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* User Agreement Modal */}
-      <AnimatePresence>
-        {showAgreement && (
-          <div className="fixed inset-0 z-[130] flex items-center justify-center p-6 sm:p-12">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowAgreement(false)}
-              className="absolute inset-0 bg-bg/80 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="glass-card w-full max-w-2xl relative overflow-hidden"
-            >
-              <div className="flex items-center justify-between mb-10">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
-                    <ShieldCheck className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-2xl font-serif text-fg tracking-tight">Пользовательское соглашение</h3>
-                </div>
-                <button 
-                  onClick={() => setShowAgreement(false)}
-                  className="p-3 text-muted hover:text-accent transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="space-y-8 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
-                <div className="space-y-6 text-muted/90 font-medium leading-relaxed">
-                  <p className="text-lg text-fg font-serif italic">
-                    Добро пожаловать в приложение «Вера +1».
-                  </p>
-                  <p>
-                    1. Приложение носит исключительно развлекательный и образовательный характер. Оно предназначено для тренировки навыков общения и не является источником догматических истин.
-                  </p>
-                  <p>
-                    2. Искусственный интеллект, используемый в приложении, может генерировать неточную или ошибочную информацию. Ответы ИИ не являются официальной позицией какой-либо религиозной организации.
-                  </p>
-                  <p>
-                    3. Приложение не заменяет живого общения с духовным наставником или священнослужителем. В сложных жизненных ситуациях мы рекомендуем обращаться за личной консультацией.
-                  </p>
-                  <p>
-                    4. Используя приложение, вы подтверждаете, что несете полную ответственность за свои личные решения и действия, предпринятые на основе диалогов в приложении.
-                  </p>
-                  <p>
-                    5. Мы уважаем вашу конфиденциальность. Данные диалогов используются только для улучшения качества работы ИИ и вашего личного прогресса.
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-10">
-                <button 
-                  onClick={() => setShowAgreement(false)}
-                  className="sber-button w-full py-5"
-                >
-                  Я принимаю условия
-                </button>
-              </div>
-            </motion.div>
-          </div>
         )}
       </AnimatePresence>
 
