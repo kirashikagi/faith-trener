@@ -70,6 +70,8 @@ export interface UserProfile {
   displayName?: string;
   role: 'user' | 'admin';
   createdAt: number;
+  isSubscribed?: boolean;
+  subscriptionExpiresAt?: number;
 }
 
 export interface FeedbackSubmission {
@@ -77,7 +79,16 @@ export interface FeedbackSubmission {
   uid: string;
   email?: string;
   message: string;
+  type: 'general' | 'ai_feedback';
   createdAt: number;
+}
+
+export interface LibraryArticle {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  isPremium: boolean;
 }
 
 export interface SessionRecord {

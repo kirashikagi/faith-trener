@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Brain, 
   HeartOff, 
@@ -28,18 +28,25 @@ import {
   ThumbsUp,
   Shield,
   Flag,
+  LogOut,
+  History,
+  BookOpen,
+  Sparkles,
+  ArrowRight,
+  Lock,
+  X,
+  Crown,
+  Check,
   Sun,
   Moon,
   Smile,
   Heart,
   LogIn,
   UserPlus,
-  LogOut,
   Settings,
   ShieldCheck,
   Mail,
-  Lock,
-  MessageCircle
+  MessageCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -65,12 +72,13 @@ import {
   getDocs, 
   orderBy,
   Timestamp,
-  getDocFromServer
+  getDocFromServer,
+  updateDoc
 } from 'firebase/firestore';
 
 import { auth, db } from './firebase';
-import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission } from './types';
-import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY } from './constants';
+import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle } from './types';
+import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, DAILY_VERSES, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
 import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
 
 function cn(...inputs: ClassValue[]) {
@@ -84,6 +92,16 @@ const AchievementIcons: Record<string, React.ReactNode> = {
   Heart: <Heart className="w-6 h-6" />,
   Zap: <Zap className="w-6 h-6" />,
   Smile: <Smile className="w-6 h-6" />,
+};
+
+const ScenarioIcons: Record<string, React.ReactNode> = {
+  Brain: <Brain className="w-6 h-6" />,
+  HeartOff: <HeartOff className="w-6 h-6" />,
+  Compass: <Compass className="w-6 h-6" />,
+  ShieldAlert: <ShieldAlert className="w-6 h-6" />,
+  Zap: <Zap className="w-6 h-6" />,
+  UserX: <UserX className="w-6 h-6" />,
+  MessageSquareX: <MessageSquareX className="w-6 h-6" />,
 };
 
 export default function App() {
@@ -117,9 +135,13 @@ export default function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [showIntro, setShowIntro] = useState(true);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<'general' | 'ai_feedback'>('general');
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [adminFeedback, setAdminFeedback] = useState<FeedbackSubmission[]>([]);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
+  const [showAgreement, setShowAgreement] = useState(false);
 
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -129,7 +151,37 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [options, setOptions] = useState<ResponseOption[]>([]);
   const [showStats, setShowStats] = useState(false);
+
+  const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
+
+  const dailyVerse = useMemo(() => {
+    const day = new Date().getDate();
+    return DAILY_VERSES[(day - 1) % DAILY_VERSES.length];
+  }, []);
   
+  const handleFirestoreError = (error: unknown, operation: string, path: string) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+        isAnonymous: auth.currentUser?.isAnonymous,
+        tenantId: auth.currentUser?.tenantId,
+        providerInfo: auth.currentUser?.providerData.map(p => ({
+          providerId: p.providerId,
+          displayName: p.displayName,
+          email: p.email,
+          photoUrl: p.photoURL
+        })) || []
+      },
+      operationType: operation,
+      path
+    };
+    console.error(`Firestore Error [${operation}]:`, JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+  };
+
   // Firebase Auth & Profile
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -144,7 +196,11 @@ export default function App() {
             const profile = docSnap.data() as UserProfile;
             if (isAdminEmail && profile.role !== 'admin') {
               profile.role = 'admin';
-              await setDoc(docRef, { role: 'admin' }, { merge: true });
+              try {
+                await updateDoc(docRef, { role: 'admin' });
+              } catch (e) {
+                handleFirestoreError(e, 'update', `users/${currentUser.uid}`);
+              }
             }
             setUserProfile(profile);
           } else {
@@ -153,13 +209,20 @@ export default function App() {
               uid: currentUser.uid,
               email: currentUser.email || '',
               role: isAdminEmail ? 'admin' : 'user',
-              createdAt: Date.now()
+              createdAt: Timestamp.now() as any // Cast to any to match type if needed, but rules expect timestamp
             };
-            await setDoc(docRef, newProfile);
-            setUserProfile(newProfile);
+            try {
+              await setDoc(docRef, newProfile);
+              setUserProfile(newProfile);
+            } catch (e) {
+              handleFirestoreError(e, 'create', `users/${currentUser.uid}`);
+            }
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
+          if (error instanceof Error && error.message.includes('permission')) {
+             handleFirestoreError(error, 'get', `users/${currentUser?.uid}`);
+          }
         }
       } else {
         setUserProfile(null);
@@ -186,11 +249,15 @@ export default function App() {
           uid: newUser.uid,
           email: newUser.email || '',
           role: isAdminEmail ? 'admin' : 'user',
-          createdAt: Date.now(),
+          createdAt: Timestamp.now() as any,
           displayName: email // Store the original name
         };
-        await setDoc(doc(db, 'users', newUser.uid), newProfile);
-        setUserProfile(newProfile);
+        try {
+          await setDoc(doc(db, 'users', newUser.uid), newProfile);
+          setUserProfile(newProfile);
+        } catch (e) {
+          handleFirestoreError(e, 'create', `users/${newUser.uid}`);
+        }
       }
     } catch (error: any) {
       if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
@@ -217,13 +284,34 @@ export default function App() {
         uid: user.uid,
         email: user.email,
         message: feedbackMessage,
+        type: feedbackType,
         createdAt: Timestamp.now()
       });
       setFeedbackMessage('');
+      setFeedbackType('general');
       setShowFeedbackForm(false);
       alert("Спасибо за отзыв! Мы обязательно его прочтем.");
     } catch (error) {
       console.error("Error submitting feedback:", error);
+    }
+  };
+
+  const buySubscription = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        isSubscribed: true,
+        subscriptionExpiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+      });
+      setUserProfile(prev => prev ? { ...prev, isSubscribed: true } : null);
+      setShowSubscription(false);
+      alert("Подписка успешно оформлена!");
+    } catch (error) {
+      console.error("Error buying subscription:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -562,7 +650,18 @@ export default function App() {
           )}
           
           <button 
-            onClick={() => setShowFeedbackForm(true)}
+            onClick={() => setShowLibrary(true)}
+            className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
+            title="Библиотека знаний"
+          >
+            <BookOpen className="w-5 h-5" />
+          </button>
+
+          <button 
+            onClick={() => {
+              setFeedbackType('general');
+              setShowFeedbackForm(true);
+            }}
             className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
             title="Обратная связь"
           >
@@ -617,8 +716,8 @@ export default function App() {
               >
                 <MessageCircle className="w-7 h-7" />
               </motion.div>
-              <h2 className="text-2xl font-semibold text-fg tracking-tight">Вера +1</h2>
-              <p className="text-muted text-sm font-medium leading-relaxed max-w-[240px] mx-auto">
+              <h2 className="text-4xl font-serif text-fg tracking-normal">Вера +1</h2>
+              <p className="text-muted text-sm font-medium leading-relaxed max-w-[240px] mx-auto italic">
                 Интеллектуальный тренажер <br/> духовного общения
               </p>
             </div>
@@ -675,53 +774,98 @@ export default function App() {
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="sber-card max-w-4xl mx-auto overflow-hidden"
+            className="sber-card max-w-4xl mx-auto overflow-hidden !p-0"
           >
-            <div className="bg-accent p-12 text-white text-center relative">
-              <div className="relative z-10 space-y-2">
-                <h2 className="text-3xl font-semibold tracking-tight">{PHILOSOPHY.title}</h2>
-                <p className="text-white/70 text-[10px] font-bold uppercase tracking-[0.3em]">The Art of Spiritual Communication</p>
+            <div className="bg-accent/5 p-16 text-center relative border-b border-border">
+              <div className="relative z-10 space-y-4">
+                <h2 className="text-5xl font-serif text-accent tracking-normal">{PHILOSOPHY.title}</h2>
+                <p className="text-accent/60 text-[11px] font-bold uppercase tracking-[0.4em]">Искусство духовного общения</p>
               </div>
             </div>
-            <div className="p-10 space-y-12">
-              <div className="max-w-2xl mx-auto">
-                <p className="text-lg text-fg/80 leading-relaxed font-medium text-center italic">
+            <div className="p-10 sm:p-20 space-y-20">
+              <div className="max-w-3xl mx-auto space-y-12">
+                <motion.p 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-4xl sm:text-5xl text-fg leading-snug font-serif italic tracking-normal text-center"
+                >
                   «Слово ваше да будет всегда с благодатию, приправлено солью, чтобы вы знали, как отвечать каждому» (Кол. 4:6)
-                </p>
+                </motion.p>
+                <div className="text-xl text-muted/90 text-center leading-relaxed max-w-2xl mx-auto font-medium">
+                  {PHILOSOPHY.content}
+                </div>
               </div>
               
-              <div className="space-y-6">
-                <div className="flex items-center gap-4">
+              <div className="space-y-12">
+                <div className="flex items-center gap-8">
                   <div className="h-[1px] flex-1 bg-border" />
-                  <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">
-                    Механика обучения
+                  <h3 className="text-[11px] font-bold text-muted uppercase tracking-[0.5em] whitespace-nowrap">
+                    Путь обучения
                   </h3>
                   <div className="h-[1px] flex-1 bg-border" />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {PHILOSOPHY.instruction.map((text, i) => (
-                    <div key={i} className="flex gap-5 p-6 bg-bg border border-border rounded-2xl hover:border-accent/30 transition-all group">
-                      <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center font-bold shrink-0 group-hover:bg-accent group-hover:text-white transition-all">
-                        {i + 1}
-                      </div>
-                      <p className="text-sm text-muted font-medium leading-relaxed group-hover:text-fg transition-colors">{text}</p>
-                    </div>
-                  ))}
+                
+                <div className="grid grid-cols-1 gap-12">
+                  <div className="text-center space-y-8">
+                    {PHILOSOPHY.instruction.map((text, i) => (
+                      <motion.div 
+                        key={i} 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 + i * 0.1 }}
+                        className="max-w-2xl mx-auto"
+                      >
+                        <p className="text-2xl text-fg/80 font-serif italic leading-relaxed">
+                          <span className="text-accent font-sans not-italic font-bold mr-4 opacity-40">{i + 1}.</span>
+                          {text}
+                        </p>
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <button 
-                onClick={() => setShowIntro(false)}
-                className="sber-button w-full max-w-xs mx-auto block text-lg"
-              >
-                Начать обучение
-              </button>
+              <div className="flex flex-col items-center gap-8">
+                <div className="flex flex-col items-center gap-4">
+                  <button 
+                    onClick={() => setShowIntro(false)}
+                    className="sber-button px-20 py-7 text-xl shadow-2xl shadow-accent/10"
+                  >
+                    Начать обучение
+                  </button>
+                  <p className="text-[10px] text-muted/60 text-center uppercase tracking-[0.2em] font-bold max-w-[300px] leading-relaxed">
+                    Нажимая кнопку, вы принимаете <br/>
+                    <button 
+                      onClick={() => setShowAgreement(true)} 
+                      className="text-accent hover:text-accent/80 transition-colors underline underline-offset-4"
+                    >
+                      пользовательское соглашение
+                    </button>
+                  </p>
+                </div>
+
+                <div className="w-full pt-16 border-t border-border flex flex-col items-center gap-10">
+                  <button 
+                    onClick={() => setShowAgreement(true)}
+                    className="text-[11px] text-muted hover:text-accent transition-colors uppercase tracking-[0.4em] font-bold border-b border-muted/20 pb-1"
+                  >
+                    Пользовательское соглашение
+                  </button>
+                  
+                  <div className="text-[11px] text-muted/50 text-center font-sans space-y-3 uppercase tracking-[0.2em]">
+                    <div>Реквизиты налогоплательщика:</div>
+                    <div className="font-bold text-muted/70">ИНН: [ВАШ_ИНН] • ОГРНИП: [ВАШ_ОГРНИП]</div>
+                    <div>г. Москва, Российская Федерация</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </motion.div>
         ) : showAdmin ? (
           <div className="space-y-10 max-w-4xl mx-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-semibold text-fg tracking-tight">Панель администратора</h2>
+              <h2 className="text-4xl font-serif text-fg tracking-tight">Панель администратора</h2>
               <button 
                 onClick={() => setShowAdmin(false)} 
                 className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm uppercase tracking-[0.1em] text-[10px] font-bold"
@@ -785,7 +929,7 @@ export default function App() {
               className="space-y-10 max-w-4xl mx-auto"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-semibold text-fg tracking-tight">Ваш путь</h2>
+                <h2 className="text-4xl font-serif text-fg tracking-tight">Ваш путь</h2>
                 <button 
                   onClick={() => setShowStats(false)} 
                   className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm uppercase tracking-[0.1em] text-[10px] font-bold"
@@ -815,29 +959,74 @@ export default function App() {
                   <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Достижения</h3>
                   <div className="h-[1px] flex-1 bg-border" />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {stats.achievements.map(a => (
-                    <div 
-                      key={a.id} 
-                      className={cn(
-                        "flex items-center gap-5 p-6 rounded-2xl border transition-all relative overflow-hidden",
-                        a.unlocked 
-                          ? "bg-card border-accent/20 shadow-sm" 
-                          : "bg-bg border-border opacity-40 grayscale"
-                      )}
-                    >
-                      <div className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                        a.unlocked ? "bg-accent text-white" : "bg-muted/10 text-muted"
-                      )}>
-                        <div className="scale-110">{AchievementIcons[a.icon]}</div>
+                
+                <div className="relative">
+                  {!isSubscribed && (
+                    <div className="absolute inset-0 bg-bg/60 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-12 text-center rounded-[2.5rem] border border-border/50">
+                      <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
+                        <Lock className="w-8 h-8" />
                       </div>
-                      <div>
-                        <div className="font-bold text-fg text-base tracking-tight">{a.title}</div>
-                        <div className="text-muted text-[10px] font-medium mt-1 uppercase tracking-tight">{a.description}</div>
-                      </div>
+                      <h4 className="text-xl font-bold text-fg mb-3 tracking-tight">Достижения доступны в Премиум</h4>
+                      <p className="text-muted text-sm max-w-xs mb-8 font-medium">Оформите подписку, чтобы видеть свои награды и цели.</p>
+                      <button 
+                        onClick={() => setShowSubscription(true)}
+                        className="sber-button"
+                      >
+                        Узнать больше
+                      </button>
                     </div>
-                  ))}
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {stats.achievements.map((achievement) => (
+                      <div 
+                        key={achievement.id} 
+                        className={cn(
+                          "sber-card !p-6 flex flex-col items-center text-center gap-3 transition-all",
+                          achievement.unlocked ? "border-accent/30 bg-accent/5" : "opacity-40 grayscale"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-12 h-12 rounded-xl flex items-center justify-center border",
+                          achievement.unlocked ? "bg-accent text-white border-accent/20" : "bg-bg text-muted border-border"
+                        )}>
+                          {AchievementIcons[achievement.icon]}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[11px] font-bold text-fg tracking-tight leading-tight">{achievement.title}</div>
+                          <div className="text-[9px] text-muted font-medium leading-tight">{achievement.description}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-[1px] flex-1 bg-border" />
+                  <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">История сессий</h3>
+                  <div className="h-[1px] flex-1 bg-border" />
+                </div>
+                
+                <div className="relative">
+                  {!isSubscribed && (
+                    <div className="absolute inset-0 bg-bg/60 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-12 text-center rounded-[2.5rem] border border-border/50">
+                      <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
+                        <Lock className="w-8 h-8" />
+                      </div>
+                      <h4 className="text-xl font-bold text-fg mb-3 tracking-tight">История доступна в Премиум</h4>
+                      <p className="text-muted text-sm max-w-xs mb-8 font-medium">Оформите подписку, чтобы отслеживать свой прогресс и анализировать прошлые диалоги.</p>
+                      <button 
+                        onClick={() => setShowSubscription(true)}
+                        className="sber-button"
+                      >
+                        Узнать больше
+                      </button>
+                    </div>
+                  )}
+                  <div className="sber-card p-16 text-center text-muted font-medium italic opacity-60">
+                    Здесь будет отображаться история ваших тренировок
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -851,15 +1040,29 @@ export default function App() {
             >
               <div className="text-center space-y-4 max-w-2xl mx-auto mb-12">
                 <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="glass-card bg-accent/5 border-accent/20 mb-16 relative overflow-hidden group"
+                >
+                  <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform">
+                    <Sparkles className="w-20 h-20 text-accent" />
+                  </div>
+                  <div className="text-[11px] font-bold text-accent uppercase tracking-[0.4em] mb-6">Слово дня</div>
+                  <p className="text-2xl sm:text-3xl font-medium text-fg italic leading-tight tracking-tight">
+                    {dailyVerse}
+                  </p>
+                </motion.div>
+
+                <motion.div
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="inline-block px-3 py-1 bg-accent/10 text-accent rounded-full text-[9px] font-bold uppercase tracking-[0.2em] mb-2"
                 >
                   Интеллектуальный тренажер
                 </motion.div>
-                <h2 className="text-3xl sm:text-4xl font-semibold text-fg tracking-tight leading-tight">
+                <h2 className="text-4xl sm:text-5xl font-serif text-fg tracking-tight leading-tight">
                   Готовы ли вы к <br/>
-                  <span className="text-accent">сложным вопросам?</span>
+                  <span className="text-accent italic">сложным вопросам?</span>
                 </h2>
                 <p className="text-base text-muted font-medium leading-relaxed max-w-lg mx-auto">
                   Выберите режим и попрактикуйтесь в ведении диалога о вере, смысле жизни и Боге.
@@ -883,20 +1086,17 @@ export default function App() {
                         onClick={() => startScenario(scenario)}
                         className="group sber-card text-left flex flex-col h-full"
                       >
-                        <div className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 group-hover:text-accent transition-colors">
-                          Сценарий {scenario.id}
-                        </div>
-                        <h3 className="text-xl font-semibold text-fg mb-3 group-hover:text-accent transition-colors leading-tight tracking-tight">
+                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-accent transition-colors leading-tight tracking-tight">
                           {scenario.title}
                         </h3>
                         <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
                           {scenario.description}
                         </p>
-                        <div className="mt-6 pt-6 border-t border-border flex items-center justify-between">
-                          <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-all">
-                            {scenario.icon}
+                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
+                          <div className="w-12 h-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-all border border-accent/10">
+                            {ScenarioIcons[scenario.icon as string]}
                           </div>
-                          <div className="text-accent font-bold text-[10px] uppercase tracking-[0.1em] group-hover:translate-x-1 transition-transform">
+                          <div className="text-accent font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
                             Начать <ChevronRight className="w-3 h-3 inline" />
                           </div>
                         </div>
@@ -921,20 +1121,17 @@ export default function App() {
                         onClick={() => startScenario(scenario)}
                         className="group sber-card text-left flex flex-col h-full"
                       >
-                        <div className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 group-hover:text-rose-500 transition-colors">
-                          Сценарий {scenario.id}
-                        </div>
-                        <h3 className="text-xl font-semibold text-fg mb-3 group-hover:text-rose-500 transition-colors leading-tight tracking-tight">
+                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-rose-500 transition-colors leading-tight tracking-tight">
                           {scenario.title}
                         </h3>
                         <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
                           {scenario.description}
                         </p>
-                        <div className="mt-6 pt-6 border-t border-border flex items-center justify-between">
-                          <div className="w-10 h-10 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all">
-                            {scenario.icon}
+                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
+                          <div className="w-12 h-12 bg-rose-500/5 text-rose-500 rounded-2xl flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all border border-rose-500/10">
+                            {ScenarioIcons[scenario.icon as string]}
                           </div>
-                          <div className="text-rose-500 font-bold text-[10px] uppercase tracking-[0.1em] group-hover:translate-x-1 transition-transform">
+                          <div className="text-rose-500 font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
                             Начать <ChevronRight className="w-3 h-3 inline" />
                           </div>
                         </div>
@@ -1085,11 +1282,11 @@ export default function App() {
             >
               <div className="bg-card border-b border-border px-8 py-6 flex items-center justify-between backdrop-blur-md">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center text-accent border border-accent/20">
-                    <User className="w-6 h-6" />
+                  <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
+                    <User className="w-7 h-7" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-fg tracking-tight leading-tight">{selectedScenario.title}</h3>
+                    <h3 className="text-2xl font-serif text-fg tracking-tight leading-tight">{selectedScenario.title}</h3>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
                       <span className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">В сети</span>
@@ -1138,7 +1335,10 @@ export default function App() {
                         ? "bg-accent text-white rounded-tr-none" 
                         : "bg-card border border-border text-fg rounded-tl-none"
                     )}>
-                      <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-inherit dark:prose-invert">
+                      <div className={cn(
+                        "prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-inherit prose-p:text-inherit prose-headings:text-inherit",
+                        m.role === 'user' ? "text-white" : "text-fg dark:prose-invert"
+                      )}>
                         <ReactMarkdown>
                           {m.text}
                         </ReactMarkdown>
@@ -1151,17 +1351,22 @@ export default function App() {
                 ))}
                 {isLoading && (
                   <div className="flex flex-col mr-auto items-start w-full max-w-[85%]">
-                    <div className="bg-card px-6 py-4 rounded-2xl rounded-tl-none border border-border w-full">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
-                        <span className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">Вера печатает...</span>
-                      </div>
-                      <div className="h-[1.5px] w-full bg-border rounded-full overflow-hidden">
+                    <div className="bg-card px-6 py-4 rounded-2xl rounded-tl-none border border-border">
+                      <div className="flex items-center gap-1.5">
                         <motion.div 
-                          initial={{ width: "0%" }}
-                          animate={{ width: "100%" }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="h-full bg-accent rounded-full"
+                          animate={{ opacity: [0.3, 1, 0.3] }}
+                          transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
+                          className="w-1.5 h-1.5 bg-accent rounded-full" 
+                        />
+                        <motion.div 
+                          animate={{ opacity: [0.3, 1, 0.3] }}
+                          transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                          className="w-1.5 h-1.5 bg-accent rounded-full" 
+                        />
+                        <motion.div 
+                          animate={{ opacity: [0.3, 1, 0.3] }}
+                          transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
+                          className="w-1.5 h-1.5 bg-accent rounded-full" 
                         />
                       </div>
                     </div>
@@ -1249,48 +1454,377 @@ export default function App() {
       {/* Feedback Modal */}
       <AnimatePresence>
         {showFeedbackForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 sm:p-12">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowFeedbackForm(false)}
-              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+              className="absolute inset-0 bg-bg/80 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-card w-full max-w-md rounded-[3rem] border border-border shadow-2xl p-10 overflow-hidden"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="glass-card w-full max-w-xl relative overflow-hidden"
             >
-              <div className="text-center mb-10">
-                <div className="w-20 h-20 bg-accent/10 text-accent rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-accent/20">
-                  <MessageSquare className="w-10 h-10" />
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-2xl font-semibold text-fg tracking-tight">Обратная связь</h3>
                 </div>
-                <h3 className="text-3xl font-black text-fg tracking-tight">Ваш отзыв</h3>
-                <p className="text-muted text-sm mt-3 font-medium">Помогите нам сделать «Вера +1» лучше</p>
-              </div>
-              
-              <textarea 
-                value={feedbackMessage}
-                onChange={(e) => setFeedbackMessage(e.target.value)}
-                placeholder="Что вам понравилось? Что можно улучшить?"
-                className="w-full h-40 bg-bg border border-border p-6 rounded-2xl outline-none focus:ring-2 focus:ring-accent transition-all resize-none mb-8 text-fg font-medium"
-              />
-
-              <div className="flex gap-4">
                 <button 
                   onClick={() => setShowFeedbackForm(false)}
-                  className="flex-1 px-8 py-5 bg-bg border border-border text-muted font-black rounded-2xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.2em] text-xs"
+                  className="p-3 text-muted hover:text-accent transition-colors"
                 >
-                  Отмена
+                  <X className="w-6 h-6" />
                 </button>
+              </div>
+
+              <div className="space-y-8">
+                <div className="flex p-1.5 bg-bg/50 border border-border rounded-2xl">
+                  <button 
+                    onClick={() => setFeedbackType('general')}
+                    className={cn(
+                      "flex-1 py-3 px-4 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                      feedbackType === 'general' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-muted hover:text-fg"
+                    )}
+                  >
+                    Общее
+                  </button>
+                  <button 
+                    onClick={() => setFeedbackType('ai_feedback')}
+                    className={cn(
+                      "flex-1 py-3 px-4 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                      feedbackType === 'ai_feedback' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-muted hover:text-fg"
+                    )}
+                  >
+                    Ошибки ИИ
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] ml-1">Ваше сообщение</label>
+                  <textarea 
+                    value={feedbackMessage}
+                    onChange={(e) => setFeedbackMessage(e.target.value)}
+                    placeholder={feedbackType === 'general' ? "Что вам понравилось? Что можно улучшить?" : "Опишите ошибку или странное поведение ИИ..."}
+                    className="w-full h-48 p-6 bg-bg/50 border border-border rounded-[1.5rem] text-fg placeholder:text-muted/50 focus:border-accent/50 focus:ring-4 focus:ring-accent/5 outline-none transition-all resize-none text-sm font-medium"
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button 
+                    onClick={() => setShowFeedbackForm(false)}
+                    className="flex-1 px-8 py-4 bg-bg border border-border text-muted font-bold rounded-2xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.15em] text-[11px]"
+                  >
+                    Отмена
+                  </button>
+                  <button 
+                    onClick={submitFeedback}
+                    disabled={!feedbackMessage.trim()}
+                    className="flex-1 sber-button"
+                  >
+                    Отправить
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Library Modal */}
+      <AnimatePresence>
+        {showLibrary && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-bg overflow-y-auto"
+          >
+            <div className="max-w-5xl mx-auto p-6 sm:p-12">
+              <div className="flex items-center justify-between mb-16">
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
+                    <BookOpen className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-semibold text-fg tracking-tight">Библиотека знаний</h2>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Мудрость и практика духовного общения</p>
+                  </div>
+                </div>
                 <button 
-                  onClick={submitFeedback}
-                  className="flex-1 px-8 py-5 bg-accent text-white font-black rounded-2xl shadow-2xl shadow-accent/20 hover:bg-emerald-600 transition-all active:scale-95 uppercase tracking-[0.2em] text-xs"
+                  onClick={() => setShowLibrary(false)}
+                  className="p-4 bg-card border border-border text-muted rounded-2xl hover:border-accent hover:text-accent transition-all shadow-sm group"
                 >
-                  Отправить
+                  <ChevronLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
                 </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {LIBRARY_ARTICLES.map(article => (
+                  <motion.div 
+                    key={article.id} 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="sber-card relative group p-10 flex flex-col h-full bg-card/50 backdrop-blur-sm"
+                  >
+                    {article.isPremium && !isSubscribed && (
+                      <div className="absolute inset-0 bg-bg/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-10 text-center rounded-2xl border border-border/50">
+                        <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
+                          <Lock className="w-7 h-7" />
+                        </div>
+                        <h4 className="font-bold text-fg mb-3 uppercase tracking-wider text-xs">Доступно в Премиум</h4>
+                        <p className="text-muted text-xs mb-8 max-w-[200px] leading-relaxed">Оформите подписку, чтобы открыть полный доступ к этой статье.</p>
+                        <button 
+                          onClick={() => setShowSubscription(true)}
+                          className="sber-button py-3 px-8 text-xs"
+                        >
+                          Оформить подписку
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] bg-accent/5 px-3 py-1 rounded-lg border border-accent/10">{article.category}</div>
+                      {article.isPremium && <Sparkles className="w-4 h-4 text-amber-500" />}
+                    </div>
+                    <h3 className="text-2xl font-semibold text-fg mb-6 tracking-tight leading-tight">{article.title}</h3>
+                    <p className="text-muted text-sm leading-relaxed font-medium opacity-90 flex-grow">{article.content}</p>
+                    <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
+                      <span className="text-[9px] font-bold text-muted uppercase tracking-widest">5 мин чтения</span>
+                      <button className="text-accent font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all">
+                        Читать полностью <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              
+              <div className="mt-20 text-center">
+                <button 
+                  onClick={() => setShowLibrary(false)}
+                  className="px-12 py-5 bg-card border border-border text-muted font-bold rounded-2xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.2em] text-xs shadow-sm"
+                >
+                  Вернуться на главную
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* User Agreement Modal */}
+      <AnimatePresence>
+        {showAgreement && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-6 sm:p-12">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAgreement(false)}
+              className="absolute inset-0 bg-bg/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="glass-card w-full max-w-2xl relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-2xl font-serif text-fg tracking-tight">Пользовательское соглашение</h3>
+                </div>
+                <button 
+                  onClick={() => setShowAgreement(false)}
+                  className="p-3 text-muted hover:text-accent transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-8 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
+                <div className="space-y-6 text-muted/90 font-medium leading-relaxed">
+                  <p className="text-lg text-fg font-serif italic">
+                    Добро пожаловать в приложение «Вера +1».
+                  </p>
+                  <p>
+                    1. Приложение носит исключительно развлекательный и образовательный характер. Оно предназначено для тренировки навыков общения и не является источником догматических истин.
+                  </p>
+                  <p>
+                    2. Искусственный интеллект, используемый в приложении, может генерировать неточную или ошибочную информацию. Ответы ИИ не являются официальной позицией какой-либо религиозной организации.
+                  </p>
+                  <p>
+                    3. Приложение не заменяет живого общения с духовным наставником или священнослужителем. В сложных жизненных ситуациях мы рекомендуем обращаться за личной консультацией.
+                  </p>
+                  <p>
+                    4. Используя приложение, вы подтверждаете, что несете полную ответственность за свои личные решения и действия, предпринятые на основе диалогов в приложении.
+                  </p>
+                  <p>
+                    5. Мы уважаем вашу конфиденциальность. Данные диалогов используются только для улучшения качества работы ИИ и вашего личного прогресса.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-10">
+                <button 
+                  onClick={() => setShowAgreement(false)}
+                  className="sber-button w-full py-5"
+                >
+                  Я принимаю условия
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* User Agreement Modal */}
+      <AnimatePresence>
+        {showAgreement && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-6 sm:p-12">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAgreement(false)}
+              className="absolute inset-0 bg-bg/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="glass-card w-full max-w-2xl relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-2xl font-serif text-fg tracking-tight">Пользовательское соглашение</h3>
+                </div>
+                <button 
+                  onClick={() => setShowAgreement(false)}
+                  className="p-3 text-muted hover:text-accent transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-8 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
+                <div className="space-y-6 text-muted/90 font-medium leading-relaxed">
+                  <p className="text-lg text-fg font-serif italic">
+                    Добро пожаловать в приложение «Вера +1».
+                  </p>
+                  <p>
+                    1. Приложение носит исключительно развлекательный и образовательный характер. Оно предназначено для тренировки навыков общения и не является источником догматических истин.
+                  </p>
+                  <p>
+                    2. Искусственный интеллект, используемый в приложении, может генерировать неточную или ошибочную информацию. Ответы ИИ не являются официальной позицией какой-либо религиозной организации.
+                  </p>
+                  <p>
+                    3. Приложение не заменяет живого общения с духовным наставником или священнослужителем. В сложных жизненных ситуациях мы рекомендуем обращаться за личной консультацией.
+                  </p>
+                  <p>
+                    4. Используя приложение, вы подтверждаете, что несете полную ответственность за свои личные решения и действия, предпринятые на основе диалогов в приложении.
+                  </p>
+                  <p>
+                    5. Мы уважаем вашу конфиденциальность. Данные диалогов используются только для улучшения качества работы ИИ и вашего личного прогресса.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-10">
+                <button 
+                  onClick={() => setShowAgreement(false)}
+                  className="sber-button w-full py-5"
+                >
+                  Я принимаю условия
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Subscription Modal */}
+      <AnimatePresence>
+        {showSubscription && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-6 sm:p-12">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSubscription(false)}
+              className="absolute inset-0 bg-bg/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="glass-card w-full max-w-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-12 opacity-5">
+                <Crown className="w-48 h-48 text-accent" />
+              </div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-5 mb-10">
+                  <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
+                    <Crown className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-semibold text-fg tracking-tight">Премиум доступ</h2>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Раскройте полный потенциал</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12">
+                  {SUBSCRIPTION_PLANS[0].features.map((feature, i) => (
+                    <div key={i} className="flex items-center gap-4 p-4 bg-bg/30 rounded-2xl border border-border/50">
+                      <div className="w-8 h-8 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
+                        <Check className="w-4 h-4" />
+                      </div>
+                      <span className="text-sm text-fg font-medium">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-accent/5 border border-accent/20 rounded-[2rem] p-10 mb-12 text-center">
+                  <div className="text-[10px] font-bold text-accent uppercase tracking-[0.4em] mb-4">Ежемесячная подписка</div>
+                  <div className="flex items-baseline justify-center gap-2">
+                    <span className="text-5xl font-semibold text-fg tracking-tighter">{SUBSCRIPTION_PLANS[0].price} ₽</span>
+                    <span className="text-muted font-medium">/ месяц</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-6">
+                  <button 
+                    onClick={buySubscription}
+                    disabled={isLoading}
+                    className="sber-button w-full py-6 text-lg flex items-center justify-center gap-3"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Обработка...
+                      </>
+                    ) : (
+                      <>Подключить сейчас</>
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => setShowSubscription(false)}
+                    className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] hover:text-fg transition-colors"
+                  >
+                    Вернуться назад
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
