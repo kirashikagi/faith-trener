@@ -144,6 +144,7 @@ function AppContent() {
   const [adminFeedback, setAdminFeedback] = useState<FeedbackSubmission[]>([]);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState<LibraryArticle | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
 
@@ -530,7 +531,7 @@ function AppContent() {
     setIsAnalyzing(true);
     try {
       const result = await getFeedback(messages, getEffectiveApiKey());
-      const feedbackWithLock: Feedback = { ...result, isUnlocked: false };
+      const feedbackWithLock: Feedback = { ...result, isUnlocked: true };
       setFeedback(feedbackWithLock);
 
       // Save to Firestore
@@ -541,7 +542,7 @@ function AppContent() {
             scenarioId: selectedScenario.id,
             score: result.score,
             detailedAnalysis: result.summary,
-            isUnlocked: false,
+            isUnlocked: true,
             createdAt: Timestamp.now()
           });
         } catch (err) {
@@ -1616,7 +1617,14 @@ function AppContent() {
                     key={article.id} 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="sber-card relative group p-10 flex flex-col h-full bg-card/50 backdrop-blur-sm"
+                    className="sber-card relative group p-10 flex flex-col h-full bg-card/50 backdrop-blur-sm cursor-pointer"
+                    onClick={() => {
+                      if (!article.isPremium || isSubscribed) {
+                        setSelectedArticle(article);
+                      } else {
+                        setShowSubscription(true);
+                      }
+                    }}
                   >
                     {article.isPremium && !isSubscribed && (
                       <div className="absolute inset-0 bg-bg/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-10 text-center rounded-2xl border border-border/50">
@@ -1641,7 +1649,17 @@ function AppContent() {
                     <p className="text-muted text-sm leading-relaxed font-medium opacity-90 flex-grow">{article.content}</p>
                     <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
                       <span className="text-[9px] font-bold text-muted uppercase tracking-widest">5 мин чтения</span>
-                      <button className="text-accent font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!article.isPremium || isSubscribed) {
+                            setSelectedArticle(article);
+                          } else {
+                            setShowSubscription(true);
+                          }
+                        }}
+                        className="text-accent font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all"
+                      >
                         Читать полностью <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -1658,6 +1676,56 @@ function AppContent() {
                 </button>
               </div>
             </div>
+
+            {/* Article Detail View */}
+            <AnimatePresence>
+              {selectedArticle && (
+                <motion.div 
+                  initial={{ opacity: 0, x: 100 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 100 }}
+                  className="fixed inset-0 z-[110] bg-bg overflow-y-auto"
+                >
+                  <div className="max-w-3xl mx-auto p-6 sm:p-12">
+                    <button 
+                      onClick={() => setSelectedArticle(null)}
+                      className="mb-12 flex items-center gap-3 text-muted hover:text-accent transition-colors font-bold uppercase tracking-widest text-[10px]"
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Назад в библиотеку
+                    </button>
+
+                    <div className="mb-10">
+                      <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] bg-accent/5 px-3 py-1 rounded-lg border border-accent/10 inline-block mb-6">
+                        {selectedArticle.category}
+                      </div>
+                      <h2 className="text-4xl sm:text-5xl font-semibold text-fg tracking-tight leading-tight mb-8">
+                        {selectedArticle.title}
+                      </h2>
+                      <div className="flex items-center gap-6 text-muted text-[10px] font-bold uppercase tracking-widest border-y border-border/50 py-6">
+                        <span className="flex items-center gap-2"><Clock className="w-3 h-3" /> 5 минут чтения</span>
+                        <span className="flex items-center gap-2"><BookOpen className="w-3 h-3" /> Теория и практика</span>
+                      </div>
+                    </div>
+
+                    <div className="prose prose-invert max-w-none">
+                      <div className="text-fg/90 text-lg leading-relaxed space-y-8 font-medium whitespace-pre-wrap">
+                        {selectedArticle.content}
+                      </div>
+                    </div>
+
+                    <div className="mt-20 pt-12 border-t border-border flex flex-col items-center">
+                      <p className="text-muted text-xs font-bold uppercase tracking-[0.2em] mb-8">Понравилась статья?</p>
+                      <button 
+                        onClick={() => setSelectedArticle(null)}
+                        className="sber-button px-12 py-5"
+                      >
+                        Завершить чтение
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
