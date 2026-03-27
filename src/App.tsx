@@ -188,26 +188,36 @@ function AppContent() {
 
   // Firebase Auth & Profile
   useEffect(() => {
-    const mockUser = {
-      uid: 'dev-user',
-      email: 'dev@vera.plus',
-      emailVerified: true,
-      isAnonymous: false,
-      providerData: [],
-    } as any;
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            setUserProfile(userDoc.data() as UserProfile);
+          } else {
+            // Create profile if it doesn't exist
+            const newProfile: UserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              role: (firebaseUser.email === 'arunavsharmanaba@gmail.com' || firebaseUser.email === 'admin@vera.plus') ? 'admin' : 'user',
+              createdAt: Timestamp.now() as any,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User'
+            };
+            await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+            setUserProfile(newProfile);
+          }
+        } catch (e) {
+          console.error("Error fetching user profile:", e);
+        }
+      } else {
+        setUser(null);
+        setUserProfile(null);
+      }
+      setIsAuthLoading(false);
+    });
 
-    const mockProfile: UserProfile = {
-      uid: 'dev-user',
-      email: 'pastor@vera.plus',
-      role: 'admin',
-      isSubscribed: true,
-      createdAt: Timestamp.now() as any,
-      displayName: 'Брат Андрей (Пастор)'
-    };
-
-    setUser(mockUser);
-    setUserProfile(mockProfile);
-    setIsAuthLoading(false);
+    return () => unsubscribe();
   }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -251,8 +261,13 @@ function AppContent() {
   };
 
   const handleLogout = async () => {
-    // Disabled for development
-    alert("Выход отключен в режиме разработки");
+    try {
+      await signOut(auth);
+      setUser(null);
+      setUserProfile(null);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   const submitFeedback = async () => {
