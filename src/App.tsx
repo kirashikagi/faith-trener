@@ -105,6 +105,10 @@ const ScenarioIcons: Record<string, React.ReactNode> = {
 };
 
 export default function App() {
+  return <AppContent />;
+}
+
+function AppContent() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
@@ -152,7 +156,7 @@ export default function App() {
   const [options, setOptions] = useState<ResponseOption[]>([]);
   const [showStats, setShowStats] = useState(false);
 
-  const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
+  const isSubscribed = useMemo(() => true, []);
 
   const dailyVerse = useMemo(() => {
     const day = new Date().getDate();
@@ -184,54 +188,26 @@ export default function App() {
 
   // Firebase Auth & Profile
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      try {
-        setUser(currentUser);
-        if (currentUser) {
-          try {
-            const docRef = doc(db, 'users', currentUser.uid);
-            const docSnap = await getDoc(docRef);
-            const isAdminEmail = currentUser.email === 'arunavsharmanaba@gmail.com';
-            
-            if (docSnap.exists()) {
-              const profile = docSnap.data() as UserProfile;
-              if (isAdminEmail && profile.role !== 'admin') {
-                profile.role = 'admin';
-                try {
-                  await updateDoc(docRef, { role: 'admin' });
-                } catch (e) {
-                  handleFirestoreError(e, 'update', `users/${currentUser.uid}`);
-                }
-              }
-              setUserProfile(profile);
-            } else {
-              // Create profile if it doesn't exist
-              const newProfile: UserProfile = {
-                uid: currentUser.uid,
-                email: currentUser.email || '',
-                role: isAdminEmail ? 'admin' : 'user',
-                createdAt: Timestamp.now() as any
-              };
-              try {
-                await setDoc(docRef, newProfile);
-                setUserProfile(newProfile);
-              } catch (e) {
-                handleFirestoreError(e, 'create', `users/${currentUser.uid}`);
-              }
-            }
-          } catch (error) {
-            console.error("Error fetching user profile:", error);
-            // We don't want to throw here and block the UI from loading
-            // But we can log it for diagnosis
-          }
-        } else {
-          setUserProfile(null);
-        }
-      } finally {
-        setIsAuthLoading(false);
-      }
-    });
-    return () => unsubscribe();
+    const mockUser = {
+      uid: 'dev-user',
+      email: 'dev@vera.plus',
+      emailVerified: true,
+      isAnonymous: false,
+      providerData: [],
+    } as any;
+
+    const mockProfile: UserProfile = {
+      uid: 'dev-user',
+      email: 'dev@vera.plus',
+      role: 'admin',
+      isSubscribed: true,
+      createdAt: Timestamp.now() as any,
+      displayName: 'Разработчик'
+    };
+
+    setUser(mockUser);
+    setUserProfile(mockProfile);
+    setIsAuthLoading(false);
   }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -275,8 +251,8 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
-    reset();
+    // Disabled for development
+    alert("Выход отключен в режиме разработки");
   };
 
   const submitFeedback = async () => {
@@ -391,6 +367,8 @@ export default function App() {
   };
 
   const apiKeyMissing = !getEffectiveApiKey();
+  // We don't show the warning if we are in production-like environment where server key is expected
+  const showApiKeyWarning = apiKeyMissing && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -430,9 +408,22 @@ export default function App() {
 
     if (scenario.mode === 'criticism') {
       setIsLoading(true);
-      const opts = await getResponseOptions(scenario.systemInstruction, [initialMsg], getEffectiveApiKey());
-      setOptions(opts);
-      setIsLoading(false);
+      try {
+        const opts = await getResponseOptions(scenario.systemInstruction, [initialMsg], getEffectiveApiKey());
+        if (opts.length === 0) {
+          throw new Error("Не удалось получить варианты ответа. Попробуйте перезапустить сценарий или проверьте API ключ.");
+        }
+        setOptions(opts);
+      } catch (error: any) {
+        console.error("Error starting criticism scenario:", error);
+        setMessages(prev => [...prev, {
+          role: 'model',
+          text: `Ошибка при загрузке вариантов: ${error.message || "Неизвестная ошибка"}. Попробуйте обновить страницу или использовать другой API ключ.`,
+          timestamp: Date.now()
+        }]);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -469,8 +460,20 @@ export default function App() {
       setMessages(newHistory);
 
       if (selectedScenario.mode === 'criticism') {
-        const opts = await getResponseOptions(selectedScenario.systemInstruction, newHistory, getEffectiveApiKey());
-        setOptions(opts);
+        try {
+          const opts = await getResponseOptions(selectedScenario.systemInstruction, newHistory, getEffectiveApiKey());
+          if (opts.length === 0) {
+            throw new Error("Не удалось получить варианты ответа для следующего шага.");
+          }
+          setOptions(opts);
+        } catch (error: any) {
+          console.error("Error getting options in handleSend:", error);
+          setMessages(prev => [...prev, {
+            role: 'model',
+            text: `Ошибка при загрузке вариантов ответа: ${error.message || "Неизвестная ошибка"}.`,
+            timestamp: Date.now()
+          }]);
+        }
       }
     } catch (error: any) {
       console.error("Gemini API Error:", error);
@@ -621,84 +624,86 @@ export default function App() {
           </div>
         )}
 
-        <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between transition-all duration-300">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20">
-            <MessageCircle className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-fg">Вера +1</h1>
-            <p className="text-[9px] text-muted font-bold uppercase tracking-[0.3em]">AI Faith Training</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button 
-            onClick={toggleTheme}
-            className="p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm"
-          >
-            {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </button>
-          
-          <div className="h-6 w-[1px] bg-border mx-1 hidden sm:block" />
+        {user && (
+          <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between transition-all duration-300">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20">
+                <MessageCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight text-fg">Вера +1</h1>
+                <p className="text-[9px] text-muted font-bold uppercase tracking-[0.3em]">AI Faith Training</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button 
+                onClick={toggleTheme}
+                className="p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm"
+              >
+                {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </button>
+              
+              <div className="h-6 w-[1px] bg-border mx-1 hidden sm:block" />
 
-          {userProfile?.role === 'admin' && (
-            <button 
-              onClick={fetchAdminFeedback}
-              className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
-              title="Админ-панель"
-            >
-              <ShieldCheck className="w-5 h-5" />
-            </button>
-          )}
-          
-          <button 
-            onClick={() => setShowLibrary(true)}
-            className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
-            title="Библиотека знаний"
-          >
-            <BookOpen className="w-5 h-5" />
-          </button>
+              {userProfile?.role === 'admin' && (
+                <button 
+                  onClick={fetchAdminFeedback}
+                  className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
+                  title="Админ-панель"
+                >
+                  <ShieldCheck className="w-5 h-5" />
+                </button>
+              )}
+              
+              <button 
+                onClick={() => setShowLibrary(true)}
+                className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
+                title="Библиотека знаний"
+              >
+                <BookOpen className="w-5 h-5" />
+              </button>
 
-          <button 
-            onClick={() => {
-              setFeedbackType('general');
-              setShowFeedbackForm(true);
-            }}
-            className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
-            title="Обратная связь"
-          >
-            <MessageSquare className="w-5 h-5" />
-          </button>
+              <button 
+                onClick={() => {
+                  setFeedbackType('general');
+                  setShowFeedbackForm(true);
+                }}
+                className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
+                title="Обратная связь"
+              >
+                <MessageSquare className="w-5 h-5" />
+              </button>
 
-          {!selectedScenario ? (
-            <button 
-              onClick={() => setShowStats(!showStats)}
-              className="flex items-center gap-3 bg-bg border border-border text-muted px-4 py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95"
-            >
-              <Trophy className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Путь</span>
-            </button>
-          ) : (
-            <button 
-              onClick={reset}
-              className="flex items-center gap-3 bg-bg border border-border text-muted px-4 py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95"
-            >
-              <ChevronLeft className="w-5 h-5 group-hover:translate-x-[-2px] transition-transform" />
-              <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Назад</span>
-            </button>
-          )}
+              {!selectedScenario ? (
+                <button 
+                  onClick={() => setShowStats(!showStats)}
+                  className="flex items-center gap-3 bg-bg border border-border text-muted px-4 py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95"
+                >
+                  <Trophy className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Путь</span>
+                </button>
+              ) : (
+                <button 
+                  onClick={reset}
+                  className="flex items-center gap-3 bg-bg border border-border text-muted px-4 py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95"
+                >
+                  <ChevronLeft className="w-5 h-5 group-hover:translate-x-[-2px] transition-transform" />
+                  <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Назад</span>
+                </button>
+              )}
 
-          <button 
-            onClick={handleLogout}
-            className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95"
-            title="Выйти"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
-        </div>
-      </header>
+              <button 
+                onClick={handleLogout}
+                className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95"
+                title="Выйти"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
+          </header>
+        )}
 
-      <main className="max-w-4xl mx-auto p-4 sm:p-6">
+      <main className="mx-auto max-w-4xl p-4 sm:p-6">
         {isAuthLoading ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCcw className="w-8 h-8 animate-spin text-emerald-600" />
@@ -706,9 +711,10 @@ export default function App() {
         ) : !user ? (
           <motion.div 
             key="login"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="max-w-md mx-auto sber-card"
+            initial={{ opacity: 0, scale: 0.98, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="max-w-md mx-auto sber-card mt-12"
           >
             <div className="text-center mb-8 space-y-3">
               <motion.div 
@@ -761,11 +767,11 @@ export default function App() {
                 {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
               </button>
 
-              <div className="text-center pt-2">
+              <div className="text-center pt-2 space-y-4">
                 <button 
                   type="button"
                   onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                  className="text-[10px] font-bold text-muted hover:text-accent uppercase tracking-widest transition-colors"
+                  className="text-[10px] font-bold text-muted hover:text-accent uppercase tracking-widest transition-colors block w-full"
                 >
                   {authMode === 'login' ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Вход'}
                 </button>
@@ -904,7 +910,7 @@ export default function App() {
           </div>
         ) : (
           <>
-            {apiKeyMissing && (
+            {showApiKeyWarning && (
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}

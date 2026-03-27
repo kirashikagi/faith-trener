@@ -95,9 +95,31 @@ export async function getResponseOptions(
     }
 
     const data = await response.json();
-    return JSON.parse(data.text || "[]") as ResponseOption[];
+    let text = data.text || "[]";
+    
+    // Clean up markdown code blocks if present
+    if (text.includes("```")) {
+      text = text.replace(/```json\n?|```\n?/g, "").trim();
+    }
+    
+    try {
+      return JSON.parse(text) as ResponseOption[];
+    } catch (parseError) {
+      console.error("JSON Parse Error. Raw text:", text);
+      // Fallback: try to find the first [ and last ]
+      const start = text.indexOf('[');
+      const end = text.lastIndexOf(']');
+      if (start !== -1 && end !== -1) {
+        try {
+          return JSON.parse(text.substring(start, end + 1)) as ResponseOption[];
+        } catch (e2) {
+          console.error("Second attempt at parsing failed:", e2);
+        }
+      }
+      throw parseError;
+    }
   } catch (e) {
-    console.error("Error parsing response options:", e);
+    console.error("Error getting response options:", e);
     return [];
   }
 }
@@ -145,8 +167,30 @@ export async function getFeedback(
     }
 
     const data = await response.json();
-    return JSON.parse(data.text || "{}") as Feedback;
+    let text = data.text || "{}";
+    
+    // Clean up markdown code blocks if present
+    if (text.includes("```")) {
+      text = text.replace(/```json\n?|```\n?/g, "").trim();
+    }
+    
+    try {
+      return JSON.parse(text) as Feedback;
+    } catch (parseError) {
+      console.error("JSON Parse Error in getFeedback. Raw text:", text);
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start !== -1 && end !== -1) {
+        try {
+          return JSON.parse(text.substring(start, end + 1)) as Feedback;
+        } catch (e2) {
+          console.error("Second attempt at parsing feedback failed:", e2);
+        }
+      }
+      throw parseError;
+    }
   } catch (e) {
+    console.error("Error getting feedback:", e);
     return {
       score: 0,
       strengths: ["Не удалось проанализировать"],
