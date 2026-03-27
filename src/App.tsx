@@ -198,11 +198,11 @@ function AppContent() {
 
     const mockProfile: UserProfile = {
       uid: 'dev-user',
-      email: 'dev@vera.plus',
+      email: 'pastor@vera.plus',
       role: 'admin',
       isSubscribed: true,
       createdAt: Timestamp.now() as any,
-      displayName: 'Разработчик'
+      displayName: 'Брат Андрей (Пастор)'
     };
 
     setUser(mockUser);
@@ -559,8 +559,8 @@ function AppContent() {
       unlockAchievement('first_step');
       if (result.score === 10 && selectedScenario?.mode === 'criticism') unlockAchievement('master_of_calm');
       if (result.metrics && result.metrics.speed < 10) unlockAchievement('speed_demon');
-      if (result.metrics && result.metrics.politeness > 9) unlockAchievement('polite_soul');
-      if (selectedScenario?.id === 'skeptic' && result.score > 8) unlockAchievement('logical_titan');
+      if (result.metrics && result.metrics.theologicalAccuracy > 9) unlockAchievement('theological_master');
+      if (selectedScenario?.id === 'skeptic' && result.score > 8 && result.metrics && result.metrics.logic > 8) unlockAchievement('apologetic_expert');
       if (selectedScenario?.id === 'crisis' && result.score > 8) unlockAchievement('empathy_pro');
 
     } catch (error) {
@@ -1175,10 +1175,10 @@ function AppContent() {
                 {feedback.metrics && (
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {[
-                      { label: 'Вежливость', val: feedback.metrics.politeness },
-                      { label: 'Тактичность', val: feedback.metrics.tact },
-                      { label: 'Убеждение', val: feedback.metrics.persuasion },
-                      { label: 'Уважение', val: feedback.metrics.respect },
+                      { label: 'Библейская точность', val: feedback.metrics.theologicalAccuracy },
+                      { label: 'Логика', val: feedback.metrics.logic },
+                      { label: 'Писание', val: feedback.metrics.scriptureUsage },
+                      { label: 'Эмпатия', val: feedback.metrics.empathy },
                       { label: 'Скорость', val: feedback.metrics.speed, suffix: 'с' },
                     ].map((m, i) => (
                       <div key={i} className="bg-bg border border-border p-5 rounded-2xl text-center">
@@ -1265,7 +1265,7 @@ function AppContent() {
                   </div>
                 </div>
 
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <button 
                     onClick={reset}
                     className="sber-button flex-1"
@@ -1273,8 +1273,19 @@ function AppContent() {
                     Новая тренировка
                   </button>
                   <button 
+                    onClick={() => {
+                      const text = `Результат тренировки в "Вера +1":\nБалл: ${feedback.score}/10\n\nРезюме: ${feedback.summary}\n\nСильные стороны:\n${feedback.strengths.join('\n')}\n\nЗоны роста:\n${feedback.improvements.join('\n')}`;
+                      navigator.clipboard.writeText(text);
+                      alert("Результат скопирован! Теперь вы можете отправить его наставнику.");
+                    }}
+                    className="flex-1 px-8 bg-accent/10 border border-accent/20 text-accent font-bold rounded-xl hover:bg-accent hover:text-white transition-all uppercase tracking-[0.1em] text-[10px] py-4 flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    Поделиться с наставником
+                  </button>
+                  <button 
                     onClick={() => setFeedback(null)}
-                    className="px-8 bg-bg border border-border text-muted font-bold rounded-xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.1em] text-[10px]"
+                    className="px-8 bg-bg border border-border text-muted font-bold rounded-xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.1em] text-[10px] py-4"
                   >
                     Диалог
                   </button>
@@ -1404,12 +1415,24 @@ function AppContent() {
                               {opt.explanation}
                             </div>
                             <div className="flex gap-3">
-                              {Object.entries(opt.metrics).map(([key, val]) => (
-                                <div key={key} className="flex items-center gap-1 text-[9px] font-bold text-muted">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-accent" style={{ opacity: val / 10 }} />
-                                  {val}
+                              <div className="flex flex-col gap-1">
+                                <div className="flex gap-2">
+                                  <div className="text-[8px] text-muted uppercase w-12">Точность</div>
+                                  <div className="flex gap-0.5">
+                                    {[...Array(10)].map((_, idx) => (
+                                      <div key={idx} className={cn("w-1 h-2 rounded-full", idx < opt.metrics.theologicalAccuracy ? "bg-accent" : "bg-border")} />
+                                    ))}
+                                  </div>
                                 </div>
-                              ))}
+                                <div className="flex gap-2">
+                                  <div className="text-[8px] text-muted uppercase w-12">Логика</div>
+                                  <div className="flex gap-0.5">
+                                    {[...Array(10)].map((_, idx) => (
+                                      <div key={idx} className={cn("w-1 h-2 rounded-full", idx < opt.metrics.logic ? "bg-accent" : "bg-border")} />
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </button>

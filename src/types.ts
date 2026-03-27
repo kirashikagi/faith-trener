@@ -24,10 +24,10 @@ export interface ResponseOption {
   explanation: string;
   type: 'effective' | 'neutral' | 'ineffective';
   metrics: {
-    politeness: number;
-    tact: number;
-    persuasion: number;
-    respect: number;
+    theologicalAccuracy: number;
+    logic: number;
+    empathy: number;
+    scriptureUsage: number;
   };
 }
 
@@ -37,10 +37,10 @@ export interface Feedback {
   improvements: string[];
   summary: string;
   metrics?: {
-    politeness: number;
-    tact: number;
-    persuasion: number;
-    respect: number;
+    theologicalAccuracy: number;
+    logic: number;
+    scriptureUsage: number;
+    empathy: number;
     speed: number;
   };
   isUnlocked?: boolean;
