@@ -9,7 +9,10 @@
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string" },
         "role": { "type": "string", "enum": ["user", "admin"], "description": "User role" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "hasSeenWelcome": { "type": "boolean", "description": "Whether the user has seen the welcome screen" },
+        "streak": { "type": "number", "description": "Consecutive days of visiting the app" },
+        "lastVisit": { "type": "number", "description": "Timestamp of the last visit" }
       },
       "required": ["uid", "email", "role"]
     },

@@ -72,6 +72,9 @@ export interface UserProfile {
   createdAt: number;
   isSubscribed?: boolean;
   subscriptionExpiresAt?: number;
+  hasSeenWelcome?: boolean;
+  streak?: number;
+  lastVisit?: number;
 }
 
 export interface FeedbackSubmission {

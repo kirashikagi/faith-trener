@@ -47,6 +47,7 @@ import {
   ShieldCheck,
   Mail,
   MessageCircle,
+  Flame,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -78,7 +79,7 @@ import {
 
 import { auth, db } from './firebase';
 import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle } from './types';
-import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, DAILY_VERSES, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
+import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
 import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
 
 function cn(...inputs: ClassValue[]) {
@@ -137,7 +138,7 @@ function AppContent() {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [showIntro, setShowIntro] = useState(true);
+  const [showIntro, setShowIntro] = useState(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [feedbackType, setFeedbackType] = useState<'general' | 'ai_feedback'>('general');
   const [feedbackMessage, setFeedbackMessage] = useState('');
@@ -156,12 +157,13 @@ function AppContent() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [options, setOptions] = useState<ResponseOption[]>([]);
   const [showStats, setShowStats] = useState(false);
+  const [isDialogueEnded, setIsDialogueEnded] = useState(false);
 
   const isSubscribed = useMemo(() => true, []);
 
-  const dailyVerse = useMemo(() => {
+  const dailyFact = useMemo(() => {
     const day = new Date().getDate();
-    return DAILY_VERSES[(day - 1) % DAILY_VERSES.length];
+    return BIBLICAL_FACTS[(day - 1) % BIBLICAL_FACTS.length];
   }, []);
   
   const handleFirestoreError = (error: unknown, operation: string, path: string) => {
@@ -189,13 +191,44 @@ function AppContent() {
 
   // Firebase Auth & Profile
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [user, selectedScenario, showStats, showLibrary, showAdmin]);
+
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         try {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
-            setUserProfile(userDoc.data() as UserProfile);
+            const profile = userDoc.data() as UserProfile;
+            
+            // Streak logic
+            const now = Date.now();
+            const lastVisit = profile.lastVisit || 0;
+            const oneDay = 24 * 60 * 60 * 1000;
+            const isSameDay = new Date(now).toDateString() === new Date(lastVisit).toDateString();
+            const isNextDay = new Date(now - oneDay).toDateString() === new Date(lastVisit).toDateString();
+
+            let newStreak = profile.streak || 1;
+            if (!isSameDay) {
+              if (isNextDay) {
+                newStreak += 1;
+              } else {
+                newStreak = 1;
+              }
+              await updateDoc(doc(db, 'users', firebaseUser.uid), {
+                streak: newStreak,
+                lastVisit: now
+              });
+              profile.streak = newStreak;
+              profile.lastVisit = now;
+            }
+
+            setUserProfile(profile);
+            if (!profile.hasSeenWelcome) {
+              setShowIntro(true);
+            }
           } else {
             // Create profile if it doesn't exist
             const newProfile: UserProfile = {
@@ -203,10 +236,14 @@ function AppContent() {
               email: firebaseUser.email || '',
               role: (firebaseUser.email === 'arunavsharmanaba@gmail.com' || firebaseUser.email === 'admin@vera.plus') ? 'admin' : 'user',
               createdAt: Timestamp.now() as any,
-              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User'
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              hasSeenWelcome: false,
+              streak: 1,
+              lastVisit: Date.now()
             };
             await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
             setUserProfile(newProfile);
+            setShowIntro(true);
           }
         } catch (e) {
           console.error("Error fetching user profile:", e);
@@ -220,6 +257,20 @@ function AppContent() {
 
     return () => unsubscribe();
   }, []);
+
+  const handleCloseIntro = async () => {
+    setShowIntro(false);
+    if (user) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          hasSeenWelcome: true
+        });
+        setUserProfile(prev => prev ? { ...prev, hasSeenWelcome: true } : null);
+      } catch (e) {
+        console.error("Error updating welcome status:", e);
+      }
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,11 +290,15 @@ function AppContent() {
           email: newUser.email || '',
           role: isAdminEmail ? 'admin' : 'user',
           createdAt: Timestamp.now() as any,
-          displayName: email // Store the original name
+          displayName: email, // Store the original name
+          hasSeenWelcome: false,
+          streak: 1,
+          lastVisit: Date.now()
         };
         try {
           await setDoc(doc(db, 'users', newUser.uid), newProfile);
           setUserProfile(newProfile);
+          setShowIntro(true);
         } catch (e) {
           handleFirestoreError(e, 'create', `users/${newUser.uid}`);
         }
@@ -266,6 +321,7 @@ function AppContent() {
       await signOut(auth);
       setUser(null);
       setUserProfile(null);
+      setShowIntro(false);
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -413,6 +469,7 @@ function AppContent() {
 
   const startScenario = async (scenario: Scenario) => {
     setSelectedScenario(scenario);
+    setIsDialogueEnded(false);
     const initialMsg: Message = { 
       role: 'model', 
       text: scenario.initialMessage, 
@@ -458,17 +515,25 @@ function AppContent() {
     setIsLoading(true);
 
     try {
+      const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу.";
+      
       const response = await getChatResponse(
         "gemini-3-flash-preview",
-        selectedScenario.systemInstruction,
+        selectedScenario.systemInstruction + commonInstruction,
         messages, // Pass only previous messages as history
         textToSend,
         getEffectiveApiKey()
       );
       
+      let cleanResponse = response;
+      if (response.includes('[КОНЕЦ_ДИАЛОГА]')) {
+        cleanResponse = response.replace('[КОНЕЦ_ДИАЛОГА]', '').trim();
+        setIsDialogueEnded(true);
+      }
+      
       const modelMessage: Message = { 
         role: 'model', 
-        text: response, 
+        text: cleanResponse, 
         timestamp: Date.now() 
       };
       
@@ -594,6 +659,7 @@ function AppContent() {
     setShowStats(false);
     setShowAdmin(false);
     setShowFeedbackForm(false);
+    setIsDialogueEnded(false);
   };
 
   return (
@@ -660,6 +726,11 @@ function AppContent() {
               </button>
               
               <div className="h-6 w-[1px] bg-border mx-1 hidden sm:block" />
+
+              <div className="flex items-center gap-2 px-3 py-2 bg-accent/5 border border-accent/20 rounded-xl">
+                <Flame className="w-4 h-4 text-accent animate-pulse" />
+                <span className="text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
+              </div>
 
               {userProfile?.role === 'admin' && (
                 <button 
@@ -853,7 +924,7 @@ function AppContent() {
               <div className="flex flex-col items-center gap-8">
                 <div className="flex flex-col items-center gap-4">
                   <button 
-                    onClick={() => setShowIntro(false)}
+                    onClick={handleCloseIntro}
                     className="sber-button px-20 py-7 text-xl shadow-2xl shadow-accent/10"
                   >
                     Начать обучение
@@ -1071,9 +1142,9 @@ function AppContent() {
                   <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform">
                     <Sparkles className="w-20 h-20 text-accent" />
                   </div>
-                  <div className="text-[11px] font-bold text-accent uppercase tracking-[0.4em] mb-6">Слово дня</div>
+                  <div className="text-[11px] font-bold text-accent uppercase tracking-[0.4em] mb-6">Интересный факт</div>
                   <p className="text-2xl sm:text-3xl font-medium text-fg italic leading-tight tracking-tight">
-                    {dailyVerse}
+                    {dailyFact}
                   </p>
                 </motion.div>
 
@@ -1333,7 +1404,7 @@ function AppContent() {
                   disabled={isAnalyzing || messages.length < 3}
                   className={cn(
                     "px-6 py-3 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center gap-3 active:scale-95",
-                    isAnalyzing ? "bg-bg text-muted" : "sber-button"
+                    isAnalyzing ? "bg-bg text-muted" : isDialogueEnded ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 animate-bounce" : "sber-button"
                   )}
                 >
                   {isAnalyzing ? (
@@ -1341,6 +1412,11 @@ function AppContent() {
                       <RefreshCcw className="w-4 h-4 animate-spin" />
                       <span>Анализ...</span>
                     </div>
+                  ) : isDialogueEnded ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Диалог завершен. К анализу?</span>
+                    </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
@@ -1384,6 +1460,26 @@ function AppContent() {
                     </span>
                   </motion.div>
                 ))}
+                
+                {isDialogueEnded && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center justify-center p-12 text-center"
+                  >
+                    <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mb-6 border border-emerald-500/20">
+                      <CheckCircle2 className="w-8 h-8" />
+                    </div>
+                    <h4 className="text-xl font-bold text-fg mb-2 tracking-tight">Диалог логически завершен</h4>
+                    <p className="text-muted text-sm max-w-xs mb-8 font-medium">Собеседник считает, что все важные моменты обсуждены. Теперь вы можете перейти к анализу ваших ответов.</p>
+                    <button 
+                      onClick={handleFinish}
+                      className="sber-button py-4 px-10"
+                    >
+                      Перейти к анализу
+                    </button>
+                  </motion.div>
+                )}
                 {isLoading && (
                   <div className="flex flex-col mr-auto items-start w-full max-w-[85%]">
                     <div className="bg-card px-6 py-4 rounded-2xl rounded-tl-none border border-border">
