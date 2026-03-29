@@ -72,6 +72,7 @@ export interface UserProfile {
   createdAt: number;
   isSubscribed?: boolean;
   subscriptionExpiresAt?: number;
+  purchasedArticles?: string[]; // IDs of purchased articles
   hasSeenWelcome?: boolean;
   streak?: number;
   lastVisit?: number;
@@ -90,8 +91,10 @@ export interface LibraryArticle {
   id: string;
   title: string;
   category: string;
+  description: string;
   content: string;
   isPremium: boolean;
+  price?: number; // One-time price in RUB
 }
 
 export interface SessionRecord {

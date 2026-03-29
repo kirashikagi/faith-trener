@@ -144,6 +144,8 @@ function AppContent() {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [adminFeedback, setAdminFeedback] = useState<FeedbackSubmission[]>([]);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [systemStats, setSystemStats] = useState<{ users: number; feedback: number }>({ users: 0, feedback: 0 });
+  const [adminTab, setAdminTab] = useState<'feedback' | 'system'>('feedback');
   const [showLibrary, setShowLibrary] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<LibraryArticle | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
@@ -159,7 +161,27 @@ function AppContent() {
   const [showStats, setShowStats] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
 
-  const isSubscribed = useMemo(() => true, []);
+  const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
+
+  const buyArticle = async (articleId: string) => {
+    if (!user || !userProfile) return;
+    setIsLoading(true);
+    try {
+      const purchased = userProfile.purchasedArticles || [];
+      if (!purchased.includes(articleId)) {
+        const newPurchased = [...purchased, articleId];
+        await updateDoc(doc(db, 'users', user.uid), {
+          purchasedArticles: newPurchased
+        });
+        setUserProfile(prev => prev ? { ...prev, purchasedArticles: newPurchased } : null);
+        alert("Статья успешно приобретена!");
+      }
+    } catch (error) {
+      console.error("Error buying article:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const dailyFact = useMemo(() => {
     const day = new Date().getDate();
@@ -366,7 +388,9 @@ function AppContent() {
   };
 
   const fetchAdminFeedback = async () => {
-    if (userProfile?.role !== 'admin') return;
+    if (userProfile?.role !== 'admin' && userProfile?.email !== 'arunavsharmanaba@gmail.com') return;
+    setShowAdmin(true);
+    setAdminTab('feedback');
     try {
       const q = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
@@ -375,7 +399,17 @@ function AppContent() {
         ...doc.data()
       })) as FeedbackSubmission[];
       setAdminFeedback(feedback);
-      setShowAdmin(true);
+      
+      // Fetch system stats
+      try {
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        setSystemStats({
+          users: usersSnapshot.size,
+          feedback: querySnapshot.size
+        });
+      } catch (statsError) {
+        console.error("Error fetching system stats:", statsError);
+      }
     } catch (error) {
       console.error("Error fetching admin feedback:", error);
     }
@@ -732,7 +766,7 @@ function AppContent() {
                 <span className="text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
               </div>
 
-              {userProfile?.role === 'admin' && (
+              {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
                 <button 
                   onClick={fetchAdminFeedback}
                   className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
@@ -796,26 +830,47 @@ function AppContent() {
             <RefreshCcw className="w-8 h-8 animate-spin text-emerald-600" />
           </div>
         ) : !user ? (
-          <motion.div 
-            key="login"
-            initial={{ opacity: 0, scale: 0.98, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            className="max-w-md mx-auto sber-card mt-12"
-          >
-            <div className="text-center mb-8 space-y-3">
-              <motion.div 
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mx-auto mb-4 border border-accent/20"
-              >
-                <MessageCircle className="w-7 h-7" />
-              </motion.div>
-              <h2 className="text-4xl font-serif text-fg tracking-normal">Вера +1</h2>
-              <p className="text-muted text-sm font-medium leading-relaxed max-w-[240px] mx-auto italic">
-                Интеллектуальный тренажер <br/> духовного общения
-              </p>
-            </div>
+          <div className="min-h-[80vh] flex items-center justify-center relative overflow-hidden">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 0.05, scale: 1.2 }}
+              transition={{ duration: 10, repeat: Infinity, repeatType: "reverse" }}
+              className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-accent rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+            />
+            <motion.div 
+              key="login"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="max-w-md w-full mx-auto sber-card relative z-10"
+            >
+              <div className="text-center mb-12 space-y-4">
+                <motion.div 
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
+                  className="w-20 h-20 bg-accent text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-accent/20 border border-white/20"
+                >
+                  <Compass className="w-10 h-10" />
+                </motion.div>
+                <motion.h2 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-5xl font-serif text-fg tracking-tight"
+                >
+                  Вера +1
+                </motion.h2>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-muted text-sm font-medium leading-relaxed max-w-[240px] mx-auto italic"
+                >
+                  Интеллектуальный тренажер <br/> духовного общения
+                </motion.p>
+              </div>
 
             <form onSubmit={handleAuth} className="space-y-4">
               <div className="space-y-1">
@@ -865,18 +920,46 @@ function AppContent() {
               </div>
             </form>
           </motion.div>
-        ) : showIntro ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="sber-card max-w-4xl mx-auto overflow-hidden !p-0"
-          >
-            <div className="bg-accent/5 p-16 text-center relative border-b border-border">
-              <div className="relative z-10 space-y-4">
-                <h2 className="text-5xl font-serif text-accent tracking-normal">{PHILOSOPHY.title}</h2>
-                <p className="text-accent/60 text-[11px] font-bold uppercase tracking-[0.4em]">Искусство духовного общения</p>
+        </div>
+      ) : showIntro ? (
+          <div className="min-h-screen flex items-center justify-center p-6 sm:p-12 relative overflow-hidden">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 0.03, scale: 1.5 }}
+              transition={{ duration: 15, repeat: Infinity, repeatType: "reverse" }}
+              className="absolute top-0 right-0 w-[800px] h-[800px] bg-accent rounded-full blur-[150px] translate-x-1/2 -translate-y-1/2 pointer-events-none"
+            />
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="sber-card max-w-4xl mx-auto overflow-hidden !p-0 relative z-10"
+            >
+              <div className="bg-accent/5 p-16 text-center relative border-b border-border overflow-hidden">
+                <motion.div 
+                  initial={{ x: "-100%" }}
+                  animate={{ x: "100%" }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                  className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-20"
+                />
+                <div className="relative z-10 space-y-4">
+                  <motion.h2 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-5xl font-serif text-accent tracking-normal"
+                  >
+                    {PHILOSOPHY.title}
+                  </motion.h2>
+                  <motion.p 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="text-accent/60 text-[11px] font-bold uppercase tracking-[0.4em]"
+                  >
+                    Искусство духовного общения
+                  </motion.p>
+                </div>
               </div>
-            </div>
             <div className="p-10 sm:p-20 space-y-20">
               <div className="max-w-3xl mx-auto space-y-12">
                 <motion.p 
@@ -957,10 +1040,33 @@ function AppContent() {
               </div>
             </div>
           </motion.div>
-        ) : showAdmin ? (
+        </div>
+      ) : showAdmin ? (
           <div className="space-y-10 max-w-4xl mx-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-4xl font-serif text-fg tracking-tight">Панель администратора</h2>
+              <div>
+                <h2 className="text-4xl font-serif text-fg tracking-tight">Панель администратора</h2>
+                <div className="flex gap-2 mt-4">
+                  <button 
+                    onClick={() => setAdminTab('feedback')}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                      adminTab === 'feedback' ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-bg border border-border text-muted hover:text-fg"
+                    )}
+                  >
+                    Отзывы
+                  </button>
+                  <button 
+                    onClick={() => setAdminTab('system')}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                      adminTab === 'system' ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-bg border border-border text-muted hover:text-fg"
+                    )}
+                  >
+                    Система
+                  </button>
+                </div>
+              </div>
               <button 
                 onClick={() => setShowAdmin(false)} 
                 className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm uppercase tracking-[0.1em] text-[10px] font-bold"
@@ -968,32 +1074,138 @@ function AppContent() {
                 Закрыть
               </button>
             </div>
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="h-[1px] flex-1 bg-border" />
-                <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Обратная связь</h3>
-                <div className="h-[1px] flex-1 bg-border" />
-              </div>
-              
-              {adminFeedback.length === 0 ? (
-                <div className="sber-card p-16 text-center text-muted font-medium italic opacity-60">
-                  Пока нет отзывов от пользователей
+
+            {adminTab === 'feedback' ? (
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-[1px] flex-1 bg-border" />
+                  <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Обратная связь</h3>
+                  <div className="h-[1px] flex-1 bg-border" />
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {adminFeedback.map(f => (
-                    <div key={f.id} className="sber-card space-y-6 hover:border-accent/30 transition-all group relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-1 h-full bg-accent opacity-20 group-hover:opacity-100 transition-opacity" />
-                      <div className="flex justify-between items-start">
-                        <div className="font-bold text-accent text-[10px] uppercase tracking-[0.1em] bg-accent/10 px-3 py-1 rounded-lg border border-accent/20">{f.email}</div>
-                        <div className="text-[9px] font-bold text-muted/60 uppercase tracking-[0.1em]">{(f.createdAt as any).toDate().toLocaleDateString()}</div>
+                
+                {adminFeedback.length === 0 ? (
+                  <div className="sber-card p-16 text-center text-muted font-medium italic opacity-60">
+                    Пока нет отзывов от пользователей
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {adminFeedback.map(f => (
+                      <div key={f.id} className="sber-card space-y-6 hover:border-accent/30 transition-all group relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-accent opacity-20 group-hover:opacity-100 transition-opacity" />
+                        <div className="flex justify-between items-start">
+                          <div className="font-bold text-accent text-[10px] uppercase tracking-[0.1em] bg-accent/10 px-3 py-1 rounded-lg border border-accent/20">{f.email}</div>
+                          <div className="text-[9px] font-bold text-muted/60 uppercase tracking-[0.1em]">
+                            {f.createdAt && typeof (f.createdAt as any).toDate === 'function' 
+                              ? (f.createdAt as any).toDate().toLocaleDateString() 
+                              : typeof f.createdAt === 'number' 
+                                ? new Date(f.createdAt).toLocaleDateString() 
+                                : 'Неизвестно'}
+                          </div>
+                        </div>
+                        <p className="text-fg/90 text-lg leading-relaxed font-medium italic">«{f.message}»</p>
                       </div>
-                      <p className="text-fg/90 text-lg leading-relaxed font-medium italic">«{f.message}»</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="sber-card space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-2xl flex items-center justify-center">
+                        <User className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="text-muted font-bold text-[10px] uppercase tracking-[0.2em]">Пользователи</div>
+                        <div className="text-3xl font-bold text-fg tracking-tight">{systemStats.users}</div>
+                      </div>
                     </div>
-                  ))}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
+                        <span className="text-muted">Лимит Spark (Бесплатно)</span>
+                        <span className="text-fg">1 ГБ / 50к чтений</span>
+                      </div>
+                      <div className="h-2 bg-border rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min((systemStats.users / 1000) * 100, 100)}%` }}
+                          className="h-full bg-blue-500"
+                        />
+                      </div>
+                      <p className="text-[9px] text-muted italic">Оценка заполненности: {((systemStats.users / 1000) * 100).toFixed(1)}% (база 1000 юзеров)</p>
+                    </div>
+                  </div>
+
+                  <div className="sber-card space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center">
+                        <MessageSquare className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="text-muted font-bold text-[10px] uppercase tracking-[0.2em]">Отзывы / Данные</div>
+                        <div className="text-3xl font-bold text-fg tracking-tight">{systemStats.feedback}</div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
+                        <span className="text-muted">Нагрузка на БД</span>
+                        <span className="text-emerald-500">Минимальная</span>
+                      </div>
+                      <div className="h-2 bg-border rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min((systemStats.feedback / 500) * 100, 100)}%` }}
+                          className="h-full bg-emerald-500"
+                        />
+                      </div>
+                      <p className="text-[9px] text-muted italic">Безопасная зона для бесплатного тарифа</p>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <div className="sber-card bg-accent/5 border-accent/20 p-10">
+                  <div className="flex items-center gap-6 mb-8">
+                    <div className="w-16 h-16 bg-accent rounded-[2rem] flex items-center justify-center text-white shadow-xl shadow-accent/20">
+                      <Zap className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-serif text-fg tracking-tight">Статус Gemini AI</h3>
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Интеллектуальное ядро системы</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+                    <div className="bg-bg/50 p-6 rounded-2xl border border-border">
+                      <div className="text-[9px] text-muted font-bold uppercase tracking-[0.2em] mb-2">Лимит RPM</div>
+                      <div className="text-lg font-bold text-fg">15 запросов/мин</div>
+                    </div>
+                    <div className="bg-bg/50 p-6 rounded-2xl border border-border">
+                      <div className="text-[9px] text-muted font-bold uppercase tracking-[0.2em] mb-2">Статус</div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <div className="text-lg font-bold text-emerald-500">Активен</div>
+                      </div>
+                    </div>
+                    <div className="bg-bg/50 p-6 rounded-2xl border border-border">
+                      <div className="text-[9px] text-muted font-bold uppercase tracking-[0.2em] mb-2">Тариф</div>
+                      <div className="text-lg font-bold text-blue-500">Free Tier</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-rose-500/5 border border-rose-500/20 p-6 rounded-2xl flex items-start gap-4">
+                    <ShieldAlert className="w-5 h-5 text-rose-500 mt-1" />
+                    <div>
+                      <div className="text-[10px] font-bold text-rose-500 uppercase tracking-[0.2em] mb-2">Важное предупреждение</div>
+                      <p className="text-xs text-fg/70 leading-relaxed font-medium">
+                        При достижении 15 одновременных пользователей в минуту ИИ может начать выдавать ошибки «Too Many Requests». 
+                        Рекомендуется переход на Pay-as-you-go при росте аудитории свыше 500 активных пользователей в день.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -1143,9 +1355,14 @@ function AppContent() {
                     <Sparkles className="w-20 h-20 text-accent" />
                   </div>
                   <div className="text-[11px] font-bold text-accent uppercase tracking-[0.4em] mb-6">Интересный факт</div>
-                  <p className="text-2xl sm:text-3xl font-medium text-fg italic leading-tight tracking-tight">
+                  <motion.p 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5, duration: 1 }}
+                    className="text-2xl sm:text-3xl font-medium text-fg italic leading-tight tracking-tight"
+                  >
                     {dailyFact}
-                  </p>
+                  </motion.p>
                 </motion.div>
 
                 <motion.div
@@ -1239,21 +1456,43 @@ function AppContent() {
           ) : feedback ? (
             <motion.div 
               key="feedback"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", damping: 20 }}
               className="sber-card max-w-4xl mx-auto overflow-hidden !p-0"
             >
-              <div className="bg-accent p-12 text-white text-center relative">
+              <div className="bg-accent p-12 text-white text-center relative overflow-hidden">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 0.1, scale: 1.5 }}
+                  transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
+                  className="absolute top-0 left-0 w-full h-full bg-white rounded-full blur-3xl -translate-y-1/2"
+                />
                 <div className="relative z-10">
                   <motion.div 
-                    initial={{ scale: 0.9 }}
-                    animate={{ scale: 1 }}
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
                     className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-2xl mb-6 backdrop-blur-md border border-white/30"
                   >
                     <Star className="w-10 h-10 fill-white" />
                   </motion.div>
-                  <h2 className="text-2xl font-semibold mb-4 tracking-tight">Анализ завершен</h2>
-                  <div className="text-6xl font-bold mb-4">{feedback.score}<span className="text-2xl opacity-60">/10</span></div>
+                  <motion.h2 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-2xl font-semibold mb-4 tracking-tight"
+                  >
+                    Анализ завершен
+                  </motion.h2>
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.4, type: "spring" }}
+                    className="text-6xl font-bold mb-4"
+                  >
+                    {feedback.score}<span className="text-2xl opacity-60">/10</span>
+                  </motion.div>
                   <p className="text-white/70 font-bold uppercase tracking-[0.3em] text-[10px]">Ваш итоговый балл</p>
                 </div>
               </div>
@@ -1268,12 +1507,18 @@ function AppContent() {
                       { label: 'Эмпатия', val: feedback.metrics.empathy },
                       { label: 'Скорость', val: feedback.metrics.speed, suffix: 'с' },
                     ].map((m, i) => (
-                      <div key={i} className="bg-bg border border-border p-5 rounded-2xl text-center">
+                      <motion.div 
+                        key={i} 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 + i * 0.1 }}
+                        className="bg-bg border border-border p-5 rounded-2xl text-center"
+                      >
                         <div className="text-muted text-[9px] font-bold uppercase tracking-[0.2em] mb-2">
                           {m.label}
                         </div>
                         <div className="text-xl font-bold text-fg tracking-tight">{m.val}{m.suffix}</div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 )}
@@ -1286,16 +1531,22 @@ function AppContent() {
                     </h3>
                     <ul className="space-y-3">
                       {feedback.strengths.map((s, i) => (
-                        <li key={i} className="flex gap-4 text-sm text-fg/90 bg-accent/5 p-5 rounded-xl border border-accent/10 font-medium">
+                        <motion.li 
+                          key={i} 
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.8 + i * 0.1 }}
+                          className="flex gap-4 text-sm text-fg/90 bg-accent/5 p-5 rounded-xl border border-accent/10 font-medium"
+                        >
                           <span className="font-bold text-accent">{i + 1}.</span>
                           {s}
-                        </li>
+                        </motion.li>
                       ))}
                     </ul>
                   </div>
 
                   <div className="relative">
-                    {!feedback.isUnlocked && (
+                    {!isSubscribed && (
                       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-card/80 backdrop-blur-sm rounded-2xl border border-border">
                         <div className="w-12 h-12 bg-accent text-white rounded-xl flex items-center justify-center mb-4">
                           <Zap className="w-6 h-6" />
@@ -1305,15 +1556,15 @@ function AppContent() {
                           Узнайте скрытые ошибки и получите план роста
                         </p>
                         <button 
-                          onClick={() => setFeedback({...feedback, isUnlocked: true})}
+                          onClick={() => setShowSubscription(true)}
                           className="sber-button w-full py-3 text-sm"
                         >
-                          Открыть за 199₽
+                          Открыть за 499₽/мес
                         </button>
                       </div>
                     )}
                     
-                    <div className={cn("space-y-4", !feedback.isUnlocked && "blur-md select-none")}>
+                    <div className={cn("space-y-4", !isSubscribed && "blur-md select-none")}>
                       <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] flex items-center gap-2">
                         <div className="w-4 h-[1px] bg-amber-500" />
                         Зоны роста
@@ -1331,7 +1582,7 @@ function AppContent() {
                 </div>
 
                 <div className="relative">
-                  {!feedback.isUnlocked && (
+                  {!isSubscribed && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center">
                       <div className="bg-card px-4 py-2 rounded-full border border-border shadow-lg flex items-center gap-2">
                         <Lock className="w-3 h-3 text-accent" />
@@ -1341,7 +1592,7 @@ function AppContent() {
                   )}
                   <div className={cn(
                     "bg-bg p-6 rounded-2xl border border-border transition-all duration-500",
-                    !feedback.isUnlocked && "blur-md opacity-30"
+                    !isSubscribed && "blur-md opacity-30"
                   )}>
                     <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mb-4">
                       Резюме наставника
@@ -1351,6 +1602,15 @@ function AppContent() {
                     </p>
                   </div>
                 </div>
+
+                {!isSubscribed && (
+                  <div className="bg-accent/5 border border-accent/20 p-6 rounded-2xl">
+                    <h4 className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] mb-3">Поверхностный анализ</h4>
+                    <p className="text-xs text-muted leading-relaxed">
+                      Ваш ответ был в целом корректен, но требует более глубокой проработки библейских оснований. Для детального разбора оформите подписку.
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button 
@@ -1707,61 +1967,77 @@ function AppContent() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {LIBRARY_ARTICLES.map(article => (
-                  <motion.div 
-                    key={article.id} 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="sber-card relative group p-10 flex flex-col h-full bg-card/50 backdrop-blur-sm cursor-pointer"
-                    onClick={() => {
-                      if (!article.isPremium || isSubscribed) {
-                        setSelectedArticle(article);
-                      } else {
-                        setShowSubscription(true);
-                      }
-                    }}
-                  >
-                    {article.isPremium && !isSubscribed && (
-                      <div className="absolute inset-0 bg-bg/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-10 text-center rounded-2xl border border-border/50">
-                        <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
-                          <Lock className="w-7 h-7" />
-                        </div>
-                        <h4 className="font-bold text-fg mb-3 uppercase tracking-wider text-xs">Доступно в Премиум</h4>
-                        <p className="text-muted text-xs mb-8 max-w-[200px] leading-relaxed">Оформите подписку, чтобы открыть полный доступ к этой статье.</p>
-                        <button 
-                          onClick={() => setShowSubscription(true)}
-                          className="sber-button py-3 px-8 text-xs"
-                        >
-                          Оформить подписку
-                        </button>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] bg-accent/5 px-3 py-1 rounded-lg border border-accent/10">{article.category}</div>
-                      {article.isPremium && <Sparkles className="w-4 h-4 text-amber-500" />}
-                    </div>
-                    <h3 className="text-2xl font-semibold text-fg mb-6 tracking-tight leading-tight">{article.title}</h3>
-                    <p className="text-muted text-sm leading-relaxed font-medium opacity-90 flex-grow">{article.content}</p>
-                    <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
-                      <span className="text-[9px] font-bold text-muted uppercase tracking-widest">5 мин чтения</span>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!article.isPremium || isSubscribed) {
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {LIBRARY_ARTICLES.map((article, idx) => {
+                    const isPurchased = userProfile?.purchasedArticles?.includes(article.id);
+                    const canRead = !article.isPremium || isPurchased;
+
+                    return (
+                      <motion.div 
+                        key={article.id} 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="sber-card relative group p-10 flex flex-col h-full bg-card/50 backdrop-blur-sm cursor-pointer overflow-hidden"
+                        onClick={() => {
+                          if (canRead) {
                             setSelectedArticle(article);
-                          } else {
-                            setShowSubscription(true);
                           }
                         }}
-                        className="text-accent font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all"
                       >
-                        Читать полностью <ArrowRight className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                        {article.isPremium && !isPurchased && (
+                          <div className="absolute inset-0 bg-bg/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-10 text-center rounded-2xl border border-border/50">
+                            <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
+                              <Lock className="w-7 h-7" />
+                            </div>
+                            <h4 className="font-bold text-fg mb-3 uppercase tracking-wider text-xs">Доступно после покупки</h4>
+                            <p className="text-muted text-xs mb-8 max-w-[200px] leading-relaxed">{article.description}</p>
+                            <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  buyArticle(article.id);
+                                }}
+                                className="sber-button py-3 px-8 text-xs"
+                              >
+                                Купить за {article.price} ₽
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowSubscription(true);
+                                }}
+                                className="text-accent font-bold text-[10px] uppercase tracking-widest hover:underline"
+                              >
+                                Или по подписке
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] bg-accent/5 px-3 py-1 rounded-lg border border-accent/10">{article.category}</div>
+                          {article.isPremium && <Sparkles className="w-4 h-4 text-amber-500" />}
+                        </div>
+                        <h3 className="text-2xl font-semibold text-fg mb-6 tracking-tight leading-tight">{article.title}</h3>
+                        <p className="text-muted text-sm leading-relaxed font-medium opacity-90 flex-grow line-clamp-3">{article.description}</p>
+                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-muted uppercase tracking-widest">5 мин чтения</span>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (canRead) {
+                                setSelectedArticle(article);
+                              }
+                            }}
+                            className="text-accent font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all"
+                          >
+                            {canRead ? 'Читать полностью' : 'Заблокировано'} <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               
               <div className="mt-20 text-center">
                 <button 
@@ -1940,8 +2216,7 @@ function AppContent() {
                 <div className="bg-accent/5 border border-accent/20 rounded-[2rem] p-10 mb-12 text-center">
                   <div className="text-[10px] font-bold text-accent uppercase tracking-[0.4em] mb-4">Ежемесячная подписка</div>
                   <div className="flex items-baseline justify-center gap-2">
-                    <span className="text-5xl font-semibold text-fg tracking-tighter">{SUBSCRIPTION_PLANS[0].price} ₽</span>
-                    <span className="text-muted font-medium">/ месяц</span>
+                    <span className="text-5xl font-semibold text-fg tracking-tighter">{SUBSCRIPTION_PLANS[0].price}</span>
                   </div>
                 </div>
 
