@@ -165,19 +165,37 @@ function AppContent() {
 
   const buyArticle = async (articleId: string) => {
     if (!user || !userProfile) return;
+    const article = LIBRARY_ARTICLES.find(a => a.id === articleId);
+    if (!article) return;
+
+    const purchased = userProfile.purchasedArticles || [];
+    if (purchased.includes(articleId)) {
+      alert("У вас уже есть доступ к этой статье");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const purchased = userProfile.purchasedArticles || [];
-      if (!purchased.includes(articleId)) {
-        const newPurchased = [...purchased, articleId];
-        await updateDoc(doc(db, 'users', user.uid), {
-          purchasedArticles: newPurchased
-        });
-        setUserProfile(prev => prev ? { ...prev, purchasedArticles: newPurchased } : null);
-        alert("Статья успешно приобретена!");
+      const response = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: article.price,
+          description: `Покупка статьи: ${article.title}`,
+          metadata: { userId: userProfile.uid, articleId, type: 'article' },
+          return_url: window.location.href
+        })
+      });
+      
+      const data = await response.json();
+      if (data.confirmation_url) {
+        window.location.href = data.confirmation_url;
+      } else {
+        throw new Error(data.error || "Не удалось создать платеж");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error buying article:", error);
+      alert("Ошибка при создании платежа: " + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -369,19 +387,32 @@ function AppContent() {
   };
 
   const buySubscription = async () => {
-    if (!user) return;
+    if (!user || !userProfile) return;
+    const plan = SUBSCRIPTION_PLANS[0]; // Assuming first plan for now
+    
     setIsLoading(true);
     try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        isSubscribed: true,
-        subscriptionExpiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+      const priceValue = parseFloat(plan.price.replace(/[^0-9.]/g, ''));
+      const response = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: priceValue,
+          description: `Подписка: ${plan.title}`,
+          metadata: { userId: userProfile.uid, type: 'subscription' },
+          return_url: window.location.href
+        })
       });
-      setUserProfile(prev => prev ? { ...prev, isSubscribed: true } : null);
-      setShowSubscription(false);
-      alert("Подписка успешно оформлена!");
-    } catch (error) {
+      
+      const data = await response.json();
+      if (data.confirmation_url) {
+        window.location.href = data.confirmation_url;
+      } else {
+        throw new Error(data.error || "Не удалось создать платеж");
+      }
+    } catch (error: any) {
       console.error("Error buying subscription:", error);
+      alert("Ошибка при создании платежа: " + error.message);
     } finally {
       setIsLoading(false);
     }
