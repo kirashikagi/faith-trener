@@ -9,16 +9,21 @@ const app = express();
 app.use(express.json());
 
 // YooKassa Configuration
+const getTrimmedEnv = (key: string) => (process.env[key] || '').trim();
+
 const checkout = new YooCheckout({
-  shopId: process.env.YOOKASSA_SHOP_ID || '',
-  secretKey: process.env.YOOKASSA_SECRET_KEY || ''
+  shopId: getTrimmedEnv('YOOKASSA_SHOP_ID'),
+  secretKey: getTrimmedEnv('YOOKASSA_SECRET_KEY')
 });
 
 // YooKassa Payment Routes
 app.post("/api/payments/create", async (req, res) => {
   const { amount, description, metadata, return_url } = req.body;
   
-  if (!process.env.YOOKASSA_SHOP_ID || !process.env.YOOKASSA_SECRET_KEY) {
+  const shopId = getTrimmedEnv('YOOKASSA_SHOP_ID');
+  const secretKey = getTrimmedEnv('YOOKASSA_SECRET_KEY');
+
+  if (!shopId || !secretKey) {
     return res.status(500).json({ error: "YooKassa is not configured on the server. Please add YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY to Secrets." });
   }
 
@@ -68,7 +73,7 @@ app.post("/api/payments/webhook", async (req, res) => {
 app.post("/api/chat", async (req, res) => {
   try {
     const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
-    const apiKey = clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    let apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
     
     if (!apiKey) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
@@ -95,7 +100,7 @@ app.post("/api/chat", async (req, res) => {
 app.post("/api/generate", async (req, res) => {
   try {
     const { prompt, config, apiKey: clientApiKey } = req.body;
-    const apiKey = clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    let apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
     
     if (!apiKey) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });

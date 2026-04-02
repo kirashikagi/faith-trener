@@ -164,12 +164,16 @@ function AppContent() {
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
 
   const buyArticle = async (articleId: string) => {
-    if (!user || !userProfile) return;
+    if (!user || !userProfile) {
+      setAuthMode('login');
+      alert("Пожалуйста, войдите в систему, чтобы совершать покупки");
+      return;
+    }
     const article = LIBRARY_ARTICLES.find(a => a.id === articleId);
     if (!article) return;
 
     const purchased = userProfile.purchasedArticles || [];
-    if (purchased.includes(articleId)) {
+    if (purchased.includes(articleId) || isSubscribed) {
       alert("У вас уже есть доступ к этой статье");
       return;
     }
@@ -387,7 +391,11 @@ function AppContent() {
   };
 
   const buySubscription = async () => {
-    if (!user || !userProfile) return;
+    if (!user || !userProfile) {
+      setAuthMode('login');
+      alert("Пожалуйста, войдите в систему, чтобы оформить подписку");
+      return;
+    }
     const plan = SUBSCRIPTION_PLANS[0]; // Assuming first plan for now
     
     setIsLoading(true);
@@ -2001,7 +2009,7 @@ function AppContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {LIBRARY_ARTICLES.map((article, idx) => {
                     const isPurchased = userProfile?.purchasedArticles?.includes(article.id);
-                    const canRead = !article.isPremium || isPurchased;
+                    const canRead = !article.isPremium || isPurchased || isSubscribed;
 
                     return (
                       <motion.div 
@@ -2016,7 +2024,7 @@ function AppContent() {
                           }
                         }}
                       >
-                        {article.isPremium && !isPurchased && (
+                        {article.isPremium && !isPurchased && !isSubscribed && (
                           <div className="absolute inset-0 bg-bg/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-10 text-center rounded-2xl border border-border/50">
                             <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
                               <Lock className="w-7 h-7" />
@@ -2029,8 +2037,12 @@ function AppContent() {
                                   e.stopPropagation();
                                   buyArticle(article.id);
                                 }}
-                                className="sber-button py-3 px-8 text-xs"
+                                disabled={isLoading}
+                                className="sber-button py-3 px-8 text-xs flex items-center justify-center gap-2"
                               >
+                                {isLoading ? (
+                                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : null}
                                 Купить за {article.price} ₽
                               </button>
                               <button 
@@ -2204,19 +2216,19 @@ function AppContent() {
       {/* Subscription Modal */}
       <AnimatePresence>
         {showSubscription && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-6 sm:p-12">
+          <div className="fixed inset-0 z-[120] flex items-start justify-center p-4 sm:p-8 overflow-y-auto bg-bg/80 backdrop-blur-md">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowSubscription(false)}
-              className="absolute inset-0 bg-bg/80 backdrop-blur-md"
+              className="absolute inset-0"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="glass-card w-full max-w-2xl relative overflow-hidden"
+              className="glass-card w-full max-w-2xl relative overflow-hidden my-auto"
             >
               <div className="absolute top-0 right-0 p-12 opacity-5">
                 <Crown className="w-48 h-48 text-accent" />
