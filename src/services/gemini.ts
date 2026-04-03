@@ -38,12 +38,17 @@ export async function getChatResponse(
 
     if (!response.ok) {
       const text = await response.text();
+      console.error(`API Error (Status ${response.status}):`, text);
       let errorMessage = "Ошибка сервера при получении ответа.";
       try {
         const errorData = JSON.parse(text);
         errorMessage = errorData.error || errorMessage;
       } catch (e) {
-        errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
+        if (text.includes('FUNCTION_INVOCATION_FAILED')) {
+          errorMessage = 'Серверная функция не смогла запуститься (FUNCTION_INVOCATION_FAILED). Проверьте логи сервера или настройки Secrets.';
+        } else {
+          errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
+        }
       }
       throw new Error(errorMessage);
     }
@@ -98,12 +103,17 @@ export async function getResponseOptions(
 
     if (!response.ok) {
       const text = await response.text();
+      console.error(`API Error (Status ${response.status}):`, text);
       let errorMessage = "Ошибка сервера при генерации вариантов.";
       try {
         const errorData = JSON.parse(text);
         errorMessage = errorData.error || errorMessage;
       } catch (e) {
-        errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
+        if (text.includes('FUNCTION_INVOCATION_FAILED')) {
+          errorMessage = 'Серверная функция не смогла запуститься (FUNCTION_INVOCATION_FAILED). Проверьте логи сервера или настройки Secrets.';
+        } else {
+          errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
+        }
       }
       throw new Error(errorMessage);
     }
@@ -185,12 +195,17 @@ export async function getFeedback(
 
     if (!response.ok) {
       const text = await response.text();
+      console.error(`API Error (Status ${response.status}):`, text);
       let errorMessage = "Ошибка сервера при анализе диалога.";
       try {
         const errorData = JSON.parse(text);
         errorMessage = errorData.error || errorMessage;
       } catch (e) {
-        errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
+        if (text.includes('FUNCTION_INVOCATION_FAILED')) {
+          errorMessage = 'Серверная функция не смогла запуститься (FUNCTION_INVOCATION_FAILED). Проверьте логи сервера или настройки Secrets.';
+        } else {
+          errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
+        }
       }
       throw new Error(errorMessage);
     }
