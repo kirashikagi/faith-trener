@@ -3,28 +3,46 @@ import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import { YooCheckout } from 'yookassa';
 import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 
 dotenv.config();
 
 // Initialize Firebase Admin
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT) : null;
+let db: admin.firestore.Firestore;
 
-if (serviceAccount) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-} else {
-  // Try to initialize with default credentials or just project ID
-  try {
-    admin.initializeApp({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'the-sentinel-490819'
-    });
-  } catch (e) {
-    console.error("Firebase Admin initialization failed:", e);
+try {
+  let appInstance;
+  if (!admin.apps.length) {
+    const serviceAccountStr = process.env.FIREBASE_SERVICE_ACCOUNT;
+    let serviceAccount = null;
+    
+    if (serviceAccountStr) {
+      try {
+        serviceAccount = JSON.parse(serviceAccountStr);
+      } catch (e) {
+        console.error("FIREBASE_SERVICE_ACCOUNT is not valid JSON:", e);
+      }
+    }
+
+    if (serviceAccount) {
+      appInstance = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+    } else {
+      appInstance = admin.initializeApp({
+        projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'the-sentinel-490819'
+      });
+    }
+  } else {
+    appInstance = admin.apps[0]!;
   }
+  
+  // Use the specific database ID if provided
+  const databaseId = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-869f31c2-5b90-4d7e-8ae0-6d60d83bc4b5';
+  db = getFirestore(appInstance, databaseId);
+} catch (error) {
+  console.error("CRITICAL: Firebase Admin initialization failed:", error);
 }
-
-const db = admin.firestore();
 
 const app = express();
 app.use(express.json());
