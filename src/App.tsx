@@ -82,6 +82,8 @@ import { auth, db } from './firebase';
 import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle } from './types';
 import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
 import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
+import ErrorBoundary from './components/ErrorBoundary';
+import { handleFirestoreError, OperationType } from './lib/firebase-utils';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -107,7 +109,11 @@ const ScenarioIcons: Record<string, React.ReactNode> = {
 };
 
 export default function App() {
-  return <AppContent />;
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
 }
 
 function AppContent() {
@@ -246,6 +252,20 @@ function AppContent() {
 
   // Firebase Auth & Profile
   useEffect(() => {
+    // Test connection to Firestore
+    const testConnection = async () => {
+      try {
+        await getDocFromServer(doc(db, '_connection_test', 'ping'));
+        console.log("Firestore connection verified.");
+      } catch (error: any) {
+        if (error.message?.includes('the client is offline')) {
+          console.error("Firestore is offline. Check your configuration.");
+          addNotification("Ошибка подключения к базе данных. Проверьте настройки Firebase.", 'error');
+        }
+      }
+    };
+    testConnection();
+
     window.scrollTo(0, 0);
   }, [user, selectedScenario, showStats, showLibrary, showAdmin]);
 
@@ -405,8 +425,7 @@ function AppContent() {
       setShowFeedbackForm(false);
       addNotification("Спасибо за отзыв! Мы обязательно его прочтем.", 'success');
     } catch (error) {
-      console.error("Error submitting feedback:", error);
-      addNotification("Не удалось отправить отзыв. Попробуйте позже.", 'error');
+      handleFirestoreError(error, OperationType.WRITE, 'feedback');
     }
   };
 
@@ -709,7 +728,7 @@ function AppContent() {
             createdAt: Timestamp.now()
           });
         } catch (err) {
-          console.error("Error saving session to Firestore:", err);
+          handleFirestoreError(err, OperationType.WRITE, 'sessions');
         }
       }
 
