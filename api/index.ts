@@ -2,8 +2,29 @@ import express from "express";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import { YooCheckout } from 'yookassa';
+import admin from 'firebase-admin';
 
 dotenv.config();
+
+// Initialize Firebase Admin
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT) : null;
+
+if (serviceAccount) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+} else {
+  // Try to initialize with default credentials or just project ID
+  try {
+    admin.initializeApp({
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'the-sentinel-490819'
+    });
+  } catch (e) {
+    console.error("Firebase Admin initialization failed:", e);
+  }
+}
+
+const db = admin.firestore();
 
 const app = express();
 app.use(express.json());
@@ -11,10 +32,18 @@ app.use(express.json());
 // YooKassa Configuration
 const getTrimmedEnv = (key: string) => (process.env[key] || '').trim();
 
-const checkout = new YooCheckout({
-  shopId: getTrimmedEnv('YOOKASSA_SHOP_ID'),
-  secretKey: getTrimmedEnv('YOOKASSA_SECRET_KEY')
-});
+let checkout: YooCheckout | null = null;
+
+const getCheckout = () => {
+  if (!checkout) {
+    const shopId = getTrimmedEnv('YOOKASSA_SHOP_ID');
+    const secretKey = getTrimmedEnv('YOOKASSA_SECRET_KEY');
+    if (shopId && secretKey) {
+      checkout = new YooCheckout({ shopId, secretKey });
+    }
+  }
+  return checkout;
+};
 
 // YooKassa Payment Routes
 app.post("/api/payments/create", async (req, res) => {
@@ -23,12 +52,18 @@ app.post("/api/payments/create", async (req, res) => {
   const shopId = getTrimmedEnv('YOOKASSA_SHOP_ID');
   const secretKey = getTrimmedEnv('YOOKASSA_SECRET_KEY');
 
+  console.log("Creating payment for:", { amount, description, metadata });
+
   if (!shopId || !secretKey) {
+    console.error("YooKassa keys missing in environment");
     return res.status(500).json({ error: "YooKassa is not configured on the server. Please add YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY to Secrets." });
   }
 
   try {
-    const payment = await checkout.createPayment({
+    const yooCheckout = getCheckout();
+    if (!yooCheckout) throw new Error("Failed to initialize YooKassa checkout");
+
+    const payment = await yooCheckout.createPayment({
       amount: {
         value: Number(amount).toFixed(2),
         currency: 'RUB'
@@ -45,6 +80,7 @@ app.post("/api/payments/create", async (req, res) => {
       capture: true
     });
     
+    console.log("Payment created successfully:", payment.id);
     res.json({ confirmation_url: payment.confirmation.confirmation_url });
   } catch (error: any) {
     console.error("YooKassa Create Payment Error:", error);
@@ -54,16 +90,37 @@ app.post("/api/payments/create", async (req, res) => {
 
 app.post("/api/payments/webhook", async (req, res) => {
   const event = req.body;
-  console.log("YooKassa Webhook Event:", event);
+  console.log("YooKassa Webhook Event:", JSON.stringify(event));
   
   if (event.event === 'payment.succeeded') {
     const payment = event.object;
-    const { userId, articleId, type } = payment.metadata;
+    const { userId, articleId, type } = payment.metadata || {};
     
+    if (!userId) {
+      console.error("No userId in payment metadata");
+      return res.sendStatus(200);
+    }
+
     console.log(`Payment succeeded for user ${userId}, type: ${type}, id: ${articleId}`);
-    // Note: In a real app, you would update Firestore here.
-    // Since we are server-side, we can't easily update client-side state,
-    // but the client can poll or refresh to see the change.
+    
+    try {
+      const userRef = db.collection('users').doc(userId);
+      
+      if (type === 'subscription') {
+        await userRef.update({
+          isSubscribed: true,
+          subscriptionDate: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`Updated subscription for user ${userId}`);
+      } else if (type === 'article' && articleId) {
+        await userRef.update({
+          purchasedArticles: admin.firestore.FieldValue.arrayUnion(articleId)
+        });
+        console.log(`Added article ${articleId} to user ${userId}`);
+      }
+    } catch (error) {
+      console.error("Error updating Firestore from webhook:", error);
+    }
   }
   
   res.sendStatus(200);
@@ -80,13 +137,22 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const ai = new GoogleGenAI({ apiKey });
+    
+    // Gemini history MUST start with 'user' role.
+    // If our history starts with 'model' (initial message), we prepend a dummy user message.
+    let formattedHistory = (history || []).map((m: any) => ({
+      role: m.role,
+      parts: [{ text: m.text }]
+    }));
+
+    if (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
+      formattedHistory.unshift({ role: 'user', parts: [{ text: 'Начнем диалог.' }] });
+    }
+
     const chat = ai.chats.create({
       model: model || "gemini-3-flash-preview",
       config: { systemInstruction },
-      history: history.map((m: any) => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-      }))
+      history: formattedHistory
     });
 
     const response = await chat.sendMessage({ message });

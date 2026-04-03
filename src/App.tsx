@@ -74,7 +74,8 @@ import {
   orderBy,
   Timestamp,
   getDocFromServer,
-  updateDoc
+  updateDoc,
+  onSnapshot
 } from 'firebase/firestore';
 
 import { auth, db } from './firebase';
@@ -163,10 +164,20 @@ function AppContent() {
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
 
+  const [notifications, setNotifications] = useState<{ id: string; message: string; type: 'info' | 'error' | 'success' }[]>([]);
+
+  const addNotification = (message: string, type: 'info' | 'error' | 'success' = 'info') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setNotifications(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
+
   const buyArticle = async (articleId: string) => {
     if (!user || !userProfile) {
       setAuthMode('login');
-      alert("Пожалуйста, войдите в систему, чтобы совершать покупки");
+      addNotification("Пожалуйста, войдите в систему, чтобы совершать покупки", 'error');
       return;
     }
     const article = LIBRARY_ARTICLES.find(a => a.id === articleId);
@@ -174,7 +185,7 @@ function AppContent() {
 
     const purchased = userProfile.purchasedArticles || [];
     if (purchased.includes(articleId) || isSubscribed) {
-      alert("У вас уже есть доступ к этой статье");
+      addNotification("У вас уже есть доступ к этой статье", 'info');
       return;
     }
 
@@ -199,7 +210,7 @@ function AppContent() {
       }
     } catch (error: any) {
       console.error("Error buying article:", error);
-      alert("Ошибка при создании платежа: " + error.message);
+      addNotification("Ошибка при создании платежа: " + error.message, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -239,13 +250,16 @@ function AppContent() {
   }, [user, selectedScenario, showStats, showLibrary, showAdmin]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let profileUnsubscribe: (() => void) | null = null;
+
+    const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (userDoc.exists()) {
-            const profile = userDoc.data() as UserProfile;
+        
+        // Use onSnapshot for real-time profile updates
+        profileUnsubscribe = onSnapshot(doc(db, 'users', firebaseUser.uid), async (docSnap) => {
+          if (docSnap.exists()) {
+            const profile = docSnap.data() as UserProfile;
             
             // Streak logic
             const now = Date.now();
@@ -254,8 +268,8 @@ function AppContent() {
             const isSameDay = new Date(now).toDateString() === new Date(lastVisit).toDateString();
             const isNextDay = new Date(now - oneDay).toDateString() === new Date(lastVisit).toDateString();
 
-            let newStreak = profile.streak || 1;
             if (!isSameDay) {
+              let newStreak = profile.streak || 1;
               if (isNextDay) {
                 newStreak += 1;
               } else {
@@ -265,8 +279,7 @@ function AppContent() {
                 streak: newStreak,
                 lastVisit: now
               });
-              profile.streak = newStreak;
-              profile.lastVisit = now;
+              // onSnapshot will trigger again with updated data
             }
 
             setUserProfile(profile);
@@ -286,20 +299,26 @@ function AppContent() {
               lastVisit: Date.now()
             };
             await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
-            setUserProfile(newProfile);
-            setShowIntro(true);
+            // onSnapshot will pick this up
           }
-        } catch (e) {
-          console.error("Error fetching user profile:", e);
-        }
+        }, (error) => {
+          console.error("Error listening to user profile:", error);
+        });
       } else {
         setUser(null);
         setUserProfile(null);
+        if (profileUnsubscribe) {
+          profileUnsubscribe();
+          profileUnsubscribe = null;
+        }
       }
       setIsAuthLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      authUnsubscribe();
+      if (profileUnsubscribe) profileUnsubscribe();
+    };
   }, []);
 
   const handleCloseIntro = async () => {
@@ -384,16 +403,17 @@ function AppContent() {
       setFeedbackMessage('');
       setFeedbackType('general');
       setShowFeedbackForm(false);
-      alert("Спасибо за отзыв! Мы обязательно его прочтем.");
+      addNotification("Спасибо за отзыв! Мы обязательно его прочтем.", 'success');
     } catch (error) {
       console.error("Error submitting feedback:", error);
+      addNotification("Не удалось отправить отзыв. Попробуйте позже.", 'error');
     }
   };
 
   const buySubscription = async () => {
     if (!user || !userProfile) {
       setAuthMode('login');
-      alert("Пожалуйста, войдите в систему, чтобы оформить подписку");
+      addNotification("Пожалуйста, войдите в систему, чтобы оформить подписку", 'error');
       return;
     }
     const plan = SUBSCRIPTION_PLANS[0]; // Assuming first plan for now
@@ -420,7 +440,7 @@ function AppContent() {
       }
     } catch (error: any) {
       console.error("Error buying subscription:", error);
-      alert("Ошибка при создании платежа: " + error.message);
+      addNotification("Ошибка при создании платежа: " + error.message, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -663,12 +683,17 @@ function AppContent() {
 
   const handleFinish = async () => {
     if (messages.length < 3) {
-      alert("Диалог слишком короткий для анализа. Пообщайтесь еще немного.");
+      addNotification("Диалог слишком короткий для анализа. Пообщайтесь еще немного.", 'info');
       return;
     }
     setIsAnalyzing(true);
     try {
       const result = await getFeedback(messages, getEffectiveApiKey());
+      
+      if (result.score === 0 && result.summary === "Ошибка при анализе диалога.") {
+        throw new Error("Анализ диалога не удался. Проверьте подключение к интернету или API ключ.");
+      }
+
       const feedbackWithLock: Feedback = { ...result, isUnlocked: true };
       setFeedback(feedbackWithLock);
 
@@ -717,8 +742,9 @@ function AppContent() {
       if (selectedScenario?.id === 'skeptic' && result.score > 8 && result.metrics && result.metrics.logic > 8) unlockAchievement('apologetic_expert');
       if (selectedScenario?.id === 'crisis' && result.score > 8) unlockAchievement('empathy_pro');
 
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error("Error analyzing dialogue:", error);
+      addNotification("Ошибка при анализе диалога: " + (error.message || "Неизвестная ошибка"), 'error');
     } finally {
       setIsAnalyzing(false);
     }
@@ -1662,7 +1688,7 @@ function AppContent() {
                     onClick={() => {
                       const text = `Результат тренировки в "Вера +1":\nБалл: ${feedback.score}/10\n\nРезюме: ${feedback.summary}\n\nСильные стороны:\n${feedback.strengths.join('\n')}\n\nЗоны роста:\n${feedback.improvements.join('\n')}`;
                       navigator.clipboard.writeText(text);
-                      alert("Результат скопирован! Теперь вы можете отправить его наставнику.");
+                      addNotification("Результат скопирован! Теперь вы можете отправить его наставнику.", 'success');
                     }}
                     className="flex-1 px-8 bg-accent/10 border border-accent/20 text-accent font-bold rounded-xl hover:bg-accent hover:text-white transition-all uppercase tracking-[0.1em] text-[10px] py-4 flex items-center justify-center gap-2"
                   >
@@ -2290,6 +2316,37 @@ function AppContent() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Notifications */}
+      <div className="fixed bottom-8 right-8 z-[200] flex flex-col gap-4 pointer-events-none">
+        <AnimatePresence>
+          {notifications.map(n => (
+            <motion.div
+              key={n.id}
+              initial={{ opacity: 0, x: 20, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+              className={cn(
+                "px-6 py-4 rounded-2xl shadow-2xl border flex items-center gap-4 pointer-events-auto backdrop-blur-md min-w-[300px]",
+                n.type === 'error' ? "bg-rose-500/10 border-rose-500/20 text-rose-500" :
+                n.type === 'success' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" :
+                "bg-accent/10 border-accent/20 text-accent"
+              )}
+            >
+              {n.type === 'error' ? <AlertCircle className="w-5 h-5 shrink-0" /> :
+               n.type === 'success' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> :
+               <Info className="w-5 h-5 shrink-0" />}
+              <p className="text-sm font-bold tracking-tight">{n.message}</p>
+              <button 
+                onClick={() => setNotifications(prev => prev.filter(notif => notif.id !== n.id))}
+                className="ml-auto p-1 hover:bg-black/5 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
       </div>
     </div>
   );
