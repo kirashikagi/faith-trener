@@ -127,9 +127,11 @@ app.post("/api/payments/webhook", async (req, res) => {
 });
 
 // Gemini Proxy Routes
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", async (req, res, next) => {
   try {
     const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
+    console.log("Chat request received:", { model, messageLength: message?.length });
+    
     let apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
     
     if (!apiKey) {
@@ -158,14 +160,16 @@ app.post("/api/chat", async (req, res) => {
     const response = await chat.sendMessage({ message });
     res.json({ text: response.text });
   } catch (error: any) {
-    console.error("Gemini Server Error:", error);
+    console.error("Gemini Chat Error:", error);
     res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 });
 
-app.post("/api/generate", async (req, res) => {
+app.post("/api/generate", async (req, res, next) => {
   try {
     const { prompt, config, apiKey: clientApiKey } = req.body;
+    console.log("Generate request received:", { promptLength: prompt?.length });
+    
     let apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
     
     if (!apiKey) {
@@ -175,15 +179,21 @@ app.post("/api/generate", async (req, res) => {
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: config || { responseMimeType: "application/json" }
     });
 
     res.json({ text: response.text });
   } catch (error: any) {
-    console.error("Gemini Server Error:", error);
+    console.error("Gemini Generate Error:", error);
     res.status(500).json({ error: error.message || "Internal Server Error" });
   }
+});
+
+// Global Error Handler
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error("UNHANDLED SERVER ERROR:", err);
+  res.status(500).json({ error: err.message || "A server error occurred" });
 });
 
 // For Vercel, we export the app instance

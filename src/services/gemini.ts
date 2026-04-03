@@ -37,8 +37,15 @@ export async function getChatResponse(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Ошибка сервера при получении ответа.");
+      const text = await response.text();
+      let errorMessage = "Ошибка сервера при получении ответа.";
+      try {
+        const errorData = JSON.parse(text);
+        errorMessage = errorData.error || errorMessage;
+      } catch (e) {
+        errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -90,8 +97,15 @@ export async function getResponseOptions(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Ошибка сервера при генерации вариантов.");
+      const text = await response.text();
+      let errorMessage = "Ошибка сервера при генерации вариантов.";
+      try {
+        const errorData = JSON.parse(text);
+        errorMessage = errorData.error || errorMessage;
+      } catch (e) {
+        errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -170,8 +184,15 @@ export async function getFeedback(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Ошибка сервера при анализе диалога.");
+      const text = await response.text();
+      let errorMessage = "Ошибка сервера при анализе диалога.";
+      try {
+        const errorData = JSON.parse(text);
+        errorMessage = errorData.error || errorMessage;
+      } catch (e) {
+        errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
