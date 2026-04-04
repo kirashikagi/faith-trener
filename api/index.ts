@@ -80,10 +80,26 @@ async function getCheckout() {
   const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
   
   if (shopId && secretKey) {
-    _checkout = new YooCheckout({ shopId, secretKey });
+    try {
+      _checkout = new YooCheckout({ shopId, secretKey });
+      console.log("YooKassa checkout initialized.");
+    } catch (e) {
+      console.error("Failed to initialize YooKassa checkout instance:", e);
+    }
   }
   return _checkout;
 }
+
+// Payment configuration status
+app.get("/api/payments/status", async (req, res) => {
+  const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
+  const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
+  res.json({
+    configured: !!(shopId && secretKey),
+    shopIdPresent: !!shopId,
+    secretKeyPresent: !!secretKey
+  });
+});
 
 app.post("/api/payments/create", async (req, res) => {
   try {
@@ -91,8 +107,16 @@ app.post("/api/payments/create", async (req, res) => {
     const checkout = await getCheckout();
     
     if (!checkout) {
-      console.error("YooKassa not configured: YOOKASSA_SHOP_ID or YOOKASSA_SECRET_KEY missing.");
-      return res.status(500).json({ error: "YooKassa not configured." });
+      const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
+      const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
+      let missing = [];
+      if (!shopId) missing.push("YOOKASSA_SHOP_ID");
+      if (!secretKey) missing.push("YOOKASSA_SECRET_KEY");
+      
+      console.error("YooKassa not configured: missing", missing);
+      return res.status(500).json({ 
+        error: `ЮKassa не настроена. Отсутствуют ключи: ${missing.join(', ')}. Добавьте их в раздел Secrets.` 
+      });
     }
 
     console.log("Creating payment for amount:", amount, "description:", description);
