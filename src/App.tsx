@@ -37,6 +37,7 @@ import {
   X,
   Crown,
   Check,
+  CreditCard,
   Sun,
   Moon,
   Smile,
@@ -163,6 +164,13 @@ function AppContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+  const [paymentConfirmation, setPaymentConfirmation] = useState<{
+    type: 'article' | 'subscription';
+    id?: string;
+    title: string;
+    price: string | number;
+  } | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [options, setOptions] = useState<ResponseOption[]>([]);
@@ -196,7 +204,19 @@ function AppContent() {
       return;
     }
 
-    setIsLoading(true);
+    setPaymentConfirmation({
+      type: 'article',
+      id: articleId,
+      title: article.title,
+      price: article.price
+    });
+  };
+
+  const processArticlePurchase = async (articleId: string) => {
+    const article = LIBRARY_ARTICLES.find(a => a.id === articleId);
+    if (!article || !userProfile) return;
+
+    setLoadingItemId(articleId);
     try {
       const response = await fetch('/api/payments/create', {
         method: 'POST',
@@ -219,7 +239,8 @@ function AppContent() {
       console.error("Error buying article:", error);
       addNotification("Ошибка при создании платежа: " + error.message, 'error');
     } finally {
-      setIsLoading(false);
+      setLoadingItemId(null);
+      setPaymentConfirmation(null);
     }
   };
 
@@ -443,7 +464,18 @@ function AppContent() {
     }
     const plan = SUBSCRIPTION_PLANS[0]; // Assuming first plan for now
     
-    setIsLoading(true);
+    setPaymentConfirmation({
+      type: 'subscription',
+      title: plan.title,
+      price: plan.price
+    });
+  };
+
+  const processSubscriptionPurchase = async () => {
+    if (!userProfile) return;
+    const plan = SUBSCRIPTION_PLANS[0];
+    
+    setLoadingItemId('subscription');
     try {
       const priceValue = parseFloat(plan.price.replace(/[^0-9.]/g, ''));
       const response = await fetch('/api/payments/create', {
@@ -467,7 +499,8 @@ function AppContent() {
       console.error("Error buying subscription:", error);
       addNotification("Ошибка при создании платежа: " + error.message, 'error');
     } finally {
-      setIsLoading(false);
+      setLoadingItemId(null);
+      setPaymentConfirmation(null);
     }
   };
 
@@ -2088,10 +2121,10 @@ function AppContent() {
                                   e.stopPropagation();
                                   buyArticle(article.id);
                                 }}
-                                disabled={isLoading}
+                                disabled={loadingItemId === article.id}
                                 className="sber-button py-3 px-8 text-xs flex items-center justify-center gap-2"
                               >
-                                {isLoading ? (
+                                {loadingItemId === article.id ? (
                                   <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 ) : null}
                                 Купить за {article.price} ₽
@@ -2317,10 +2350,10 @@ function AppContent() {
                 <div className="flex flex-col gap-6">
                   <button 
                     onClick={buySubscription}
-                    disabled={isLoading}
+                    disabled={loadingItemId === 'subscription'}
                     className="sber-button w-full py-6 text-lg flex items-center justify-center gap-3"
                   >
-                    {isLoading ? (
+                    {loadingItemId === 'subscription' ? (
                       <>
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         Обработка...
@@ -2336,6 +2369,68 @@ function AppContent() {
                     Вернуться назад
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Payment Confirmation Modal */}
+      <AnimatePresence>
+        {paymentConfirmation && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-bg/80 backdrop-blur-xl">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="sber-card max-w-md w-full p-10 space-y-8 relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-20" />
+              
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <CreditCard className="w-8 h-8" />
+                </div>
+                <h3 className="text-2xl font-semibold text-fg tracking-tight">Подтверждение покупки</h3>
+                <p className="text-muted text-sm leading-relaxed">
+                  Вы собираетесь приобрести: <br/>
+                  <span className="text-fg font-bold">«{paymentConfirmation.title}»</span> <br/>
+                  Стоимость: <span className="text-accent font-bold">{paymentConfirmation.price}</span>
+                </p>
+              </div>
+
+              <div className="p-6 bg-accent/5 rounded-2xl border border-accent/10 text-xs text-muted leading-relaxed italic">
+                Для завершения оплаты вы будете перенаправлены на защищенную страницу платежной системы ЮKassa.
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <button
+                  onClick={() => {
+                    if (paymentConfirmation.type === 'article' && paymentConfirmation.id) {
+                      processArticlePurchase(paymentConfirmation.id);
+                    } else {
+                      processSubscriptionPurchase();
+                    }
+                  }}
+                  disabled={!!loadingItemId}
+                  className="sber-button w-full py-5 text-base flex items-center justify-center gap-3"
+                >
+                  {loadingItemId ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Переход...
+                    </>
+                  ) : (
+                    <>Перейти к оплате</>
+                  )}
+                </button>
+                <button
+                  onClick={() => setPaymentConfirmation(null)}
+                  disabled={!!loadingItemId}
+                  className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] hover:text-fg transition-colors"
+                >
+                  Отмена
+                </button>
               </div>
             </motion.div>
           </div>
