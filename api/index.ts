@@ -1,21 +1,33 @@
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
-import { YooCheckout } from 'yookassa';
-import admin from 'firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
 
 dotenv.config();
 
-// Lazy Firebase initialization to prevent top-level crashes
-let _db: admin.firestore.Firestore | null = null;
+const app = express();
+app.use(express.json());
 
-function getDb() {
+// Lazy load heavy dependencies to avoid top-level crashes
+let admin: any;
+let getFirestore: any;
+let YooCheckout: any;
+
+async function loadDependencies() {
+  if (!admin) {
+    admin = (await import('firebase-admin')).default;
+    getFirestore = (await import('firebase-admin/firestore')).getFirestore;
+  }
+  if (!YooCheckout) {
+    YooCheckout = (await import('yookassa')).YooCheckout;
+  }
+}
+
+let _db: any = null;
+async function getDb() {
   if (_db) return _db;
+  await loadDependencies();
 
   try {
-    console.log("Initializing Firebase Admin...");
-    let appInstance;
     if (!admin.apps.length) {
       const serviceAccountStr = process.env.FIREBASE_SERVICE_ACCOUNT;
       let serviceAccount = null;
@@ -23,154 +35,115 @@ function getDb() {
       if (serviceAccountStr && serviceAccountStr.trim()) {
         try {
           serviceAccount = JSON.parse(serviceAccountStr);
-          console.log("Service account parsed successfully.");
         } catch (e) {
-          console.error("FIREBASE_SERVICE_ACCOUNT is not valid JSON:", e);
+          console.error("FIREBASE_SERVICE_ACCOUNT parse error:", e);
         }
       }
 
       if (serviceAccount) {
-        appInstance = admin.initializeApp({
+        admin.initializeApp({
           credential: admin.credential.cert(serviceAccount)
         });
-        console.log("Firebase initialized with service account.");
       } else {
-        appInstance = admin.initializeApp({
+        admin.initializeApp({
           projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'the-sentinel-490819'
         });
-        console.log("Firebase initialized with project ID:", process.env.VITE_FIREBASE_PROJECT_ID || 'the-sentinel-490819');
       }
-    } else {
-      appInstance = admin.apps[0]!;
-      console.log("Using existing Firebase app instance.");
     }
     
     const databaseId = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-869f31c2-5b90-4d7e-8ae0-6d60d83bc4b5';
-    console.log("Connecting to Firestore database:", databaseId);
+    const appInstance = admin.apps[0];
     _db = getFirestore(appInstance, databaseId);
-    return _db!;
+    return _db;
   } catch (error) {
-    console.error("Firebase Admin initialization failed:", error);
+    console.error("Firestore init error:", error);
     throw error;
   }
 }
 
-const app = express();
-app.use(express.json());
-
-// Ping endpoint for health checks
+// Ping endpoint
 app.get("/api/ping", (req, res) => {
-  res.json({ status: "ok", time: new Date().toISOString() });
+  res.json({ status: "ok", env: Object.keys(process.env).filter(k => !k.includes('KEY') && !k.includes('SECRET')) });
 });
 
-// YooKassa Configuration
-const getTrimmedEnv = (key: string) => (process.env[key] || '').trim();
-
-let _checkout: YooCheckout | null = null;
-
-const getCheckout = () => {
-  if (!_checkout) {
-    const shopId = getTrimmedEnv('YOOKASSA_SHOP_ID');
-    const secretKey = getTrimmedEnv('YOOKASSA_SECRET_KEY');
-    if (shopId && secretKey) {
-      _checkout = new YooCheckout({ shopId, secretKey });
-    }
+// YooKassa
+let _checkout: any = null;
+async function getCheckout() {
+  if (_checkout) return _checkout;
+  await loadDependencies();
+  
+  const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
+  const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
+  
+  if (shopId && secretKey) {
+    _checkout = new YooCheckout({ shopId, secretKey });
   }
   return _checkout;
-};
+}
 
-// YooKassa Payment Routes
 app.post("/api/payments/create", async (req, res) => {
   try {
     const { amount, description, metadata, return_url } = req.body;
+    const checkout = await getCheckout();
     
-    const shopId = getTrimmedEnv('YOOKASSA_SHOP_ID');
-    const secretKey = getTrimmedEnv('YOOKASSA_SECRET_KEY');
-
-    console.log("Creating payment for:", { amount, description, metadata });
-
-    if (!shopId || !secretKey) {
-      return res.status(500).json({ error: "YooKassa is not configured on the server." });
+    if (!checkout) {
+      return res.status(500).json({ error: "YooKassa not configured." });
     }
 
-    const checkout = getCheckout();
-    if (!checkout) throw new Error("Failed to initialize YooKassa checkout");
-
     const payment = await checkout.createPayment({
-      amount: {
-        value: Number(amount).toFixed(2),
-        currency: 'RUB'
-      },
-      payment_method_data: {
-        type: 'bank_card'
-      },
-      confirmation: {
-        type: 'redirect',
-        return_url: return_url
-      },
-      description: description,
-      metadata: metadata,
+      amount: { value: Number(amount).toFixed(2), currency: 'RUB' },
+      payment_method_data: { type: 'bank_card' },
+      confirmation: { type: 'redirect', return_url },
+      description,
+      metadata,
       capture: true
     });
     
     res.json({ confirmation_url: payment.confirmation.confirmation_url });
   } catch (error: any) {
-    console.error("Payment Create Error:", error);
-    res.status(500).json({ error: error.message || "Internal Server Error" });
+    console.error("Payment error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
 app.post("/api/payments/webhook", async (req, res) => {
   try {
     const event = req.body;
-    console.log("Webhook Event:", JSON.stringify(event));
-    
     if (event.event === 'payment.succeeded') {
-      const payment = event.object;
-      const { userId, articleId, type } = payment.metadata || {};
-      
+      const { userId, articleId, type } = event.object.metadata || {};
       if (userId) {
-        const db = getDb();
+        const db = await getDb();
         const userRef = db.collection('users').doc(userId);
-        
         if (type === 'subscription') {
-          await userRef.update({
-            isSubscribed: true,
-            subscriptionDate: admin.firestore.FieldValue.serverTimestamp()
-          });
+          await userRef.update({ isSubscribed: true, subscriptionDate: new Date() });
         } else if (type === 'article' && articleId) {
-          await userRef.update({
-            purchasedArticles: admin.firestore.FieldValue.arrayUnion(articleId)
-          });
+          await userRef.update({ purchasedArticles: admin.firestore.FieldValue.arrayUnion(articleId) });
         }
       }
     }
     res.sendStatus(200);
   } catch (error) {
-    console.error("Webhook Error:", error);
-    res.sendStatus(200); // Always return 200 to YooKassa
+    console.error("Webhook error:", error);
+    res.sendStatus(200);
   }
 });
 
-// Gemini Proxy Routes
+// Gemini
 app.post("/api/chat", async (req, res) => {
   try {
     const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
-    let apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+    const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
     
-    if (!apiKey) {
-      return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
-    }
+    if (!apiKey) return res.status(500).json({ error: "API key missing." });
 
     const ai = new GoogleGenAI({ apiKey });
-    
-    let formattedHistory = (history || []).map((m: any) => ({
+    const formattedHistory = (history || []).map((m: any) => ({
       role: m.role,
       parts: [{ text: m.text }]
     }));
 
     if (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
-      formattedHistory.unshift({ role: 'user', parts: [{ text: 'Начнем диалог.' }] });
+      formattedHistory.unshift({ role: 'user', parts: [{ text: 'Начнем.' }] });
     }
 
     const chat = ai.chats.create({
@@ -182,19 +155,17 @@ app.post("/api/chat", async (req, res) => {
     const response = await chat.sendMessage({ message });
     res.json({ text: response.text });
   } catch (error: any) {
-    console.error("Chat Error:", error);
-    res.status(500).json({ error: error.message || "Internal Server Error" });
+    console.error("Chat error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
 app.post("/api/generate", async (req, res) => {
   try {
     const { prompt, config, apiKey: clientApiKey } = req.body;
-    let apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+    const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
     
-    if (!apiKey) {
-      return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
-    }
+    if (!apiKey) return res.status(500).json({ error: "API key missing." });
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
@@ -205,15 +176,14 @@ app.post("/api/generate", async (req, res) => {
 
     res.json({ text: response.text });
   } catch (error: any) {
-    console.error("Generate Error:", error);
-    res.status(500).json({ error: error.message || "Internal Server Error" });
+    console.error("Generate error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Global Error Handler
 app.use((err: any, req: any, res: any, next: any) => {
-  console.error("SERVER ERROR:", err);
-  res.status(500).json({ error: err.message || "A server error occurred" });
+  console.error("Global error:", err);
+  res.status(500).json({ error: "Internal server error" });
 });
 
 export default app;
