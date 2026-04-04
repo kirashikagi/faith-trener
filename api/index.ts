@@ -94,10 +94,21 @@ async function getCheckout() {
 app.get("/api/payments/status", async (req, res) => {
   const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
   const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
+  const geminiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+  
   res.json({
-    configured: !!(shopId && secretKey),
-    shopIdPresent: !!shopId,
-    secretKeyPresent: !!secretKey
+    yookassa: {
+      configured: !!(shopId && secretKey),
+      shopIdPresent: !!shopId,
+      secretKeyPresent: !!secretKey,
+      shopIdLength: shopId.length
+    },
+    gemini: {
+      configured: !!geminiKey,
+      keyLength: geminiKey.length
+    },
+    node_env: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
   });
 });
 
