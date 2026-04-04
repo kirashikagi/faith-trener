@@ -18,7 +18,11 @@ async function loadDependencies() {
     getFirestore = (await import('firebase-admin/firestore')).getFirestore;
   }
   if (!YooCheckout) {
-    YooCheckout = (await import('yookassa')).YooCheckout;
+    const yookassa = await import('yookassa');
+    YooCheckout = yookassa.YooCheckout || yookassa.default?.YooCheckout || yookassa.default;
+    if (!YooCheckout) {
+      console.error("Failed to find YooCheckout in yookassa package:", yookassa);
+    }
   }
 }
 
@@ -87,19 +91,27 @@ app.post("/api/payments/create", async (req, res) => {
     const checkout = await getCheckout();
     
     if (!checkout) {
+      console.error("YooKassa not configured: YOOKASSA_SHOP_ID or YOOKASSA_SECRET_KEY missing.");
       return res.status(500).json({ error: "YooKassa not configured." });
     }
 
+    console.log("Creating payment for amount:", amount, "description:", description);
     const payment = await checkout.createPayment({
       amount: { value: Number(amount).toFixed(2), currency: 'RUB' },
       payment_method_data: { type: 'bank_card' },
-      confirmation: { type: 'redirect', return_url },
+      confirmation: { type: 'redirect', return_url: return_url || 'https://vera.plus' },
       description,
       metadata,
       capture: true
     });
     
-    res.json({ confirmation_url: payment.confirmation.confirmation_url });
+    console.log("Payment created successfully:", payment.id);
+    if (payment.confirmation && payment.confirmation.confirmation_url) {
+      res.json({ confirmation_url: payment.confirmation.confirmation_url });
+    } else {
+      console.error("Payment created but no confirmation URL found:", payment);
+      res.status(500).json({ error: "No confirmation URL returned from YooKassa." });
+    }
   } catch (error: any) {
     console.error("Payment error:", error);
     res.status(500).json({ error: error.message });

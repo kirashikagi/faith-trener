@@ -146,6 +146,7 @@ function AppContent() {
   const [authError, setAuthError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [showIntro, setShowIntro] = useState(false);
+  const hasManuallyClosedIntro = useRef(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [feedbackType, setFeedbackType] = useState<'general' | 'ai_feedback'>('general');
   const [feedbackMessage, setFeedbackMessage] = useState('');
@@ -303,8 +304,12 @@ function AppContent() {
             }
 
             setUserProfile(profile);
-            if (!profile.hasSeenWelcome) {
+            
+            // Only show intro if it hasn't been seen AND we haven't manually closed it in this session
+            if (!profile.hasSeenWelcome && !hasManuallyClosedIntro.current) {
               setShowIntro(true);
+            } else if (profile.hasSeenWelcome) {
+              setShowIntro(false);
             }
           } else {
             // Create profile if it doesn't exist
@@ -342,6 +347,7 @@ function AppContent() {
   }, []);
 
   const handleCloseIntro = async () => {
+    hasManuallyClosedIntro.current = true;
     setShowIntro(false);
     if (user) {
       try {
@@ -381,7 +387,7 @@ function AppContent() {
         try {
           await setDoc(doc(db, 'users', newUser.uid), newProfile);
           setUserProfile(newProfile);
-          setShowIntro(true);
+          // Let onSnapshot handle setShowIntro(true)
         } catch (e) {
           handleFirestoreError(e, 'create', `users/${newUser.uid}`);
         }
