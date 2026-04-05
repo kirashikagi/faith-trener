@@ -76,6 +76,7 @@ export interface UserProfile {
   hasSeenWelcome?: boolean;
   streak?: number;
   lastVisit?: number;
+  achievements?: Achievement[];
 }
 
 export interface FeedbackSubmission {

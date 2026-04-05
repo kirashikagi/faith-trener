@@ -179,6 +179,7 @@ function AppContent() {
   const [options, setOptions] = useState<ResponseOption[]>([]);
   const [showStats, setShowStats] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
+  const [trustLevel, setTrustLevel] = useState(50);
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
 
@@ -331,8 +332,16 @@ function AppContent() {
             setUserProfile(profile);
             setIsProfileLoading(false);
             
+            // Sync achievements from profile to local stats if they exist
+            if (profile.achievements) {
+              setStats(prev => ({
+                ...prev,
+                achievements: profile.achievements || ACHIEVEMENTS
+              }));
+            }
+            
             // Only show intro if it hasn't been seen AND we haven't manually closed it in this session
-            const seen = profile.hasSeenWelcome === true;
+            const seen = profile.hasSeenWelcome === true || localStorage.getItem(`vera_intro_seen_${firebaseUser.uid}`) === 'true';
             if (!seen && !hasManuallyClosedIntro.current) {
               setShowIntro(true);
             } else {
@@ -383,6 +392,7 @@ function AppContent() {
     hasManuallyClosedIntro.current = true;
     setShowIntro(false);
     if (user) {
+      localStorage.setItem(`vera_intro_seen_${user.uid}`, 'true');
       try {
         await updateDoc(doc(db, 'users', user.uid), {
           hasSeenWelcome: true
@@ -617,22 +627,36 @@ function AppContent() {
     }
   }, [messages, options]);
 
-  const unlockAchievement = (id: string) => {
-    setStats(prev => {
-      const achievement = prev.achievements.find(a => a.id === id);
-      if (achievement && !achievement.unlocked) {
-        return {
-          ...prev,
-          achievements: prev.achievements.map(a => a.id === id ? { ...a, unlocked: true } : a)
-        };
+  const unlockAchievement = async (id: string) => {
+    const achievement = stats.achievements.find(a => a.id === id);
+    if (achievement && !achievement.unlocked) {
+      const updatedAchievements = stats.achievements.map(a => a.id === id ? { ...a, unlocked: true } : a);
+      setStats(prev => ({
+        ...prev,
+        achievements: updatedAchievements
+      }));
+      
+      if (user) {
+        try {
+          await updateDoc(doc(db, 'users', user.uid), {
+            achievements: updatedAchievements
+          });
+        } catch (e) {
+          console.error("Error saving achievement:", e);
+        }
       }
-      return prev;
-    });
+      
+      const unlocked = updatedAchievements.find(a => a.id === id);
+      if (unlocked) {
+        addNotification(`Достижение разблокировано: ${unlocked.title}`, 'success');
+      }
+    }
   };
 
   const startScenario = async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setIsDialogueEnded(false);
+    setTrustLevel(50);
     const initialMsg: Message = { 
       role: 'model', 
       text: scenario.initialMessage, 
@@ -687,6 +711,21 @@ function AppContent() {
         textToSend,
         getEffectiveApiKey()
       );
+      
+      // Update trust level based on keywords (simple heuristic)
+      const trustKeywords = ['спасибо', 'понимаю', 'согласен', 'верно', 'точно', 'интересно', 'правда'];
+      const distrustKeywords = ['нет', 'неверно', 'ошибка', 'ложь', 'глупость', 'бред', 'чушь'];
+      
+      let trustChange = 0;
+      const lowerInput = textToSend.toLowerCase();
+      trustKeywords.forEach(k => { if (lowerInput.includes(k)) trustChange += 5; });
+      distrustKeywords.forEach(k => { if (lowerInput.includes(k)) trustChange -= 5; });
+      
+      const lowerResponse = response.toLowerCase();
+      if (lowerResponse.includes('вы правы') || lowerResponse.includes('хороший вопрос') || lowerResponse.includes('согласен')) trustChange += 10;
+      if (lowerResponse.includes('не согласен') || lowerResponse.includes('вы ошибаетесь') || lowerResponse.includes('это не так')) trustChange -= 10;
+
+      setTrustLevel(prev => Math.max(0, Math.min(100, prev + trustChange)));
       
       let cleanResponse = response;
       if (response.includes('[КОНЕЦ_ДИАЛОГА]')) {
@@ -1068,7 +1107,7 @@ function AppContent() {
             </form>
           </motion.div>
         </div>
-      ) : showIntro ? (
+      ) : (showIntro && localStorage.getItem(`vera_intro_seen_${user?.uid}`) !== 'true') ? (
           <div className="min-h-screen flex items-center justify-center p-6 sm:p-12 relative overflow-hidden">
             <motion.div 
               initial={{ opacity: 0, scale: 0.8 }}
@@ -1806,11 +1845,30 @@ function AppContent() {
                   <div className="w-10 h-10 sm:w-14 h-14 bg-accent/10 text-accent rounded-xl sm:rounded-2xl flex items-center justify-center border border-accent/20 shrink-0">
                     <User className="w-5 h-5 sm:w-7 sm:h-7" />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h3 className="text-base sm:text-2xl font-serif text-fg tracking-tight leading-tight truncate">{selectedScenario.title}</h3>
-                    <div className="flex items-center gap-2 mt-0.5 sm:mt-1">
-                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-accent rounded-full animate-pulse" />
-                      <span className="text-[8px] sm:text-[9px] font-bold text-muted uppercase tracking-[0.2em]">В сети</span>
+                    <div className="flex items-center gap-4 mt-1 sm:mt-2">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-accent rounded-full animate-pulse" />
+                        <span className="text-[8px] sm:text-[9px] font-bold text-muted uppercase tracking-[0.2em]">В сети</span>
+                      </div>
+                      
+                      {/* Trust Indicator */}
+                      <div className="flex-1 max-w-[120px] sm:max-w-[200px] flex items-center gap-2">
+                        <div className="flex-1 h-1 sm:h-1.5 bg-accent/10 rounded-full overflow-hidden border border-accent/5">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${trustLevel}%` }}
+                            className={cn(
+                              "h-full transition-all duration-1000",
+                              trustLevel > 70 ? "bg-emerald-500" : trustLevel > 30 ? "bg-accent" : "bg-rose-500"
+                            )}
+                          />
+                        </div>
+                        <span className="text-[8px] sm:text-[9px] font-bold text-muted uppercase tracking-widest whitespace-nowrap">
+                          Доверие: {trustLevel}%
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
