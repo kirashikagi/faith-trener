@@ -29,6 +29,7 @@ import {
   Shield,
   Flag,
   LogOut,
+  Menu,
   History,
   BookOpen,
   Sparkles,
@@ -159,6 +160,7 @@ function AppContent() {
   const [selectedArticle, setSelectedArticle] = useState<LibraryArticle | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -889,59 +891,71 @@ function AppContent() {
                 <span className="text-[10px] sm:text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
               </div>
 
-              {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
+              {/* Desktop Menu */}
+              <div className="hidden md:flex items-center gap-1.5 sm:gap-3">
+                {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
+                  <button 
+                    onClick={fetchAdminFeedback}
+                    className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
+                    title="Админ-панель"
+                  >
+                    <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                )}
+                
                 <button 
-                  onClick={fetchAdminFeedback}
+                  onClick={() => setShowLibrary(true)}
                   className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                  title="Админ-панель"
+                  title="Библиотека знаний"
                 >
-                  <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
-              )}
-              
-              <button 
-                onClick={() => setShowLibrary(true)}
-                className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                title="Библиотека знаний"
-              >
-                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
 
-              <button 
-                onClick={() => {
-                  setFeedbackType('general');
-                  setShowFeedbackForm(true);
-                }}
-                className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                title="Обратная связь"
-              >
-                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-
-              {!selectedScenario ? (
                 <button 
-                  onClick={() => setShowStats(!showStats)}
-                  className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
+                  onClick={() => {
+                    setFeedbackType('general');
+                    setShowFeedbackForm(true);
+                  }}
+                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
+                  title="Обратная связь"
                 >
-                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 group-hover:scale-110 transition-transform" />
-                  <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Путь</span>
+                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
-              ) : (
-                <button 
-                  onClick={reset}
-                  className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
-                >
-                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-[-2px] transition-transform" />
-                  <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Назад</span>
-                </button>
-              )}
 
+                {!selectedScenario ? (
+                  <button 
+                    onClick={() => setShowStats(!showStats)}
+                    className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
+                  >
+                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 group-hover:scale-110 transition-transform" />
+                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Путь</span>
+                  </button>
+                ) : (
+                  <button 
+                    onClick={reset}
+                    className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
+                  >
+                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-[-2px] transition-transform" />
+                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Назад</span>
+                  </button>
+                )}
+
+                <button 
+                  onClick={handleLogout}
+                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95 shrink-0"
+                  title="Выйти"
+                >
+                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </div>
+
+              {/* Mobile Menu Toggle */}
               <button 
-                onClick={handleLogout}
-                className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95 shrink-0"
-                title="Выйти"
+                onClick={() => setShowMobileMenu(true)}
+                className="md:hidden p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
+                title="Меню"
               >
-                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </header>
@@ -1775,18 +1789,18 @@ function AppContent() {
               key="chat"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col h-[calc(100vh-180px)] sber-card overflow-hidden !p-0"
+              className="flex flex-col h-[calc(100dvh-140px)] sm:h-[calc(100vh-180px)] sber-card overflow-hidden !p-0"
             >
-              <div className="bg-card border-b border-border px-8 py-6 flex items-center justify-between backdrop-blur-md">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
-                    <User className="w-7 h-7" />
+              <div className="bg-card border-b border-border px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between backdrop-blur-md">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className="w-10 h-10 sm:w-14 h-14 bg-accent/10 text-accent rounded-xl sm:rounded-2xl flex items-center justify-center border border-accent/20 shrink-0">
+                    <User className="w-5 h-5 sm:w-7 sm:h-7" />
                   </div>
-                  <div>
-                    <h3 className="text-2xl font-serif text-fg tracking-tight leading-tight">{selectedScenario.title}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                      <span className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">В сети</span>
+                  <div className="min-w-0">
+                    <h3 className="text-base sm:text-2xl font-serif text-fg tracking-tight leading-tight truncate">{selectedScenario.title}</h3>
+                    <div className="flex items-center gap-2 mt-0.5 sm:mt-1">
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-accent rounded-full animate-pulse" />
+                      <span className="text-[8px] sm:text-[9px] font-bold text-muted uppercase tracking-[0.2em]">В сети</span>
                     </div>
                   </div>
                 </div>
@@ -1794,23 +1808,25 @@ function AppContent() {
                   onClick={handleFinish}
                   disabled={isAnalyzing || messages.length < 3}
                   className={cn(
-                    "px-6 py-3 rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center gap-3 active:scale-95",
+                    "px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-bold text-[9px] sm:text-[10px] uppercase tracking-[0.1em] sm:tracking-[0.2em] transition-all flex items-center gap-2 sm:gap-3 active:scale-95 shrink-0",
                     isAnalyzing ? "bg-bg text-muted" : isDialogueEnded ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 animate-bounce" : "sber-button"
                   )}
                 >
                   {isAnalyzing ? (
-                    <div className="flex items-center gap-3">
-                      <RefreshCcw className="w-4 h-4 animate-spin" />
-                      <span>Анализ...</span>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <RefreshCcw className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                      <span className="hidden sm:inline">Анализ...</span>
+                      <span className="sm:hidden">...</span>
                     </div>
                   ) : isDialogueEnded ? (
                     <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Диалог завершен. К анализу?</span>
+                      <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Диалог завершен. К анализу?</span>
+                      <span className="sm:hidden">Анализ</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="w-4 h-4" />
+                      <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>Завершить</span>
                     </>
                   )}
@@ -2220,7 +2236,7 @@ function AppContent() {
                       </div>
                     </div>
 
-                    <div className="mt-20 pt-12 border-t border-border flex flex-col items-center">
+                    <div className="mt-20 pb-20 pt-12 border-t border-border flex flex-col items-center">
                       <p className="text-muted text-xs font-bold uppercase tracking-[0.2em] mb-8">Понравилась статья?</p>
                       <button 
                         onClick={() => setSelectedArticle(null)}
@@ -2234,6 +2250,113 @@ function AppContent() {
               )}
             </AnimatePresence>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {showMobileMenu && (
+          <div className="fixed inset-0 z-[150] md:hidden">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMobileMenu(false)}
+              className="absolute inset-0 bg-bg/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute right-0 top-0 bottom-0 w-[280px] bg-card border-l border-border p-6 shadow-2xl flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-lg font-serif text-fg tracking-tight">Меню</h3>
+                <button 
+                  onClick={() => setShowMobileMenu(false)}
+                  className="p-2 text-muted hover:text-accent transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 space-y-2">
+                {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
+                  <button 
+                    onClick={() => {
+                      fetchAdminFeedback();
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
+                  >
+                    <ShieldCheck className="w-5 h-5" />
+                    Админ-панель
+                  </button>
+                )}
+                
+                <button 
+                  onClick={() => {
+                    setShowLibrary(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
+                >
+                  <BookOpen className="w-5 h-5" />
+                  Библиотека
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setFeedbackType('general');
+                    setShowFeedbackForm(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  Отзывы
+                </button>
+
+                {!selectedScenario ? (
+                  <button 
+                    onClick={() => {
+                      setShowStats(!showStats);
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
+                  >
+                    <Trophy className="w-5 h-5 text-amber-500" />
+                    Мой путь
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      reset();
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                    Назад
+                  </button>
+                )}
+              </div>
+
+              <div className="pt-6 border-t border-border mt-auto">
+                <button 
+                  onClick={() => {
+                    handleLogout();
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-rose-500/5 text-muted hover:text-rose-500 transition-all font-bold uppercase tracking-widest text-[10px]"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Выйти
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
