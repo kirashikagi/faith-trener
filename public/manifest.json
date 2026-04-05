@@ -1,0 +1,17 @@
+{
+  "name": "Вера Тренажёр",
+  "short_name": "Вера +1",
+  "description": "Интеллектуальный тренажер духовного общения",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFCF8",
+  "theme_color": "#5A5A40",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3399/3399168.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

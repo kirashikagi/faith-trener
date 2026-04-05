@@ -864,47 +864,47 @@ function AppContent() {
         )}
 
         {user && (
-          <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between transition-all duration-300">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20">
-                <MessageCircle className="w-6 h-6" />
+          <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20 shrink-0">
+                <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <h1 className="text-xl font-semibold tracking-tight text-fg">Вера +1</h1>
-                <p className="text-[9px] text-muted font-bold uppercase tracking-[0.3em]">AI Faith Training</p>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-xl font-semibold tracking-tight text-fg truncate">Вера +1</h1>
+                <p className="text-[8px] sm:text-[9px] text-muted font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] truncate">AI Faith Training</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar">
               <button 
                 onClick={toggleTheme}
-                className="p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm"
+                className="p-2 sm:p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm shrink-0"
               >
                 {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
               </button>
               
-              <div className="h-6 w-[1px] bg-border mx-1 hidden sm:block" />
+              <div className="h-6 w-[1px] bg-border mx-0.5 hidden sm:block" />
 
-              <div className="flex items-center gap-2 px-3 py-2 bg-accent/5 border border-accent/20 rounded-xl">
-                <Flame className="w-4 h-4 text-accent animate-pulse" />
-                <span className="text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-accent/5 border border-accent/20 rounded-xl shrink-0">
+                <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent animate-pulse" />
+                <span className="text-[10px] sm:text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
               </div>
 
               {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
                 <button 
                   onClick={fetchAdminFeedback}
-                  className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
+                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
                   title="Админ-панель"
                 >
-                  <ShieldCheck className="w-5 h-5" />
+                  <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               )}
               
               <button 
                 onClick={() => setShowLibrary(true)}
-                className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
+                className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
                 title="Библиотека знаний"
               >
-                <BookOpen className="w-5 h-5" />
+                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
               <button 
@@ -912,36 +912,36 @@ function AppContent() {
                   setFeedbackType('general');
                   setShowFeedbackForm(true);
                 }}
-                className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95"
+                className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
                 title="Обратная связь"
               >
-                <MessageSquare className="w-5 h-5" />
+                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
               {!selectedScenario ? (
                 <button 
                   onClick={() => setShowStats(!showStats)}
-                  className="flex items-center gap-3 bg-bg border border-border text-muted px-4 py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95"
+                  className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
                 >
-                  <Trophy className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
+                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 group-hover:scale-110 transition-transform" />
                   <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Путь</span>
                 </button>
               ) : (
                 <button 
                   onClick={reset}
-                  className="flex items-center gap-3 bg-bg border border-border text-muted px-4 py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95"
+                  className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
                 >
-                  <ChevronLeft className="w-5 h-5 group-hover:translate-x-[-2px] transition-transform" />
+                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-[-2px] transition-transform" />
                   <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Назад</span>
                 </button>
               )}
 
               <button 
                 onClick={handleLogout}
-                className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95"
+                className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95 shrink-0"
                 title="Выйти"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </header>
@@ -1055,9 +1055,9 @@ function AppContent() {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="sber-card max-w-4xl mx-auto overflow-hidden !p-0 relative z-10"
+              className="sber-card max-w-4xl mx-auto overflow-hidden !p-0 relative z-10 m-4 sm:m-0"
             >
-              <div className="bg-accent/5 p-16 text-center relative border-b border-border overflow-hidden">
+              <div className="bg-accent/5 p-8 sm:p-16 text-center relative border-b border-border overflow-hidden">
                 <motion.div 
                   initial={{ x: "-100%" }}
                   animate={{ x: "100%" }}
@@ -1069,7 +1069,7 @@ function AppContent() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="text-5xl font-serif text-accent tracking-normal"
+                    className="text-3xl sm:text-5xl font-serif text-accent tracking-normal"
                   >
                     {PHILOSOPHY.title}
                   </motion.h2>
@@ -1083,13 +1083,13 @@ function AppContent() {
                   </motion.p>
                 </div>
               </div>
-            <div className="p-10 sm:p-20 space-y-20">
-              <div className="max-w-3xl mx-auto space-y-12">
+            <div className="p-6 sm:p-20 space-y-12 sm:space-y-20">
+              <div className="max-w-3xl mx-auto space-y-8 sm:space-y-12">
                 <motion.p 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="text-4xl sm:text-5xl text-fg leading-snug font-serif italic tracking-normal text-center"
+                  className="text-2xl sm:text-5xl text-fg leading-snug font-serif italic tracking-normal text-center"
                 >
                   «Слово ваше да будет всегда с благодатию, приправлено солью, чтобы вы знали, как отвечать каждому» (Кол. 4:6)
                 </motion.p>
@@ -1107,8 +1107,8 @@ function AppContent() {
                   <div className="h-[1px] flex-1 bg-border" />
                 </div>
                 
-                <div className="grid grid-cols-1 gap-12">
-                  <div className="text-center space-y-8">
+                <div className="grid grid-cols-1 gap-8 sm:gap-12">
+                  <div className="text-center space-y-6 sm:space-y-8">
                     {PHILOSOPHY.instruction.map((text, i) => (
                       <motion.div 
                         key={i} 
@@ -1117,7 +1117,7 @@ function AppContent() {
                         transition={{ delay: 0.3 + i * 0.1 }}
                         className="max-w-2xl mx-auto"
                       >
-                        <p className="text-2xl text-fg/80 font-serif italic leading-relaxed">
+                        <p className="text-lg sm:text-2xl text-fg/80 font-serif italic leading-relaxed">
                           <span className="text-accent font-sans not-italic font-bold mr-4 opacity-40">{i + 1}.</span>
                           {text}
                         </p>
@@ -1131,7 +1131,7 @@ function AppContent() {
                 <div className="flex flex-col items-center gap-4">
                   <button 
                     onClick={handleCloseIntro}
-                    className="sber-button px-20 py-7 text-xl shadow-2xl shadow-accent/10"
+                    className="sber-button px-10 sm:px-20 py-5 sm:py-7 text-lg sm:text-xl shadow-2xl shadow-accent/10"
                   >
                     Начать обучение
                   </button>
@@ -1159,6 +1159,14 @@ function AppContent() {
                     <div className="font-bold text-muted/70">ИНН: [ВАШ_ИНН] • ОГРНИП: [ВАШ_ОГРНИП]</div>
                     <div>г. Москва, Российская Федерация</div>
                   </div>
+
+                  <button 
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 px-8 py-4 bg-rose-500/5 border border-rose-500/10 text-rose-500 rounded-2xl hover:bg-rose-500/10 transition-all text-[11px] font-bold uppercase tracking-[0.2em] mt-8"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Выйти из аккаунта
+                  </button>
                 </div>
               </div>
             </div>

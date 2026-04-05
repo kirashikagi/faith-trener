@@ -62,7 +62,7 @@
 }
 
 .sber-card {
-  @apply bg-card border border-border rounded-[2.5rem] p-10 transition-all duration-500;
+  @apply bg-card border border-border rounded-[2.5rem] p-6 sm:p-10 transition-all duration-500;
   box-shadow: 0 4px 30px rgba(90, 90, 64, 0.02);
 }
 
