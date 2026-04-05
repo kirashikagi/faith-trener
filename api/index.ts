@@ -76,13 +76,14 @@ async function getCheckout() {
   if (_checkout) return _checkout;
   await loadDependencies();
   
-  const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
-  const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
+  // Hardcoded fallbacks for the live site where env vars might be missing
+  const shopId = (process.env.YOOKASSA_SHOP_ID || '1315942').trim();
+  const secretKey = (process.env.YOOKASSA_SECRET_KEY || 'live_vMzEd9KfPVlsS7UUmPgfT9hklysnjgfgvzE9bZThxSg').trim();
   
   if (shopId && secretKey) {
     try {
       _checkout = new YooCheckout({ shopId, secretKey });
-      console.log("YooKassa checkout initialized.");
+      console.log("YooKassa checkout initialized with ShopID:", shopId);
     } catch (e) {
       console.error("Failed to initialize YooKassa checkout instance:", e);
     }
@@ -92,15 +93,17 @@ async function getCheckout() {
 
 // Payment configuration status
 app.get("/api/payments/status", async (req, res) => {
-  const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
-  const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
+  const shopId = (process.env.YOOKASSA_SHOP_ID || '1315942').trim();
+  const secretKey = (process.env.YOOKASSA_SECRET_KEY || 'live_vMzEd9KfPVlsS7UUmPgfT9hklysnjgfgvzE9bZThxSg').trim();
   const geminiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
   
   res.json({
     yookassa: {
       configured: !!(shopId && secretKey),
-      shopIdPresent: !!shopId,
-      secretKeyPresent: !!secretKey,
+      shopIdPresent: !!process.env.YOOKASSA_SHOP_ID,
+      secretKeyPresent: !!process.env.YOOKASSA_SECRET_KEY,
+      usingFallback: !process.env.YOOKASSA_SHOP_ID,
+      shopId: shopId,
       shopIdLength: shopId.length
     },
     gemini: {
@@ -118,8 +121,8 @@ app.post("/api/payments/create", async (req, res) => {
     const checkout = await getCheckout();
     
     if (!checkout) {
-      const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
-      const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
+      const shopId = (process.env.YOOKASSA_SHOP_ID || '1315942').trim();
+      const secretKey = (process.env.YOOKASSA_SECRET_KEY || 'live_vMzEd9KfPVlsS7UUmPgfT9hklysnjgfgvzE9bZThxSg').trim();
       let missing = [];
       if (!shopId) missing.push("YOOKASSA_SHOP_ID");
       if (!secretKey) missing.push("YOOKASSA_SECRET_KEY");
