@@ -50,6 +50,7 @@ import {
   Mail,
   MessageCircle,
   Flame,
+  Lightbulb,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -180,6 +181,7 @@ function AppContent() {
   const [showStats, setShowStats] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
   const [trustLevel, setTrustLevel] = useState(50);
+  const [isHintLoading, setIsHintLoading] = useState(false);
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
 
@@ -456,6 +458,35 @@ function AppContent() {
       setShowIntro(false);
     } catch (error) {
       console.error("Logout error:", error);
+    }
+  };
+
+  const handleGetHint = async () => {
+    if (!selectedScenario || isLoading || isHintLoading) return;
+    
+    setIsHintLoading(true);
+    try {
+      const hintPrompt = `На основе текущего диалога в тренажере "Вера +1", предложи пользователю один краткий, но глубокий и библейски обоснованный вариант ответа. 
+      Сценарий: ${selectedScenario.title}
+      Инструкция сценария: ${selectedScenario.systemInstruction}
+      
+      Ответь только текстом подсказки, без лишних слов.`;
+      
+      const hint = await getChatResponse(
+        "gemini-3-flash-preview",
+        hintPrompt,
+        messages,
+        "Дай мне подсказку, что ответить лучше всего сейчас.",
+        getEffectiveApiKey()
+      );
+      
+      setInput(hint.replace(/["']/g, '').trim());
+      addNotification("Подсказка получена и вставлена в поле ввода", 'success');
+    } catch (error) {
+      console.error("Error getting hint:", error);
+      addNotification("Не удалось получить подсказку", 'error');
+    } finally {
+      setIsHintLoading(false);
     }
   };
 
@@ -1210,13 +1241,6 @@ function AppContent() {
                 </div>
 
                 <div className="w-full pt-16 border-t border-border flex flex-col items-center gap-10">
-                  <button 
-                    onClick={() => setShowAgreement(true)}
-                    className="text-[11px] text-muted hover:text-accent transition-colors uppercase tracking-[0.4em] font-bold border-b border-muted/20 pb-1"
-                  >
-                    Пользовательское соглашение
-                  </button>
-                  
                   <div className="text-[11px] text-muted/50 text-center font-sans space-y-3 uppercase tracking-[0.2em]">
                     <div>Реквизиты налогоплательщика:</div>
                     <div className="font-bold text-muted/70">ИНН: 775101376595 • Виноградов Кирилл Вячеславович</div>
@@ -1842,6 +1866,13 @@ function AppContent() {
             >
               <div className="bg-card border-b border-border px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between backdrop-blur-md">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <button 
+                    onClick={reset}
+                    className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
+                    title="Назад в меню"
+                  >
+                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
                   <div className="w-10 h-10 sm:w-14 h-14 bg-accent/10 text-accent rounded-xl sm:rounded-2xl flex items-center justify-center border border-accent/20 shrink-0">
                     <User className="w-5 h-5 sm:w-7 sm:h-7" />
                   </div>
@@ -2032,6 +2063,18 @@ function AppContent() {
               <div className="p-8 bg-card border-t border-border">
                 {selectedScenario.mode === 'chat' ? (
                   <div className="relative flex items-center gap-4">
+                    <button 
+                      onClick={handleGetHint}
+                      disabled={isLoading || isHintLoading}
+                      className="w-16 h-16 bg-bg border border-border text-muted rounded-xl flex items-center justify-center hover:border-accent hover:text-accent transition-all active:scale-95 disabled:opacity-50 shrink-0"
+                      title="Получить подсказку"
+                    >
+                      {isHintLoading ? (
+                        <RefreshCcw className="w-6 h-6 animate-spin" />
+                      ) : (
+                        <Lightbulb className="w-6 h-6" />
+                      )}
+                    </button>
                     <textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
