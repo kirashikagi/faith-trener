@@ -147,6 +147,7 @@ function AppContent() {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [showIntro, setShowIntro] = useState(false);
   const hasManuallyClosedIntro = useRef(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
@@ -299,6 +300,7 @@ function AppContent() {
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
+        setIsProfileLoading(true);
         
         // Use onSnapshot for real-time profile updates
         profileUnsubscribe = onSnapshot(doc(db, 'users', firebaseUser.uid), async (docSnap) => {
@@ -327,11 +329,12 @@ function AppContent() {
             }
 
             setUserProfile(profile);
+            setIsProfileLoading(false);
             
             // Only show intro if it hasn't been seen AND we haven't manually closed it in this session
             if (!profile.hasSeenWelcome && !hasManuallyClosedIntro.current) {
               setShowIntro(true);
-            } else if (profile.hasSeenWelcome) {
+            } else {
               setShowIntro(false);
             }
           } else {
@@ -347,6 +350,7 @@ function AppContent() {
               lastVisit: Date.now()
             };
             await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+            setIsProfileLoading(false);
             // onSnapshot will pick this up
           }
         }, (error) => {
@@ -962,7 +966,7 @@ function AppContent() {
         )}
 
       <main className="mx-auto max-w-4xl p-4 sm:p-6">
-        {isAuthLoading ? (
+        {isAuthLoading || isProfileLoading ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCcw className="w-8 h-8 animate-spin text-emerald-600" />
           </div>
@@ -1170,7 +1174,7 @@ function AppContent() {
                   
                   <div className="text-[11px] text-muted/50 text-center font-sans space-y-3 uppercase tracking-[0.2em]">
                     <div>Реквизиты налогоплательщика:</div>
-                    <div className="font-bold text-muted/70">ИНН: [ВАШ_ИНН] • ОГРНИП: [ВАШ_ОГРНИП]</div>
+                    <div className="font-bold text-muted/70">ИНН: 775101376595 • Виноградов Кирилл Вячеславович</div>
                     <div>г. Москва, Российская Федерация</div>
                   </div>
 
@@ -2346,6 +2350,17 @@ function AppContent() {
               <div className="pt-6 border-t border-border mt-auto">
                 <button 
                   onClick={() => {
+                    setShowAgreement(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
+                >
+                  <ShieldCheck className="w-5 h-5" />
+                  Соглашение
+                </button>
+
+                <button 
+                  onClick={() => {
                     handleLogout();
                     setShowMobileMenu(false);
                   }}
@@ -2412,6 +2427,11 @@ function AppContent() {
                   <p>
                     5. Мы уважаем вашу конфиденциальность. Данные диалогов используются только для улучшения качества работы ИИ и вашего личного прогресса.
                   </p>
+                  <div className="pt-6 border-t border-border/50 text-[10px] text-muted space-y-2 uppercase tracking-widest">
+                    <p className="font-bold">Реквизиты:</p>
+                    <p>ИНН: 775101376595</p>
+                    <p>Виноградов Кирилл Вячеславович</p>
+                  </div>
                 </div>
               </div>
 
