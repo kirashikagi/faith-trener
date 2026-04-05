@@ -332,7 +332,8 @@ function AppContent() {
             setIsProfileLoading(false);
             
             // Only show intro if it hasn't been seen AND we haven't manually closed it in this session
-            if (!profile.hasSeenWelcome && !hasManuallyClosedIntro.current) {
+            const seen = profile.hasSeenWelcome === true;
+            if (!seen && !hasManuallyClosedIntro.current) {
               setShowIntro(true);
             } else {
               setShowIntro(false);
@@ -349,7 +350,11 @@ function AppContent() {
               streak: 1,
               lastVisit: Date.now()
             };
-            await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+            try {
+              await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+            } catch (error) {
+              handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUser.uid}`);
+            }
             setIsProfileLoading(false);
             // onSnapshot will pick this up
           }
@@ -359,6 +364,7 @@ function AppContent() {
       } else {
         setUser(null);
         setUserProfile(null);
+        setIsProfileLoading(false);
         if (profileUnsubscribe) {
           profileUnsubscribe();
           profileUnsubscribe = null;
@@ -383,7 +389,7 @@ function AppContent() {
         });
         setUserProfile(prev => prev ? { ...prev, hasSeenWelcome: true } : null);
       } catch (e) {
-        console.error("Error updating welcome status:", e);
+        handleFirestoreError(e, OperationType.UPDATE, `users/${user.uid}`);
       }
     }
   };
