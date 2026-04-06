@@ -216,10 +216,19 @@ app.post("/api/generate", async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: config || { responseMimeType: "application/json" }
+      config: config || { 
+        responseMimeType: "application/json",
+        temperature: 0.7,
+        topP: 0.95,
+        topK: 40
+      }
     });
+
+    if (!response.text) {
+      throw new Error("Model returned an empty response.");
+    }
 
     res.json({ text: response.text });
   } catch (error: any) {

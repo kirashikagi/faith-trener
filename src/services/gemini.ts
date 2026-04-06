@@ -109,17 +109,17 @@ export async function getResponseOptions(
         const errorData = JSON.parse(text);
         errorMessage = errorData.error || errorMessage;
       } catch (e) {
-        if (text.includes('FUNCTION_INVOCATION_FAILED')) {
-          errorMessage = 'Серверная функция не смогла запуститься (FUNCTION_INVOCATION_FAILED). Проверьте логи сервера или настройки Secrets.';
-        } else {
-          errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
-        }
+        errorMessage = `Сервер вернул ошибку: ${text.substring(0, 100)}`;
       }
       throw new Error(errorMessage);
     }
 
     const data = await response.json();
-    let text = data.text || "[]";
+    let text = data.text || "";
+    
+    if (!text) {
+      throw new Error("Модель вернула пустой ответ при генерации вариантов.");
+    }
     
     // Clean up markdown code blocks if present
     if (text.includes("```")) {
@@ -127,7 +127,11 @@ export async function getResponseOptions(
     }
     
     try {
-      return JSON.parse(text) as ResponseOption[];
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        throw new Error("Ответ модели не является массивом JSON.");
+      }
+      return parsed as ResponseOption[];
     } catch (parseError) {
       console.error("JSON Parse Error. Raw text:", text);
       // Fallback: try to find the first [ and last ]
@@ -140,11 +144,11 @@ export async function getResponseOptions(
           console.error("Second attempt at parsing failed:", e2);
         }
       }
-      throw parseError;
+      throw new Error(`Ошибка разбора JSON ответа модели: ${text.substring(0, 50)}...`);
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error("Error getting response options:", e);
-    return [];
+    throw e; // Don't swallow error, let App.tsx handle it
   }
 }
 
@@ -201,17 +205,17 @@ export async function getFeedback(
         const errorData = JSON.parse(text);
         errorMessage = errorData.error || errorMessage;
       } catch (e) {
-        if (text.includes('FUNCTION_INVOCATION_FAILED')) {
-          errorMessage = 'Серверная функция не смогла запуститься (FUNCTION_INVOCATION_FAILED). Проверьте логи сервера или настройки Secrets.';
-        } else {
-          errorMessage = `Сервер вернул ошибку (не JSON): ${text.substring(0, 100)}`;
-        }
+        errorMessage = `Сервер вернул ошибку: ${text.substring(0, 100)}`;
       }
       throw new Error(errorMessage);
     }
 
     const data = await response.json();
-    let text = data.text || "{}";
+    let text = data.text || "";
+    
+    if (!text) {
+      throw new Error("Модель вернула пустой ответ при анализе.");
+    }
     
     // Clean up markdown code blocks if present
     if (text.includes("```")) {
@@ -231,15 +235,10 @@ export async function getFeedback(
           console.error("Second attempt at parsing feedback failed:", e2);
         }
       }
-      throw parseError;
+      throw new Error(`Ошибка разбора JSON ответа модели при анализе: ${text.substring(0, 50)}...`);
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error("Error getting feedback:", e);
-    return {
-      score: 0,
-      strengths: ["Не удалось проанализировать"],
-      improvements: ["Попробуйте еще раз"],
-      summary: "Ошибка при анализе диалога."
-    };
+    throw e;
   }
 }

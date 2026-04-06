@@ -709,18 +709,29 @@ function AppContent() {
     setOptions([]);
 
     if (scenario.mode === 'criticism') {
+      const apiKey = getEffectiveApiKey();
+      if (!apiKey) {
+        setMessages(prev => [...prev, {
+          role: 'model',
+          text: "API ключ не настроен. Пожалуйста, добавьте VITE_GEMINI_API_KEY в Secrets или введите его в настройках.",
+          timestamp: Date.now()
+        }]);
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
-        const opts = await getResponseOptions(scenario.systemInstruction, [initialMsg], getEffectiveApiKey());
-        if (opts.length === 0) {
-          throw new Error("Не удалось получить варианты ответа. Попробуйте перезапустить сценарий или проверьте API ключ.");
+        const opts = await getResponseOptions(scenario.systemInstruction, [initialMsg], apiKey);
+        if (!opts || opts.length === 0) {
+          throw new Error("Модель не вернула варианты ответа.");
         }
         setOptions(opts);
       } catch (error: any) {
         console.error("Error starting criticism scenario:", error);
         setMessages(prev => [...prev, {
           role: 'model',
-          text: `Ошибка при загрузке вариантов: ${error.message || "Неизвестная ошибка"}. Попробуйте обновить страницу или использовать другой API ключ.`,
+          text: `Ошибка при загрузке вариантов: ${error.message || "Неизвестная ошибка"}. Проверьте API ключ или попробуйте позже.`,
           timestamp: Date.now()
         }]);
       } finally {
@@ -798,8 +809,9 @@ function AppContent() {
 
       if (selectedScenario.mode === 'criticism') {
         try {
-          const opts = await getResponseOptions(selectedScenario.systemInstruction, newHistory, getEffectiveApiKey());
-          if (opts.length === 0) {
+          const apiKey = getEffectiveApiKey();
+          const opts = await getResponseOptions(selectedScenario.systemInstruction, newHistory, apiKey);
+          if (!opts || opts.length === 0) {
             throw new Error("Не удалось получить варианты ответа для следующего шага.");
           }
           setOptions(opts);
@@ -889,12 +901,19 @@ function AppContent() {
       addNotification("Диалог слишком короткий для анализа. Пообщайтесь еще немного.", 'info');
       return;
     }
+    
+    const apiKey = getEffectiveApiKey();
+    if (!apiKey) {
+      addNotification("API ключ не настроен. Анализ невозможен.", 'error');
+      return;
+    }
+
     setIsAnalyzing(true);
     try {
-      const result = await getFeedback(messages, getEffectiveApiKey());
+      const result = await getFeedback(messages, apiKey);
       
-      if (result.score === 0 && result.summary === "Ошибка при анализе диалога.") {
-        throw new Error("Анализ диалога не удался. Проверьте подключение к интернету или API ключ.");
+      if (!result || (result.score === 0 && result.summary === "Ошибка при анализе диалога.")) {
+        throw new Error("Анализ диалога не удался. Проверьте API ключ.");
       }
 
       const feedbackWithLock: Feedback = { ...result, isUnlocked: true };
