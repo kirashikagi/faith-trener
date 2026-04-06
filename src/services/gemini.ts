@@ -39,6 +39,11 @@ export async function getChatResponse(
     if (!response.ok) {
       const text = await response.text();
       console.error(`API Error (Status ${response.status}):`, text);
+      
+      if (response.status === 429) {
+        throw new Error("Лимит запросов ИИ исчерпан (Quota Exceeded). Пожалуйста, подождите немного или проверьте настройки вашего плана в Google AI Studio.");
+      }
+
       let errorMessage = "Ошибка сервера при получении ответа.";
       try {
         const errorData = JSON.parse(text);
@@ -104,6 +109,11 @@ export async function getResponseOptions(
     if (!response.ok) {
       const text = await response.text();
       console.error(`API Error (Status ${response.status}):`, text);
+      
+      if (response.status === 429) {
+        throw new Error("Лимит запросов ИИ исчерпан (Quota Exceeded). Пожалуйста, подождите немного или проверьте настройки вашего плана в Google AI Studio.");
+      }
+
       let errorMessage = "Ошибка сервера при генерации вариантов.";
       try {
         const errorData = JSON.parse(text);
@@ -200,6 +210,11 @@ export async function getFeedback(
     if (!response.ok) {
       const text = await response.text();
       console.error(`API Error (Status ${response.status}):`, text);
+      
+      if (response.status === 429) {
+        throw new Error("Лимит запросов ИИ исчерпан (Quota Exceeded). Пожалуйста, подождите немного или проверьте настройки вашего плана в Google AI Studio.");
+      }
+
       let errorMessage = "Ошибка сервера при анализе диалога.";
       try {
         const errorData = JSON.parse(text);

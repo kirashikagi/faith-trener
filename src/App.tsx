@@ -181,24 +181,8 @@ function AppContent() {
   const [showStats, setShowStats] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
-  const [contactDepth, setContactDepth] = useState(30);
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  const playSound = (type: 'send' | 'receive') => {
-    const audio = new Audio(type === 'send' 
-      ? 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3' 
-      : 'https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'
-    );
-    audio.volume = 0.2;
-    audio.play().catch(() => {});
-  };
-
-  const triggerHaptic = () => {
-    if ('vibrate' in navigator) {
-      navigator.vibrate(10);
-    }
-  };
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
 
@@ -698,7 +682,6 @@ function AppContent() {
   const startScenario = async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setIsDialogueEnded(false);
-    setContactDepth(30);
     const initialMsg: Message = { 
       role: 'model', 
       text: scenario.initialMessage, 
@@ -755,7 +738,6 @@ function AppContent() {
     setInput('');
     setOptions([]);
     setIsLoading(true);
-    playSound('send');
 
     try {
       const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу.";
@@ -784,11 +766,9 @@ function AppContent() {
       for (let i = 0; i < words.length; i++) {
         currentText += (i === 0 ? "" : " ") + words[i];
         await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 40));
-        triggerHaptic();
       }
 
       setIsTyping(false);
-      playSound('receive');
       
       const modelMessage: Message = { 
         role: 'model', 
@@ -798,14 +778,6 @@ function AppContent() {
       
       const newHistory = [...updatedMessages, modelMessage];
       setMessages(newHistory);
-
-      // Update contact depth
-      setContactDepth(prev => {
-        let change = 2;
-        if (cleanResponse.length > 200) change += 3;
-        if (cleanResponse.includes('?') || cleanResponse.includes('!')) change += 1;
-        return Math.min(100, prev + change);
-      });
 
       if (selectedScenario.mode === 'criticism') {
         try {
@@ -829,17 +801,31 @@ function AppContent() {
       const apiKey = getEffectiveApiKey();
       const isPlaceholder = apiKey.trim() === 'MY_GEMINI_API_KEY';
       const maskedKey = apiKey ? `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}` : "отсутствует";
-      const errorMessage = error?.message || "Неизвестная ошибка";
+      let errorMessage = error?.message || "Неизвестная ошибка";
       
-      let finalMessage = `Ошибка API: ${errorMessage}. (Ключ: ${maskedKey}).`;
+      // Try to parse JSON error if it's a stringified object
+      if (errorMessage.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(errorMessage);
+          if (parsed.error?.message) {
+            errorMessage = parsed.error.message;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      let finalMessage = `Ошибка API: ${errorMessage}.`;
       
-      if (errorMessage.includes("Failed to fetch")) {
+      if (errorMessage.includes("Quota exceeded") || errorMessage.includes("429")) {
+        finalMessage = "Лимит запросов ИИ исчерпан (Quota Exceeded). В бесплатном режиме Google Gemini API доступно всего 20 запросов в день. Пожалуйста, подождите до завтра или перейдите на платный тариф (Pay-as-you-go) в Google AI Studio.";
+      } else if (errorMessage.includes("Failed to fetch")) {
         finalMessage = "Ошибка сети: Не удалось связаться с сервером. Возможно, домен заблокирован вашим провайдером. Попробуйте использовать другой браузер или привязать свой домен в Cloudflare.";
       } else if (isPlaceholder || !apiKey) {
         finalMessage += ` Пожалуйста, добавьте новый секрет с именем "VITE_GEMINI_API_KEY" и вашим реальным ключом в разделе Secrets, затем нажмите "Apply changes". Также вы можете ввести ключ вручную в настройках приложения.`;
         setShowKeyInput(true);
       } else {
-        finalMessage += ` Убедитесь, что вы нажали "Apply changes" в разделе Secrets.`;
+        finalMessage += ` (Ключ: ${maskedKey}). Убедитесь, что вы нажали "Apply changes" в разделе Secrets.`;
       }
       
       setMessages(prev => [...prev, { 
@@ -854,20 +840,6 @@ function AppContent() {
 
   const handleOptionSelect = (option: ResponseOption) => {
     handleSend(option.text);
-  };
-
-  const handleReaction = (messageIndex: number, emoji: string) => {
-    setMessages(prev => prev.map((m, i) => {
-      if (i === messageIndex) {
-        const reactions = m.reactions || [];
-        if (reactions.includes(emoji)) {
-          return { ...m, reactions: reactions.filter(r => r !== emoji) };
-        }
-        return { ...m, reactions: [...reactions, emoji] };
-      }
-      return m;
-    }));
-    triggerHaptic();
   };
 
   const renderMessageText = (text: string) => {
@@ -2019,24 +1991,20 @@ function AppContent() {
                   onClick={handleFinish}
                   disabled={isAnalyzing || messages.length < 3}
                   className={cn(
-                    "px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-[8px] sm:text-[9px] uppercase tracking-[0.1em] transition-all flex items-center gap-2 active:scale-95 shrink-0",
-                    isAnalyzing ? "bg-bg text-muted" : isDialogueEnded ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 animate-bounce" : "sber-button"
+                    "px-1.5 py-0.5 rounded-md font-bold text-[7px] uppercase tracking-[0.1em] transition-all flex items-center gap-1 active:scale-95 shrink-0",
+                    isAnalyzing ? "bg-bg text-muted" : isDialogueEnded ? "bg-emerald-500 text-white shadow-sm" : "bg-accent/5 text-accent border border-accent/10 hover:bg-accent hover:text-white"
                   )}
                 >
                   {isAnalyzing ? (
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <RefreshCcw className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
-                      <span className="hidden sm:inline">Анализ...</span>
-                    </div>
+                    <RefreshCcw className="w-2.5 h-2.5 animate-spin" />
                   ) : isDialogueEnded ? (
                     <>
-                      <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span className="hidden sm:inline">Анализ</span>
-                      <span className="sm:hidden">Анализ</span>
+                      <CheckCircle2 className="w-2.5 h-2.5" />
+                      <span>Анализ</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <CheckCircle2 className="w-2.5 h-2.5" />
                       <span>Завершить</span>
                     </>
                   )}
@@ -2053,30 +2021,6 @@ function AppContent() {
                   backgroundAttachment: 'fixed'
                 }}
               >
-                {/* Depth of Contact Scale */}
-                <div className="sticky top-0 z-20 mb-8 p-4 glass-card border-accent/20 flex flex-col gap-2 animate-in fade-in slide-in-from-top-4">
-                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-muted">
-                    <div className="flex items-center gap-2">
-                      <Brain className="w-3 h-3 text-accent" />
-                      Глубина контакта
-                    </div>
-                    <span className={cn(
-                      "transition-colors",
-                      contactDepth > 70 ? "text-emerald-500" : contactDepth > 40 ? "text-accent" : "text-amber-500"
-                    )}>{contactDepth}%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-border rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${contactDepth}%` }}
-                      className={cn(
-                        "h-full transition-all duration-1000",
-                        contactDepth > 70 ? "bg-emerald-500" : contactDepth > 40 ? "bg-accent" : "bg-amber-500"
-                      )}
-                    />
-                  </div>
-                </div>
-
                 {messages.map((m, i) => (
                   <motion.div
                     key={i}
@@ -2109,26 +2053,6 @@ function AppContent() {
                           m.role === 'user' ? "text-white" : "text-fg dark:prose-invert"
                         )}>
                           {renderMessageText(m.text)}
-                        </div>
-
-                        {/* Reactions */}
-                        <div className={cn(
-                          "absolute -bottom-4 flex gap-1 transition-opacity",
-                          m.role === 'user' ? "right-0" : "left-0",
-                          m.reactions?.length ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                        )}>
-                          {['🙏', '❤️', '🤔', '💡'].map(emoji => (
-                            <button
-                              key={emoji}
-                              onClick={() => handleReaction(i, emoji)}
-                              className={cn(
-                                "w-7 h-7 rounded-full flex items-center justify-center text-xs bg-card border border-border shadow-sm hover:scale-110 transition-all active:scale-90",
-                                m.reactions?.includes(emoji) ? "border-accent bg-accent/5" : ""
-                              )}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
                         </div>
                       </div>
                     </div>
@@ -2177,7 +2101,7 @@ function AppContent() {
                     <p className="text-muted text-sm max-w-xs mb-8 font-medium">Собеседник считает, что все важные моменты обсуждены. Теперь вы можете перейти к анализу ваших ответов.</p>
                     <button 
                       onClick={handleFinish}
-                      className="sber-button py-4 px-10"
+                      className="px-6 py-2 bg-emerald-500 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
                     >
                       Перейти к анализу
                     </button>
