@@ -82,7 +82,7 @@ import {
 } from 'firebase/firestore';
 
 import { auth, db } from './firebase';
-import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle } from './types';
+import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
 import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
 import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -180,8 +180,7 @@ function AppContent() {
   const [options, setOptions] = useState<ResponseOption[]>([]);
   const [showStats, setShowStats] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
-  const [trustLevel, setTrustLevel] = useState(50);
-  const [isHintLoading, setIsHintLoading] = useState(false);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
 
@@ -461,35 +460,6 @@ function AppContent() {
     }
   };
 
-  const handleGetHint = async () => {
-    if (!selectedScenario || isLoading || isHintLoading) return;
-    
-    setIsHintLoading(true);
-    try {
-      const hintPrompt = `На основе текущего диалога в тренажере "Вера +1", предложи пользователю один краткий, но глубокий и библейски обоснованный вариант ответа. 
-      Сценарий: ${selectedScenario.title}
-      Инструкция сценария: ${selectedScenario.systemInstruction}
-      
-      Ответь только текстом подсказки, без лишних слов.`;
-      
-      const hint = await getChatResponse(
-        "gemini-3-flash-preview",
-        hintPrompt,
-        messages,
-        "Дай мне подсказку, что ответить лучше всего сейчас.",
-        getEffectiveApiKey()
-      );
-      
-      setInput(hint.replace(/["']/g, '').trim());
-      addNotification("Подсказка получена и вставлена в поле ввода", 'success');
-    } catch (error) {
-      console.error("Error getting hint:", error);
-      addNotification("Не удалось получить подсказку", 'error');
-    } finally {
-      setIsHintLoading(false);
-    }
-  };
-
   const submitFeedback = async () => {
     if (!feedbackMessage.trim() || !user) return;
     try {
@@ -612,6 +582,31 @@ function AppContent() {
     };
   }, [selectedScenario, showStats]);
 
+  useEffect(() => {
+    if (!user) {
+      setSessions([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'sessions'),
+      where('uid', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as SessionRecord[];
+      setSessions(docs);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'sessions');
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   // Stats & Achievements State
   const [stats, setStats] = useState<UserStats>(() => {
     try {
@@ -687,7 +682,6 @@ function AppContent() {
   const startScenario = async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setIsDialogueEnded(false);
-    setTrustLevel(50);
     const initialMsg: Message = { 
       role: 'model', 
       text: scenario.initialMessage, 
@@ -743,20 +737,7 @@ function AppContent() {
         getEffectiveApiKey()
       );
       
-      // Update trust level based on keywords (simple heuristic)
-      const trustKeywords = ['спасибо', 'понимаю', 'согласен', 'верно', 'точно', 'интересно', 'правда'];
-      const distrustKeywords = ['нет', 'неверно', 'ошибка', 'ложь', 'глупость', 'бред', 'чушь'];
-      
-      let trustChange = 0;
-      const lowerInput = textToSend.toLowerCase();
-      trustKeywords.forEach(k => { if (lowerInput.includes(k)) trustChange += 5; });
-      distrustKeywords.forEach(k => { if (lowerInput.includes(k)) trustChange -= 5; });
-      
-      const lowerResponse = response.toLowerCase();
-      if (lowerResponse.includes('вы правы') || lowerResponse.includes('хороший вопрос') || lowerResponse.includes('согласен')) trustChange += 10;
-      if (lowerResponse.includes('не согласен') || lowerResponse.includes('вы ошибаетесь') || lowerResponse.includes('это не так')) trustChange -= 10;
-
-      setTrustLevel(prev => Math.max(0, Math.min(100, prev + trustChange)));
+      setIsLoading(false);
       
       let cleanResponse = response;
       if (response.includes('[КОНЕЦ_ДИАЛОГА]')) {
@@ -1502,26 +1483,38 @@ function AppContent() {
                     </div>
                   )}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {stats.achievements.map((achievement) => (
-                      <div 
-                        key={achievement.id} 
-                        className={cn(
-                          "sber-card !p-6 flex flex-col items-center text-center gap-3 transition-all",
-                          achievement.unlocked ? "border-accent/30 bg-accent/5" : "opacity-40 grayscale"
-                        )}
-                      >
-                        <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center border",
-                          achievement.unlocked ? "bg-accent text-white border-accent/20" : "bg-bg text-muted border-border"
-                        )}>
-                          {AchievementIcons[achievement.icon]}
+                    {stats.achievements.map((achievement, idx) => {
+                      const isLockedForFree = !isSubscribed && idx >= 3;
+                      return (
+                        <div 
+                          key={achievement.id} 
+                          className={cn(
+                            "sber-card !p-6 flex flex-col items-center text-center gap-3 transition-all relative overflow-hidden",
+                            achievement.unlocked && !isLockedForFree ? "border-accent/30 bg-accent/5" : "opacity-40 grayscale"
+                          )}
+                        >
+                          {isLockedForFree && (
+                            <div className="absolute inset-0 bg-bg/40 backdrop-blur-[2px] flex items-center justify-center z-10">
+                              <Lock className="w-5 h-5 text-accent" />
+                            </div>
+                          )}
+                          <div className={cn(
+                            "w-12 h-12 rounded-xl flex items-center justify-center border",
+                            achievement.unlocked && !isLockedForFree ? "bg-accent text-white border-accent/20" : "bg-bg text-muted border-border"
+                          )}>
+                            {AchievementIcons[achievement.icon]}
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-[11px] font-bold text-fg tracking-tight leading-tight">
+                              {isLockedForFree ? 'Премиум' : achievement.title}
+                            </div>
+                            <div className="text-[9px] text-muted font-medium leading-tight">
+                              {isLockedForFree ? 'Доступно в подписке' : achievement.description}
+                            </div>
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <div className="text-[11px] font-bold text-fg tracking-tight leading-tight">{achievement.title}</div>
-                          <div className="text-[9px] text-muted font-medium leading-tight">{achievement.description}</div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1533,25 +1526,60 @@ function AppContent() {
                   <div className="h-[1px] flex-1 bg-border" />
                 </div>
                 
-                <div className="relative">
-                  {!isSubscribed && (
-                    <div className="absolute inset-0 bg-bg/60 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-12 text-center rounded-[2.5rem] border border-border/50">
-                      <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
-                        <Lock className="w-8 h-8" />
-                      </div>
-                      <h4 className="text-xl font-bold text-fg mb-3 tracking-tight">История доступна в Премиум</h4>
-                      <p className="text-muted text-sm max-w-xs mb-8 font-medium">Оформите подписку, чтобы отслеживать свой прогресс и анализировать прошлые диалоги.</p>
-                      <button 
-                        onClick={() => setShowSubscription(true)}
-                        className="sber-button"
-                      >
-                        Узнать больше
-                      </button>
+                <div className="space-y-4">
+                  {sessions.length === 0 ? (
+                    <div className="sber-card p-16 text-center text-muted font-medium italic opacity-60">
+                      Здесь будет отображаться история ваших тренировок
+                    </div>
+                  ) : (
+                    <div className="grid gap-4">
+                      {sessions.map((session, idx) => {
+                        const isLockedForFree = !isSubscribed && idx >= 2;
+                        const scenario = SCENARIOS.find(s => s.id === session.scenarioId);
+                        
+                        return (
+                          <div 
+                            key={session.id}
+                            className={cn(
+                              "sber-card !p-6 flex items-center justify-between gap-4 transition-all relative overflow-hidden",
+                              isLockedForFree ? "opacity-40 grayscale" : "hover:border-accent/30"
+                            )}
+                          >
+                            {isLockedForFree && (
+                              <div className="absolute inset-0 bg-bg/40 backdrop-blur-[2px] flex items-center justify-center z-10">
+                                <div className="flex flex-col items-center gap-2">
+                                  <Lock className="w-5 h-5 text-accent" />
+                                  <span className="text-[8px] font-bold text-accent uppercase tracking-widest">Премиум</span>
+                                </div>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center border border-accent/20">
+                                {scenario ? AchievementIcons[scenario.icon] || <MessageSquare className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
+                              </div>
+                              <div className="space-y-1">
+                                <div className="text-[11px] font-bold text-fg tracking-tight leading-tight">
+                                  {scenario?.title || 'Неизвестный сценарий'}
+                                </div>
+                                <div className="text-[9px] text-muted font-medium">
+                                  {(() => {
+                                    const date = session.createdAt && (session.createdAt as any).toDate 
+                                      ? (session.createdAt as any).toDate() 
+                                      : new Date(session.createdAt);
+                                    return `${date.toLocaleDateString()} • ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-serif text-accent">{session.score}/10</div>
+                              <div className="text-[8px] font-bold text-muted uppercase tracking-widest">Балл</div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-                  <div className="sber-card p-16 text-center text-muted font-medium italic opacity-60">
-                    Здесь будет отображаться история ваших тренировок
-                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1876,32 +1904,15 @@ function AppContent() {
                   <div className="w-10 h-10 sm:w-14 h-14 bg-accent/10 text-accent rounded-xl sm:rounded-2xl flex items-center justify-center border border-accent/20 shrink-0">
                     <User className="w-5 h-5 sm:w-7 sm:h-7" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-base sm:text-2xl font-serif text-fg tracking-tight leading-tight truncate">{selectedScenario.title}</h3>
-                    <div className="flex items-center gap-4 mt-1 sm:mt-2">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-accent rounded-full animate-pulse" />
-                        <span className="text-[8px] sm:text-[9px] font-bold text-muted uppercase tracking-[0.2em]">В сети</span>
-                      </div>
-                      
-                      {/* Trust Indicator */}
-                      <div className="flex-1 max-w-[120px] sm:max-w-[200px] flex items-center gap-2">
-                        <div className="flex-1 h-1 sm:h-1.5 bg-accent/10 rounded-full overflow-hidden border border-accent/5">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${trustLevel}%` }}
-                            className={cn(
-                              "h-full transition-all duration-1000",
-                              trustLevel > 70 ? "bg-emerald-500" : trustLevel > 30 ? "bg-accent" : "bg-rose-500"
-                            )}
-                          />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-base sm:text-2xl font-serif text-fg tracking-tight leading-tight truncate">{selectedScenario.title}</h3>
+                      <div className="flex items-center gap-4 mt-1 sm:mt-2">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-accent rounded-full animate-pulse" />
+                          <span className="text-[8px] sm:text-[9px] font-bold text-muted uppercase tracking-[0.2em]">В сети</span>
                         </div>
-                        <span className="text-[8px] sm:text-[9px] font-bold text-muted uppercase tracking-widest whitespace-nowrap">
-                          Доверие: {trustLevel}%
-                        </span>
                       </div>
                     </div>
-                  </div>
                 </div>
                 <button 
                   onClick={handleFinish}
@@ -2063,18 +2074,6 @@ function AppContent() {
               <div className="p-8 bg-card border-t border-border">
                 {selectedScenario.mode === 'chat' ? (
                   <div className="relative flex items-center gap-4">
-                    <button 
-                      onClick={handleGetHint}
-                      disabled={isLoading || isHintLoading}
-                      className="w-16 h-16 bg-bg border border-border text-muted rounded-xl flex items-center justify-center hover:border-accent hover:text-accent transition-all active:scale-95 disabled:opacity-50 shrink-0"
-                      title="Получить подсказку"
-                    >
-                      {isHintLoading ? (
-                        <RefreshCcw className="w-6 h-6 animate-spin" />
-                      ) : (
-                        <Lightbulb className="w-6 h-6" />
-                      )}
-                    </button>
                     <textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
