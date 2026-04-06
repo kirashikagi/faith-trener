@@ -51,6 +51,10 @@ import {
   MessageCircle,
   Flame,
   Lightbulb,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -84,7 +88,7 @@ import {
 import { auth, db } from './firebase';
 import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
 import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
-import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
+import { getChatResponse, getFeedback, getResponseOptions, getSpeechResponse } from './services/gemini';
 import ErrorBoundary from './components/ErrorBoundary';
 import { handleFirestoreError, OperationType } from './lib/firebase-utils';
 
@@ -182,7 +186,12 @@ function AppContent() {
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
+  const [isAutoSpeak, setIsAutoSpeak] = useState(true);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
 
@@ -723,6 +732,40 @@ function AppContent() {
     }
   };
 
+  const stopSpeaking = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsSpeaking(false);
+    }
+  };
+
+  const startListening = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      addNotification("Ваш браузер не поддерживает голосовой ввод", 'error');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ru-RU';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+    };
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
   const handleSend = async (textOverride?: string) => {
     const textToSend = textOverride || input;
     if (!textToSend.trim() || !selectedScenario || isLoading) return;
@@ -740,7 +783,7 @@ function AppContent() {
     setIsLoading(true);
 
     try {
-      const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу.";
+      const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу. Также в самом начале сообщения всегда добавляй тег настроения в формате [MOOD: mood_name], где mood_name может быть: neutral, calm, tense, warm, cold. Например: [MOOD: calm] Приветствую тебя...";
       
       const result = await getChatResponse(
         "gemini-3-flash-preview",
@@ -754,8 +797,19 @@ function AppContent() {
       setIsTyping(true);
       
       let cleanResponse = result;
-      if (result.includes('[КОНЕЦ_ДИАЛОГА]')) {
-        cleanResponse = result.replace('[КОНЕЦ_ДИАЛОГА]', '').trim();
+      
+      // Extract mood
+      const moodMatch = cleanResponse.match(/\[MOOD:\s*(\w+)\]/);
+      if (moodMatch) {
+        const mood = moodMatch[1].toLowerCase() as any;
+        if (['neutral', 'calm', 'tense', 'warm', 'cold'].includes(mood)) {
+          setCurrentMood(mood);
+        }
+        cleanResponse = cleanResponse.replace(/\[MOOD:\s*\w+\]/, '').trim();
+      }
+
+      if (cleanResponse.includes('[КОНЕЦ_ДИАЛОГА]')) {
+        cleanResponse = cleanResponse.replace('[КОНЕЦ_ДИАЛОГА]', '').trim();
         setIsDialogueEnded(true);
       }
       
@@ -769,6 +823,24 @@ function AppContent() {
       }
 
       setIsTyping(false);
+      
+      // Auto-speak if enabled
+      if (isAutoSpeak) {
+        try {
+          const apiKey = getEffectiveApiKey();
+          const audioBase64 = await getSpeechResponse(cleanResponse, 'Kore', apiKey);
+          if (audioBase64) {
+            stopSpeaking();
+            const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+            audioRef.current = audio;
+            audio.onplay = () => setIsSpeaking(true);
+            audio.onended = () => setIsSpeaking(false);
+            audio.play();
+          }
+        } catch (e) {
+          console.error("TTS Error:", e);
+        }
+      }
       
       const modelMessage: Message = { 
         role: 'model', 
@@ -2013,7 +2085,14 @@ function AppContent() {
 
               <div 
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth relative"
+                className={cn(
+                  "flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth relative transition-colors duration-1000",
+                  currentMood === 'calm' && "bg-emerald-500/5",
+                  currentMood === 'tense' && "bg-amber-500/5",
+                  currentMood === 'warm' && "bg-rose-500/5",
+                  currentMood === 'cold' && "bg-blue-500/5",
+                  currentMood === 'neutral' && "bg-transparent"
+                )}
                 style={{
                   backgroundImage: selectedScenario?.backgroundUrl ? `linear-gradient(to bottom, rgba(var(--bg), 0.85), rgba(var(--bg), 0.98)), url(${selectedScenario.backgroundUrl})` : 'none',
                   backgroundSize: 'cover',
@@ -2032,16 +2111,6 @@ function AppContent() {
                     )}
                   >
                     <div className="flex items-end gap-3 w-full">
-                      {m.role === 'model' && (
-                        <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-accent/20 shrink-0 shadow-sm">
-                          <img 
-                            src={selectedScenario?.avatarUrl || `https://picsum.photos/seed/${selectedScenario?.id}/150/150`} 
-                            alt="Avatar" 
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
-                        </div>
-                      )}
                       <div className={cn(
                         "p-5 rounded-2xl text-sm leading-relaxed font-medium relative group",
                         m.role === 'user' 
@@ -2069,14 +2138,6 @@ function AppContent() {
                     className="flex flex-col max-w-[85%] mr-auto items-start"
                   >
                     <div className="flex items-end gap-3 w-full">
-                      <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-accent/20 shrink-0 shadow-sm">
-                        <img 
-                          src={selectedScenario?.avatarUrl || `https://picsum.photos/seed/${selectedScenario?.id}/150/150`} 
-                          alt="Avatar" 
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
                       <div className="p-5 rounded-2xl bg-card border border-border text-fg rounded-tl-none shadow-sm">
                         <div className="flex gap-1">
                           <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 bg-accent rounded-full" />
@@ -2186,9 +2247,34 @@ function AppContent() {
                 )}
               </div>
 
-              <div className="p-8 bg-card border-t border-border">
+              <div className="p-4 sm:p-8 bg-card border-t border-border">
                 {selectedScenario.mode === 'chat' ? (
-                  <div className="relative flex items-center gap-4">
+                  <div className="relative flex items-center gap-3">
+                    <button
+                      onClick={isListening ? () => {} : startListening}
+                      className={cn(
+                        "p-3 rounded-xl transition-all active:scale-95 shrink-0",
+                        isListening ? "bg-red-500 text-white animate-pulse" : "bg-bg border border-border text-muted hover:text-accent hover:border-accent"
+                      )}
+                      title="Голосовой ввод"
+                    >
+                      {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        if (isSpeaking) stopSpeaking();
+                        setIsAutoSpeak(!isAutoSpeak);
+                      }}
+                      className={cn(
+                        "p-3 rounded-xl transition-all active:scale-95 shrink-0",
+                        isAutoSpeak ? "bg-accent/10 text-accent border border-accent/20" : "bg-bg border border-border text-muted"
+                      )}
+                      title={isAutoSpeak ? "Озвучка включена" : "Озвучка выключена"}
+                    >
+                      {isAutoSpeak ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                    </button>
+
                     <textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
@@ -2198,8 +2284,9 @@ function AppContent() {
                           handleSend();
                         }
                       }}
-                      placeholder="Напишите ваш ответ..."
+                      placeholder={isListening ? "Слушаю вас..." : "Напишите ваш ответ..."}
                       className="flex-1 bg-bg border border-border p-4 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium resize-none h-[64px] placeholder:text-muted/30"
+                      disabled={isLoading}
                     />
                     <button 
                       onClick={() => handleSend()}
