@@ -17,6 +17,7 @@ export interface Message {
   text: string;
   timestamp: number;
   explanation?: string; // For criticism mode
+  emotion?: string; // New field for AI's emotional state
 }
 
 export interface ResponseOption {

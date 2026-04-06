@@ -51,6 +51,11 @@ import {
   MessageCircle,
   Flame,
   Lightbulb,
+  Volume2,
+  VolumeX,
+  Meh,
+  Frown,
+  Ghost,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -84,7 +89,7 @@ import {
 import { auth, db } from './firebase';
 import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
 import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
-import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
+import { getChatResponse, getFeedback, getResponseOptions, generateSpeech } from './services/gemini';
 import ErrorBoundary from './components/ErrorBoundary';
 import { handleFirestoreError, OperationType } from './lib/firebase-utils';
 
@@ -99,6 +104,15 @@ const AchievementIcons: Record<string, React.ReactNode> = {
   Heart: <Heart className="w-6 h-6" />,
   Zap: <Zap className="w-6 h-6" />,
   Smile: <Smile className="w-6 h-6" />,
+};
+
+const EmotionIcons: Record<string, React.ReactNode> = {
+  'Скептичен': <Meh className="w-3 h-3" />,
+  'Заинтересован': <Smile className="w-3 h-3 text-emerald-500" />,
+  'Раздражен': <Frown className="w-3 h-3 text-rose-500" />,
+  'Задумчив': <Brain className="w-3 h-3 text-blue-500" />,
+  'Открыт': <Heart className="w-3 h-3 text-pink-500" />,
+  'Озадачен': <Info className="w-3 h-3 text-amber-500" />,
 };
 
 const ScenarioIcons: Record<string, React.ReactNode> = {
@@ -177,6 +191,10 @@ function AppContent() {
   } | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
+  const [isVoiceLoading, setIsVoiceLoading] = useState(false);
+  const [currentEmotion, setCurrentEmotion] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [options, setOptions] = useState<ResponseOption[]>([]);
   const [showStats, setShowStats] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
@@ -682,6 +700,7 @@ function AppContent() {
   const startScenario = async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setIsDialogueEnded(false);
+    setCurrentEmotion(null);
     const initialMsg: Message = { 
       role: 'model', 
       text: scenario.initialMessage, 
@@ -729,7 +748,7 @@ function AppContent() {
     try {
       const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу.";
       
-      const response = await getChatResponse(
+      const result = await getChatResponse(
         "gemini-3-flash-preview",
         selectedScenario.systemInstruction + commonInstruction,
         messages, // Pass only previous messages as history
@@ -739,20 +758,49 @@ function AppContent() {
       
       setIsLoading(false);
       
-      let cleanResponse = response;
-      if (response.includes('[КОНЕЦ_ДИАЛОГА]')) {
-        cleanResponse = response.replace('[КОНЕЦ_ДИАЛОГА]', '').trim();
+      let cleanResponse = result.text;
+      if (result.text.includes('[КОНЕЦ_ДИАЛОГА]')) {
+        cleanResponse = result.text.replace('[КОНЕЦ_ДИАЛОГА]', '').trim();
         setIsDialogueEnded(true);
       }
       
       const modelMessage: Message = { 
         role: 'model', 
         text: cleanResponse, 
-        timestamp: Date.now() 
+        timestamp: Date.now(),
+        emotion: result.emotion
       };
+
+      setCurrentEmotion(result.emotion || null);
       
       const newHistory = [...messages, userMessage, modelMessage];
       setMessages(newHistory);
+
+      // Voice Support
+      if (isVoiceEnabled && cleanResponse) {
+        setIsVoiceLoading(true);
+        try {
+          // Stop previous audio if playing
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+          }
+          
+          const audioBase64 = await generateSpeech(cleanResponse);
+          if (audioBase64) {
+            const audioBlob = await fetch(`data:audio/mp3;base64,${audioBase64}`).then(res => res.blob());
+            const audioUrl = URL.createObjectURL(audioBlob);
+            if (audioRef.current) {
+              audioRef.current.src = audioUrl;
+              audioRef.current.play();
+            }
+          }
+        } catch (err) {
+          console.error("Voice playback error:", err);
+        } finally {
+          setIsVoiceLoading(false);
+        }
+      }
 
       if (selectedScenario.mode === 'criticism') {
         try {
@@ -952,8 +1000,34 @@ function AppContent() {
                 <span className="text-[10px] sm:text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
               </div>
 
+              {selectedScenario && currentEmotion && (
+                <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-card border border-border rounded-xl shrink-0 shadow-sm animate-in fade-in slide-in-from-top-2">
+                  {EmotionIcons[currentEmotion] || <Meh className="w-3.5 h-3.5" />}
+                  <span className="text-[9px] font-bold text-muted uppercase tracking-wider hidden sm:inline">{currentEmotion}</span>
+                </div>
+              )}
+
               {/* Desktop Menu */}
               <div className="hidden md:flex items-center gap-1.5 sm:gap-3">
+                {selectedScenario && (
+                  <button 
+                    onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
+                    className={cn(
+                      "p-2 sm:p-3 rounded-xl border transition-all shadow-sm active:scale-95 shrink-0 flex items-center gap-2",
+                      isVoiceEnabled ? "bg-accent/10 border-accent text-accent" : "bg-bg border-border text-muted hover:border-accent hover:text-accent"
+                    )}
+                    title={isVoiceEnabled ? "Отключить голос" : "Включить голос"}
+                  >
+                    {isVoiceLoading ? (
+                      <RefreshCcw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                    ) : isVoiceEnabled ? (
+                      <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    ) : (
+                      <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" />
+                    )}
+                  </button>
+                )}
+
                 {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
                   <button 
                     onClick={fetchAdminFeedback}
@@ -1023,6 +1097,7 @@ function AppContent() {
         )}
 
       <main className="mx-auto max-w-4xl p-4 sm:p-6">
+        <audio ref={audioRef} className="hidden" />
         {isAuthLoading || isProfileLoading ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCcw className="w-8 h-8 animate-spin text-emerald-600" />
@@ -1958,11 +2033,17 @@ function AppContent() {
                     )}
                   >
                     <div className={cn(
-                      "p-5 rounded-2xl text-sm leading-relaxed font-medium",
+                      "p-5 rounded-2xl text-sm leading-relaxed font-medium relative",
                       m.role === 'user' 
                         ? "bg-accent text-white rounded-tr-none" 
                         : "bg-card border border-border text-fg rounded-tl-none"
                     )}>
+                      {m.role === 'model' && m.emotion && (
+                        <div className="absolute -top-3 left-4 px-2 py-1 bg-card border border-border rounded-lg shadow-sm flex items-center gap-1.5 z-10">
+                          {EmotionIcons[m.emotion] || <Meh className="w-3 h-3" />}
+                          <span className="text-[8px] font-bold text-muted uppercase tracking-wider">{m.emotion}</span>
+                        </div>
+                      )}
                       <div className={cn(
                         "prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-inherit prose-p:text-inherit prose-headings:text-inherit",
                         m.role === 'user' ? "text-white" : "text-fg dark:prose-invert"
@@ -1999,23 +2080,28 @@ function AppContent() {
                 )}
                 {isLoading && (
                   <div className="flex flex-col mr-auto items-start w-full max-w-[85%]">
-                    <div className="bg-card px-6 py-4 rounded-2xl rounded-tl-none border border-border">
-                      <div className="flex items-center gap-1.5">
-                        <motion.div 
-                          animate={{ opacity: [0.3, 1, 0.3] }}
-                          transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
-                          className="w-1.5 h-1.5 bg-accent rounded-full" 
-                        />
-                        <motion.div 
-                          animate={{ opacity: [0.3, 1, 0.3] }}
-                          transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-                          className="w-1.5 h-1.5 bg-accent rounded-full" 
-                        />
-                        <motion.div 
-                          animate={{ opacity: [0.3, 1, 0.3] }}
-                          transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
-                          className="w-1.5 h-1.5 bg-accent rounded-full" 
-                        />
+                    <div className="bg-card px-6 py-4 rounded-2xl rounded-tl-none border border-border shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <motion.div 
+                            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }}
+                            transition={{ duration: 1.2, repeat: Infinity, delay: 0 }}
+                            className="w-1.5 h-1.5 bg-accent rounded-full" 
+                          />
+                          <motion.div 
+                            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }}
+                            transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
+                            className="w-1.5 h-1.5 bg-accent rounded-full" 
+                          />
+                          <motion.div 
+                            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }}
+                            transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
+                            className="w-1.5 h-1.5 bg-accent rounded-full" 
+                          />
+                        </div>
+                        <span className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] animate-pulse">
+                          {selectedScenario?.title || 'Собеседник'} думает...
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -2427,6 +2513,25 @@ function AppContent() {
                   <MessageSquare className="w-5 h-5" />
                   Отзывы
                 </button>
+
+                {selectedScenario && (
+                  <button 
+                    onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
+                    className={cn(
+                      "w-full flex items-center gap-4 p-4 rounded-xl transition-all font-bold uppercase tracking-widest text-[10px]",
+                      isVoiceEnabled ? "bg-accent/10 text-accent" : "hover:bg-accent/5 text-muted hover:text-accent"
+                    )}
+                  >
+                    {isVoiceLoading ? (
+                      <RefreshCcw className="w-5 h-5 animate-spin" />
+                    ) : isVoiceEnabled ? (
+                      <Volume2 className="w-5 h-5" />
+                    ) : (
+                      <VolumeX className="w-5 h-5" />
+                    )}
+                    {isVoiceEnabled ? "Голос включен" : "Голос выключен"}
+                  </button>
+                )}
 
                 {!selectedScenario ? (
                   <button 
