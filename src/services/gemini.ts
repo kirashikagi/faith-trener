@@ -1,4 +1,4 @@
-import { GoogleGenAI, GenerateContentResponse, Type, Modality } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Message, Feedback, ResponseOption } from "../types";
 
 // Helper to get the API key from various possible sources
@@ -14,40 +14,13 @@ const getApiKey = () => {
   return trimmedKey;
 };
 
-export async function generateSpeech(text: string, voice: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr' = 'Kore'): Promise<string | null> {
-  const apiKey = getApiKey();
-  if (!apiKey) return null;
-
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voice },
-          },
-        },
-      },
-    });
-
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    return base64Audio || null;
-  } catch (error) {
-    console.error("TTS Error:", error);
-    return null;
-  }
-}
-
 export async function getChatResponse(
   modelName: string,
   systemInstruction: string,
   history: Message[],
   userInput: string,
   providedApiKey?: string
-): Promise<{ text: string; emotion?: string }> {
+): Promise<string> {
   // If we have a provided key, we might be in a special mode, 
   // but normally we use the server proxy to bypass regional blocks.
   try {
@@ -56,7 +29,7 @@ export async function getChatResponse(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: modelName,
-        systemInstruction: systemInstruction + "\n\nВАЖНО: В конце каждого сообщения ОБЯЗАТЕЛЬНО добавляй свой текущий эмоциональный статус в формате [EMOTION: Название]. Варианты: Скептичен, Заинтересован, Раздражен, Задумчив, Открыт, Озадачен.",
+        systemInstruction,
         history,
         message: userInput,
         apiKey: providedApiKey
@@ -81,18 +54,7 @@ export async function getChatResponse(
     }
 
     const data = await response.json();
-    const fullText = data.text || "Извините, я не смог сформулировать ответ.";
-    
-    // Parse emotion
-    let emotion = "Задумчив";
-    let cleanText = fullText;
-    const emotionMatch = fullText.match(/\[EMOTION:\s*([^\]]+)\]/i);
-    if (emotionMatch) {
-      emotion = emotionMatch[1].trim();
-      cleanText = fullText.replace(/\[EMOTION:\s*[^\]]+\]/gi, "").trim();
-    }
-
-    return { text: cleanText, emotion };
+    return data.text || "Извините, я не смог сформулировать ответ.";
   } catch (error: any) {
     console.error("Proxy Error:", error);
     throw error;

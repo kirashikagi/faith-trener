@@ -51,11 +51,6 @@ import {
   MessageCircle,
   Flame,
   Lightbulb,
-  Volume2,
-  VolumeX,
-  Meh,
-  Frown,
-  Ghost,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -89,7 +84,7 @@ import {
 import { auth, db } from './firebase';
 import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
 import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
-import { getChatResponse, getFeedback, getResponseOptions, generateSpeech } from './services/gemini';
+import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
 import ErrorBoundary from './components/ErrorBoundary';
 import { handleFirestoreError, OperationType } from './lib/firebase-utils';
 
@@ -104,15 +99,6 @@ const AchievementIcons: Record<string, React.ReactNode> = {
   Heart: <Heart className="w-6 h-6" />,
   Zap: <Zap className="w-6 h-6" />,
   Smile: <Smile className="w-6 h-6" />,
-};
-
-const EmotionIcons: Record<string, React.ReactNode> = {
-  'Скептичен': <Meh className="w-3 h-3" />,
-  'Заинтересован': <Smile className="w-3 h-3 text-emerald-500" />,
-  'Раздражен': <Frown className="w-3 h-3 text-rose-500" />,
-  'Задумчив': <Brain className="w-3 h-3 text-blue-500" />,
-  'Открыт': <Heart className="w-3 h-3 text-pink-500" />,
-  'Озадачен': <Info className="w-3 h-3 text-amber-500" />,
 };
 
 const ScenarioIcons: Record<string, React.ReactNode> = {
@@ -191,10 +177,6 @@ function AppContent() {
   } | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
-  const [isVoiceLoading, setIsVoiceLoading] = useState(false);
-  const [currentEmotion, setCurrentEmotion] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [options, setOptions] = useState<ResponseOption[]>([]);
   const [showStats, setShowStats] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
@@ -700,7 +682,6 @@ function AppContent() {
   const startScenario = async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setIsDialogueEnded(false);
-    setCurrentEmotion(null);
     const initialMsg: Message = { 
       role: 'model', 
       text: scenario.initialMessage, 
@@ -758,49 +739,20 @@ function AppContent() {
       
       setIsLoading(false);
       
-      let cleanResponse = result.text;
-      if (result.text.includes('[КОНЕЦ_ДИАЛОГА]')) {
-        cleanResponse = result.text.replace('[КОНЕЦ_ДИАЛОГА]', '').trim();
+      let cleanResponse = result;
+      if (result.includes('[КОНЕЦ_ДИАЛОГА]')) {
+        cleanResponse = result.replace('[КОНЕЦ_DIALOGA]', '').trim();
         setIsDialogueEnded(true);
       }
       
       const modelMessage: Message = { 
         role: 'model', 
         text: cleanResponse, 
-        timestamp: Date.now(),
-        emotion: result.emotion
+        timestamp: Date.now()
       };
-
-      setCurrentEmotion(result.emotion || null);
       
       const newHistory = [...messages, userMessage, modelMessage];
       setMessages(newHistory);
-
-      // Voice Support
-      if (isVoiceEnabled && cleanResponse) {
-        setIsVoiceLoading(true);
-        try {
-          // Stop previous audio if playing
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-          }
-          
-          const audioBase64 = await generateSpeech(cleanResponse);
-          if (audioBase64) {
-            const audioBlob = await fetch(`data:audio/mp3;base64,${audioBase64}`).then(res => res.blob());
-            const audioUrl = URL.createObjectURL(audioBlob);
-            if (audioRef.current) {
-              audioRef.current.src = audioUrl;
-              audioRef.current.play();
-            }
-          }
-        } catch (err) {
-          console.error("Voice playback error:", err);
-        } finally {
-          setIsVoiceLoading(false);
-        }
-      }
 
       if (selectedScenario.mode === 'criticism') {
         try {
@@ -1000,34 +952,8 @@ function AppContent() {
                 <span className="text-[10px] sm:text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
               </div>
 
-              {selectedScenario && currentEmotion && (
-                <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-card border border-border rounded-xl shrink-0 shadow-sm animate-in fade-in slide-in-from-top-2">
-                  {EmotionIcons[currentEmotion] || <Meh className="w-3.5 h-3.5" />}
-                  <span className="text-[9px] font-bold text-muted uppercase tracking-wider hidden sm:inline">{currentEmotion}</span>
-                </div>
-              )}
-
               {/* Desktop Menu */}
               <div className="hidden md:flex items-center gap-1.5 sm:gap-3">
-                {selectedScenario && (
-                  <button 
-                    onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
-                    className={cn(
-                      "p-2 sm:p-3 rounded-xl border transition-all shadow-sm active:scale-95 shrink-0 flex items-center gap-2",
-                      isVoiceEnabled ? "bg-accent/10 border-accent text-accent" : "bg-bg border-border text-muted hover:border-accent hover:text-accent"
-                    )}
-                    title={isVoiceEnabled ? "Отключить голос" : "Включить голос"}
-                  >
-                    {isVoiceLoading ? (
-                      <RefreshCcw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                    ) : isVoiceEnabled ? (
-                      <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                    ) : (
-                      <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" />
-                    )}
-                  </button>
-                )}
-
                 {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
                   <button 
                     onClick={fetchAdminFeedback}
@@ -1097,7 +1023,6 @@ function AppContent() {
         )}
 
       <main className="mx-auto max-w-4xl p-4 sm:p-6">
-        <audio ref={audioRef} className="hidden" />
         {isAuthLoading || isProfileLoading ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCcw className="w-8 h-8 animate-spin text-emerald-600" />
@@ -2033,17 +1958,11 @@ function AppContent() {
                     )}
                   >
                     <div className={cn(
-                      "p-5 rounded-2xl text-sm leading-relaxed font-medium relative",
+                      "p-5 rounded-2xl text-sm leading-relaxed font-medium",
                       m.role === 'user' 
                         ? "bg-accent text-white rounded-tr-none" 
                         : "bg-card border border-border text-fg rounded-tl-none"
                     )}>
-                      {m.role === 'model' && m.emotion && (
-                        <div className="absolute -top-3 left-4 px-2 py-1 bg-card border border-border rounded-lg shadow-sm flex items-center gap-1.5 z-10">
-                          {EmotionIcons[m.emotion] || <Meh className="w-3 h-3" />}
-                          <span className="text-[8px] font-bold text-muted uppercase tracking-wider">{m.emotion}</span>
-                        </div>
-                      )}
                       <div className={cn(
                         "prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-inherit prose-p:text-inherit prose-headings:text-inherit",
                         m.role === 'user' ? "text-white" : "text-fg dark:prose-invert"
@@ -2513,25 +2432,6 @@ function AppContent() {
                   <MessageSquare className="w-5 h-5" />
                   Отзывы
                 </button>
-
-                {selectedScenario && (
-                  <button 
-                    onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
-                    className={cn(
-                      "w-full flex items-center gap-4 p-4 rounded-xl transition-all font-bold uppercase tracking-widest text-[10px]",
-                      isVoiceEnabled ? "bg-accent/10 text-accent" : "hover:bg-accent/5 text-muted hover:text-accent"
-                    )}
-                  >
-                    {isVoiceLoading ? (
-                      <RefreshCcw className="w-5 h-5 animate-spin" />
-                    ) : isVoiceEnabled ? (
-                      <Volume2 className="w-5 h-5" />
-                    ) : (
-                      <VolumeX className="w-5 h-5" />
-                    )}
-                    {isVoiceEnabled ? "Голос включен" : "Голос выключен"}
-                  </button>
-                )}
 
                 {!selectedScenario ? (
                   <button 
