@@ -181,6 +181,24 @@ function AppContent() {
   const [showStats, setShowStats] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [contactDepth, setContactDepth] = useState(30);
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const playSound = (type: 'send' | 'receive') => {
+    const audio = new Audio(type === 'send' 
+      ? 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3' 
+      : 'https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'
+    );
+    audio.volume = 0.2;
+    audio.play().catch(() => {});
+  };
+
+  const triggerHaptic = () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
+  };
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
 
@@ -641,8 +659,6 @@ function AppContent() {
   // We don't show the warning if we are in production-like environment where server key is expected
   const showApiKeyWarning = apiKeyMissing && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     localStorage.setItem('faith_trainer_stats', JSON.stringify(stats));
   }, [stats]);
@@ -682,6 +698,7 @@ function AppContent() {
   const startScenario = async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setIsDialogueEnded(false);
+    setContactDepth(30);
     const initialMsg: Message = { 
       role: 'model', 
       text: scenario.initialMessage, 
@@ -721,10 +738,13 @@ function AppContent() {
       text: textToSend, 
       timestamp: Date.now() 
     };
-    setMessages(prev => [...prev, userMessage]);
+    
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput('');
     setOptions([]);
     setIsLoading(true);
+    playSound('send');
 
     try {
       const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу.";
@@ -738,12 +758,26 @@ function AppContent() {
       );
       
       setIsLoading(false);
+      setIsTyping(true);
       
       let cleanResponse = result;
       if (result.includes('[КОНЕЦ_ДИАЛОГА]')) {
-        cleanResponse = result.replace('[КОНЕЦ_DIALOGA]', '').trim();
+        cleanResponse = result.replace('[КОНЕЦ_ДИАЛОГА]', '').trim();
         setIsDialogueEnded(true);
       }
+      
+      // Simulate typing effect
+      let currentText = "";
+      const words = cleanResponse.split(' ');
+      
+      for (let i = 0; i < words.length; i++) {
+        currentText += (i === 0 ? "" : " ") + words[i];
+        await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 40));
+        triggerHaptic();
+      }
+
+      setIsTyping(false);
+      playSound('receive');
       
       const modelMessage: Message = { 
         role: 'model', 
@@ -751,8 +785,16 @@ function AppContent() {
         timestamp: Date.now()
       };
       
-      const newHistory = [...messages, userMessage, modelMessage];
+      const newHistory = [...updatedMessages, modelMessage];
       setMessages(newHistory);
+
+      // Update contact depth
+      setContactDepth(prev => {
+        let change = 2;
+        if (cleanResponse.length > 200) change += 3;
+        if (cleanResponse.includes('?') || cleanResponse.includes('!')) change += 1;
+        return Math.min(100, prev + change);
+      });
 
       if (selectedScenario.mode === 'criticism') {
         try {
@@ -800,6 +842,46 @@ function AppContent() {
 
   const handleOptionSelect = (option: ResponseOption) => {
     handleSend(option.text);
+  };
+
+  const handleReaction = (messageIndex: number, emoji: string) => {
+    setMessages(prev => prev.map((m, i) => {
+      if (i === messageIndex) {
+        const reactions = m.reactions || [];
+        if (reactions.includes(emoji)) {
+          return { ...m, reactions: reactions.filter(r => r !== emoji) };
+        }
+        return { ...m, reactions: [...reactions, emoji] };
+      }
+      return m;
+    }));
+    triggerHaptic();
+  };
+
+  const renderMessageText = (text: string) => {
+    // Regex for Bible references: (Book Chapter:Verse) or Book Chapter:Verse
+    // Matches patterns like (Мф. 10:20), Иоанна 3:16, 1 Кор. 13:4-8
+    const bibleRegex = /((?:\d\s)?[А-Яа-яЁё]+\.?\s\d+:\d+(?:-\d+)?)/g;
+    const parts = text.split(bibleRegex);
+    
+    return parts.map((part, i) => {
+      if (part.match(bibleRegex)) {
+        return (
+          <button
+            key={i}
+            onClick={() => {
+              // In a real app, this would open the library or a tooltip
+              addNotification(`Открываем ссылку на Писание: ${part}`, 'info');
+            }}
+            className="text-accent hover:underline font-bold cursor-pointer inline-flex items-center gap-1"
+          >
+            {part}
+            <BookOpen className="w-3 h-3" />
+          </button>
+        );
+      }
+      return <ReactMarkdown key={i}>{part}</ReactMarkdown>;
+    });
   };
 
   const handleFinish = async () => {
@@ -1918,20 +2000,19 @@ function AppContent() {
                   onClick={handleFinish}
                   disabled={isAnalyzing || messages.length < 3}
                   className={cn(
-                    "px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-bold text-[9px] sm:text-[10px] uppercase tracking-[0.1em] sm:tracking-[0.2em] transition-all flex items-center gap-2 sm:gap-3 active:scale-95 shrink-0",
+                    "px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-[8px] sm:text-[9px] uppercase tracking-[0.1em] transition-all flex items-center gap-2 active:scale-95 shrink-0",
                     isAnalyzing ? "bg-bg text-muted" : isDialogueEnded ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 animate-bounce" : "sber-button"
                   )}
                 >
                   {isAnalyzing ? (
-                    <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <RefreshCcw className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
                       <span className="hidden sm:inline">Анализ...</span>
-                      <span className="sm:hidden">...</span>
                     </div>
                   ) : isDialogueEnded ? (
                     <>
                       <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span className="hidden sm:inline">Диалог завершен. К анализу?</span>
+                      <span className="hidden sm:inline">Анализ</span>
                       <span className="sm:hidden">Анализ</span>
                     </>
                   ) : (
@@ -1945,8 +2026,38 @@ function AppContent() {
 
               <div 
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth bg-bg/30"
+                className="flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth relative"
+                style={{
+                  backgroundImage: selectedScenario?.backgroundUrl ? `linear-gradient(to bottom, rgba(var(--bg), 0.85), rgba(var(--bg), 0.98)), url(${selectedScenario.backgroundUrl})` : 'none',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundAttachment: 'fixed'
+                }}
               >
+                {/* Depth of Contact Scale */}
+                <div className="sticky top-0 z-20 mb-8 p-4 glass-card border-accent/20 flex flex-col gap-2 animate-in fade-in slide-in-from-top-4">
+                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-muted">
+                    <div className="flex items-center gap-2">
+                      <Brain className="w-3 h-3 text-accent" />
+                      Глубина контакта
+                    </div>
+                    <span className={cn(
+                      "transition-colors",
+                      contactDepth > 70 ? "text-emerald-500" : contactDepth > 40 ? "text-accent" : "text-amber-500"
+                    )}>{contactDepth}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-border rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${contactDepth}%` }}
+                      className={cn(
+                        "h-full transition-all duration-1000",
+                        contactDepth > 70 ? "bg-emerald-500" : contactDepth > 40 ? "bg-accent" : "bg-amber-500"
+                      )}
+                    />
+                  </div>
+                </div>
+
                 {messages.map((m, i) => (
                   <motion.div
                     key={i}
@@ -1957,19 +2068,49 @@ function AppContent() {
                       m.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
                     )}
                   >
-                    <div className={cn(
-                      "p-5 rounded-2xl text-sm leading-relaxed font-medium",
-                      m.role === 'user' 
-                        ? "bg-accent text-white rounded-tr-none" 
-                        : "bg-card border border-border text-fg rounded-tl-none"
-                    )}>
+                    <div className="flex items-end gap-3 w-full">
+                      {m.role === 'model' && (
+                        <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-accent/20 shrink-0 shadow-sm">
+                          <img 
+                            src={selectedScenario?.avatarUrl || `https://picsum.photos/seed/${selectedScenario?.id}/150/150`} 
+                            alt="Avatar" 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      )}
                       <div className={cn(
-                        "prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-inherit prose-p:text-inherit prose-headings:text-inherit",
-                        m.role === 'user' ? "text-white" : "text-fg dark:prose-invert"
+                        "p-5 rounded-2xl text-sm leading-relaxed font-medium relative group",
+                        m.role === 'user' 
+                          ? "bg-accent text-white rounded-tr-none" 
+                          : "bg-card border border-border text-fg rounded-tl-none shadow-sm"
                       )}>
-                        <ReactMarkdown>
-                          {m.text}
-                        </ReactMarkdown>
+                        <div className={cn(
+                          "prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-inherit prose-p:text-inherit prose-headings:text-inherit",
+                          m.role === 'user' ? "text-white" : "text-fg dark:prose-invert"
+                        )}>
+                          {renderMessageText(m.text)}
+                        </div>
+
+                        {/* Reactions */}
+                        <div className={cn(
+                          "absolute -bottom-4 flex gap-1 transition-opacity",
+                          m.role === 'user' ? "right-0" : "left-0",
+                          m.reactions?.length ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                        )}>
+                          {['🙏', '❤️', '🤔', '💡'].map(emoji => (
+                            <button
+                              key={emoji}
+                              onClick={() => handleReaction(i, emoji)}
+                              className={cn(
+                                "w-7 h-7 rounded-full flex items-center justify-center text-xs bg-card border border-border shadow-sm hover:scale-110 transition-all active:scale-90",
+                                m.reactions?.includes(emoji) ? "border-accent bg-accent/5" : ""
+                              )}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                     <span className="text-[9px] font-bold text-muted mt-2 uppercase tracking-[0.2em] px-2">
@@ -1978,6 +2119,32 @@ function AppContent() {
                   </motion.div>
                 ))}
                 
+                {isTyping && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col max-w-[85%] mr-auto items-start"
+                  >
+                    <div className="flex items-end gap-3 w-full">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-accent/20 shrink-0 shadow-sm">
+                        <img 
+                          src={selectedScenario?.avatarUrl || `https://picsum.photos/seed/${selectedScenario?.id}/150/150`} 
+                          alt="Avatar" 
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <div className="p-5 rounded-2xl bg-card border border-border text-fg rounded-tl-none shadow-sm">
+                        <div className="flex gap-1">
+                          <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 bg-accent rounded-full" />
+                          <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 bg-accent rounded-full" />
+                          <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 bg-accent rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 {isDialogueEnded && (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}

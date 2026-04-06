@@ -10,6 +10,8 @@ export interface Scenario {
   systemInstruction: string;
   initialMessage: string;
   mode: Mode;
+  avatarUrl?: string;
+  backgroundUrl?: string;
 }
 
 export interface Message {
@@ -17,6 +19,7 @@ export interface Message {
   text: string;
   timestamp: number;
   explanation?: string; // For criticism mode
+  reactions?: string[]; // Array of emoji strings
 }
 
 export interface ResponseOption {
