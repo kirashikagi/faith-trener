@@ -83,7 +83,7 @@ import {
 
 import { auth, db } from './firebase';
 import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
-import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS, BIBLE_VERSES } from './constants';
+import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
 import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
 import ErrorBoundary from './components/ErrorBoundary';
 import { handleFirestoreError, OperationType } from './lib/firebase-utils';
@@ -234,7 +234,6 @@ function AppContent() {
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
-  const [selectedVerse, setSelectedVerse] = useState<{ reference: string; text: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
@@ -914,29 +913,7 @@ function AppContent() {
   };
 
   const renderMessageText = (text: string) => {
-    // Regex for Bible references: (Book Chapter:Verse) or Book Chapter:Verse
-    // Matches patterns like (Мф. 10:20), Иоанна 3:16, 1 Кор. 13:4-8
-    const bibleRegex = /((?:\d\s)?[А-Яа-яЁё]+\.?\s\d+:\d+(?:-\d+)?)/g;
-    const parts = text.split(bibleRegex);
-    
-    return parts.map((part, i) => {
-      if (part.match(bibleRegex)) {
-        const verseText = BIBLE_VERSES[part] || "Текст стиха уточняется...";
-        return (
-          <button
-            key={i}
-            onClick={() => {
-              setSelectedVerse({ reference: part, text: verseText });
-            }}
-            className="text-accent hover:underline font-bold cursor-pointer inline-flex items-center gap-1 bg-accent/5 px-1.5 py-0.5 rounded-md border border-accent/10 transition-all hover:bg-accent/10"
-          >
-            {part}
-            <BookOpen className="w-3 h-3" />
-          </button>
-        );
-      }
-      return <ReactMarkdown key={i}>{part}</ReactMarkdown>;
-    });
+    return <ReactMarkdown>{text}</ReactMarkdown>;
   };
 
   const handleFinish = async () => {
@@ -2877,43 +2854,6 @@ function AppContent() {
         )}
       </AnimatePresence>
       
-      {/* Verse Modal */}
-      <AnimatePresence>
-        {selectedVerse && (
-          <div className="fixed inset-0 z-[210] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedVerse(null)}
-              className="absolute inset-0 bg-bg/80 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="glass-card w-full max-w-lg relative overflow-hidden p-10 text-center"
-            >
-              <div className="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mb-8 mx-auto border border-accent/20">
-                <BookOpen className="w-8 h-8" />
-              </div>
-              <h3 className="text-2xl font-serif text-fg mb-6 tracking-tight leading-tight">
-                {selectedVerse.reference}
-              </h3>
-              <p className="text-lg text-fg/90 leading-relaxed italic font-medium mb-10">
-                "{selectedVerse.text}"
-              </p>
-              <button 
-                onClick={() => setSelectedVerse(null)}
-                className="sber-button px-12 py-4"
-              >
-                Закрыть
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* Notifications */}
       <div className="fixed bottom-8 right-8 z-[200] flex flex-col gap-4 pointer-events-none">
         <AnimatePresence>
