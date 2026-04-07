@@ -257,3 +257,35 @@ export async function getFeedback(
     throw e;
   }
 }
+
+export async function getInitialMessage(
+  systemInstruction: string,
+  providedApiKey?: string
+): Promise<string> {
+  const prompt = `
+    На основе следующей системной инструкции для персонажа, напиши уникальное и вовлекающее приветственное сообщение (первую фразу в диалоге).
+    Сообщение должно быть естественным, соответствовать роли и сразу задавать тему для обсуждения.
+    
+    Системная инструкция: ${systemInstruction}
+    
+    Верни только текст сообщения, без кавычек и пояснений.
+  `;
+
+  try {
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, apiKey: providedApiKey })
+    });
+
+    if (!response.ok) {
+      throw new Error("Ошибка при генерации начального сообщения.");
+    }
+
+    const data = await response.json();
+    return data.text || "Привет. Давай пообщаемся.";
+  } catch (e: any) {
+    console.error("Error getting initial message:", e);
+    return "Привет. Давай пообщаемся."; // Fallback
+  }
+}

@@ -84,7 +84,7 @@ import {
 import { auth, db } from './firebase';
 import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
 import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
-import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
+import { getChatResponse, getFeedback, getResponseOptions, getInitialMessage } from './services/gemini';
 import ErrorBoundary from './components/ErrorBoundary';
 import { handleFirestoreError, OperationType } from './lib/firebase-utils';
 
@@ -93,30 +93,31 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const BackgroundParticles = ({ mood }: { mood: string }) => {
-  const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; duration: number }[]>([]);
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; duration: number; delay: number }[]>([]);
 
   useEffect(() => {
-    const count = mood === 'tense' ? 40 : mood === 'calm' ? 15 : 25;
+    const count = mood === 'tense' ? 60 : mood === 'calm' ? 25 : 40;
     const newParticles = Array.from({ length: count }).map((_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
-      size: Math.random() * 4 + 1,
-      duration: Math.random() * 20 + 10,
+      size: Math.random() * 8 + 3,
+      duration: Math.random() * 12 + 8,
+      delay: Math.random() * 5,
     }));
     setParticles(newParticles);
   }, [mood]);
 
   const moodColors: Record<string, string> = {
-    neutral: 'bg-fg/5',
-    calm: 'bg-emerald-400/20',
-    tense: 'bg-amber-400/20',
-    warm: 'bg-rose-400/20',
-    cold: 'bg-blue-400/20',
+    neutral: 'bg-fg/20 shadow-[0_0_8px_rgba(var(--fg),0.2)]',
+    calm: 'bg-emerald-400/40 shadow-[0_0_10px_rgba(52,211,153,0.4)]',
+    tense: 'bg-amber-400/40 shadow-[0_0_10px_rgba(251,191,36,0.4)]',
+    warm: 'bg-rose-400/40 shadow-[0_0_10px_rgba(251,113,133,0.4)]',
+    cold: 'bg-blue-400/40 shadow-[0_0_10px_rgba(96,165,250,0.4)]',
   };
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
       {particles.map((p) => (
         <motion.div
           key={p.id}
@@ -128,14 +129,16 @@ const BackgroundParticles = ({ mood }: { mood: string }) => {
             height: p.size,
           }}
           animate={{
-            y: [0, -100, 0],
-            x: [0, Math.random() * 50 - 25, 0],
-            opacity: [0, 0.8, 0],
+            y: [0, -200, 0],
+            x: [0, (Math.random() - 0.5) * 60, 0],
+            opacity: [0, 0.7, 0],
+            scale: [1, 1.8, 1],
           }}
           transition={{
             duration: p.duration,
             repeat: Infinity,
-            ease: "linear",
+            delay: p.delay,
+            ease: "easeInOut",
           }}
         />
       ))}
@@ -734,6 +737,7 @@ function AppContent() {
   const startScenario = async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setIsDialogueEnded(false);
+    setIsLoading(true);
     
     // Add a random biblical fact for "enlivenment"
     const randomFact = BIBLICAL_FACTS[Math.floor(Math.random() * BIBLICAL_FACTS.length)];
@@ -741,9 +745,21 @@ function AppContent() {
       addNotification(`Знаете ли вы? ${randomFact}`, 'info');
     }, 1000);
 
+    const apiKey = getEffectiveApiKey();
+    let initialText = scenario.initialMessage;
+
+    if (apiKey) {
+      try {
+        // Generate a unique initial message based on scenario
+        initialText = await getInitialMessage(scenario.systemInstruction, apiKey);
+      } catch (e) {
+        console.error("Failed to generate initial message, using default", e);
+      }
+    }
+
     const initialMsg: Message = { 
       role: 'model', 
-      text: scenario.initialMessage, 
+      text: initialText, 
       timestamp: Date.now() 
     };
     setMessages([initialMsg]);
@@ -751,7 +767,6 @@ function AppContent() {
     setOptions([]);
 
     if (scenario.mode === 'criticism') {
-      const apiKey = getEffectiveApiKey();
       if (!apiKey) {
         setMessages(prev => [...prev, {
           role: 'model',
@@ -762,7 +777,6 @@ function AppContent() {
         return;
       }
 
-      setIsLoading(true);
       try {
         const opts = await getResponseOptions(scenario.systemInstruction, [initialMsg], apiKey);
         if (!opts || opts.length === 0) {
@@ -779,6 +793,8 @@ function AppContent() {
       } finally {
         setIsLoading(false);
       }
+    } else {
+      setIsLoading(false);
     }
   };
 
@@ -799,7 +815,7 @@ function AppContent() {
     setIsLoading(true);
 
     try {
-      const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу. Также в самом начале сообщения всегда добавляй тег настроения в формате [MOOD: mood_name], где mood_name может быть: neutral, calm, tense, warm, cold. Например: [MOOD: calm] Приветствую тебя...";
+      const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу. Также в самом начале сообщения всегда добавляй тег настроения в формате [MOOD: mood_name], где mood_name может быть: neutral, calm, tense, warm, cold. Например: [MOOD: calm] Приветствую тебя...\n\nСТИЛЬ ОБЩЕНИЯ: Отвечай естественно, как живой человек. Не обязательно всегда заканчивать сообщение вопросом, если это не требуется по контексту. Будь разнообразен в своих реакциях.";
       
       const result = await getChatResponse(
         "gemini-3-flash-preview",
@@ -1926,7 +1942,7 @@ function AppContent() {
                           onClick={() => setShowSubscription(true)}
                           className="sber-button w-full py-3 text-sm"
                         >
-                          Открыть за 499₽/мес
+                          Открыть за {SUBSCRIPTION_PLANS[0].price}
                         </button>
                       </div>
                     )}
@@ -1988,13 +2004,22 @@ function AppContent() {
                   </button>
                   <button 
                     onClick={() => {
+                      if (!isSubscribed) {
+                        setShowSubscription(true);
+                        return;
+                      }
                       const text = `Результат тренировки в "Вера +1":\nБалл: ${feedback.score}/10\n\nРезюме: ${feedback.summary}\n\nСильные стороны:\n${feedback.strengths.join('\n')}\n\nЗоны роста:\n${feedback.improvements.join('\n')}`;
                       navigator.clipboard.writeText(text);
                       addNotification("Результат скопирован! Теперь вы можете отправить его наставнику.", 'success');
                     }}
-                    className="flex-1 px-8 bg-accent/10 border border-accent/20 text-accent font-bold rounded-xl hover:bg-accent hover:text-white transition-all uppercase tracking-[0.1em] text-[10px] py-4 flex items-center justify-center gap-2"
+                    className={cn(
+                      "flex-1 px-8 font-bold rounded-xl transition-all uppercase tracking-[0.1em] text-[10px] py-4 flex items-center justify-center gap-2",
+                      isSubscribed 
+                        ? "bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white" 
+                        : "bg-bg border border-border text-muted hover:border-accent hover:text-accent"
+                    )}
                   >
-                    <Send className="w-4 h-4" />
+                    {isSubscribed ? <Send className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                     Поделиться с наставником
                   </button>
                   <button 
