@@ -237,39 +237,6 @@ app.post("/api/generate", async (req, res) => {
   }
 });
 
-app.post("/api/speech", async (req, res) => {
-  try {
-    const { text, voice, apiKey: clientApiKey } = req.body;
-    const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-    
-    if (!apiKey) return res.status(500).json({ error: "API key missing." });
-
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text }] }],
-      config: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voice || 'Kore' },
-          },
-        },
-      },
-    });
-
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (base64Audio) {
-      res.json({ audio: base64Audio });
-    } else {
-      res.status(500).json({ error: "Failed to generate audio." });
-    }
-  } catch (error: any) {
-    console.error("Speech error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.use((err: any, req: any, res: any, next: any) => {
   console.error("Global error:", err);
   res.status(500).json({ error: "Internal server error" });

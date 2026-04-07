@@ -51,10 +51,6 @@ import {
   MessageCircle,
   Flame,
   Lightbulb,
-  Mic,
-  MicOff,
-  Volume2,
-  VolumeX,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -86,15 +82,137 @@ import {
 } from 'firebase/firestore';
 
 import { auth, db } from './firebase';
-import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
-import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
-import { getChatResponse, getFeedback, getResponseOptions, getSpeechResponse } from './services/gemini';
+import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord, SessionMetric } from './types';
+import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS, BIBLE_VERSES } from './constants';
+import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
 import ErrorBoundary from './components/ErrorBoundary';
 import { handleFirestoreError, OperationType } from './lib/firebase-utils';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+const BackgroundParticles = ({ mood }: { mood: string }) => {
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; duration: number }[]>([]);
+
+  useEffect(() => {
+    const count = mood === 'tense' ? 40 : mood === 'calm' ? 15 : 25;
+    const newParticles = Array.from({ length: count }).map((_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 4 + 1,
+      duration: Math.random() * 20 + 10,
+    }));
+    setParticles(newParticles);
+  }, [mood]);
+
+  const moodColors: Record<string, string> = {
+    neutral: 'bg-fg/5',
+    calm: 'bg-emerald-400/20',
+    tense: 'bg-amber-400/20',
+    warm: 'bg-rose-400/20',
+    cold: 'bg-blue-400/20',
+  };
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className={cn("absolute rounded-full blur-[1px]", moodColors[mood] || moodColors.neutral)}
+          style={{
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            width: p.size,
+            height: p.size,
+          }}
+          animate={{
+            y: [0, -100, 0],
+            x: [0, Math.random() * 50 - 25, 0],
+            opacity: [0, 0.8, 0],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+const SessionChart = ({ metrics }: { metrics: SessionMetric[] }) => {
+  if (metrics.length < 2) return null;
+
+  const data = metrics.map((m, i) => ({
+    name: `Шаг ${i + 1}`,
+    accuracy: m.accuracy,
+    empathy: m.empathy,
+  }));
+
+  return (
+    <div className="w-full h-64 mt-8 bg-card/50 p-6 rounded-2xl border border-border shadow-inner">
+      <h4 className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-6 text-center">Динамика сессии</h4>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data}>
+          <defs>
+            <linearGradient id="colorAcc" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="var(--accent)" stopOpacity={0}/>
+            </linearGradient>
+            <linearGradient id="colorEmp" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(var(--muted), 0.1)" vertical={false} />
+          <XAxis 
+            dataKey="name" 
+            hide 
+          />
+          <YAxis 
+            domain={[0, 100]} 
+            hide 
+          />
+          <Tooltip 
+            contentStyle={{ 
+              backgroundColor: 'var(--card)', 
+              borderColor: 'var(--border)',
+              borderRadius: '12px',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              border: '1px solid var(--border)',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+            }}
+          />
+          <Area 
+            type="monotone" 
+            dataKey="accuracy" 
+            name="Точность"
+            stroke="var(--accent)" 
+            fillOpacity={1} 
+            fill="url(#colorAcc)" 
+            strokeWidth={3}
+          />
+          <Area 
+            type="monotone" 
+            dataKey="empathy" 
+            name="Эмпатия"
+            stroke="#10b981" 
+            fillOpacity={1} 
+            fill="url(#colorEmp)" 
+            strokeWidth={3}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
 
 const AchievementIcons: Record<string, React.ReactNode> = {
   Flag: <Flag className="w-6 h-6" />,
@@ -185,13 +303,11 @@ function AppContent() {
   const [showStats, setShowStats] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [sessionMetrics, setSessionMetrics] = useState<SessionMetric[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
-  const [isAutoSpeak, setIsAutoSpeak] = useState(true);
+  const [selectedVerse, setSelectedVerse] = useState<{ reference: string; text: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
 
@@ -691,6 +807,14 @@ function AppContent() {
   const startScenario = async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setIsDialogueEnded(false);
+    setSessionMetrics([]); // Reset metrics for new session
+    
+    // Add a random biblical fact for "enlivenment"
+    const randomFact = BIBLICAL_FACTS[Math.floor(Math.random() * BIBLICAL_FACTS.length)];
+    setTimeout(() => {
+      addNotification(`Знаете ли вы? ${randomFact}`, 'info');
+    }, 1000);
+
     const initialMsg: Message = { 
       role: 'model', 
       text: scenario.initialMessage, 
@@ -732,40 +856,6 @@ function AppContent() {
     }
   };
 
-  const stopSpeaking = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsSpeaking(false);
-    }
-  };
-
-  const startListening = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      addNotification("Ваш браузер не поддерживает голосовой ввод", 'error');
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'ru-RU';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-    };
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      setIsListening(false);
-    };
-
-    recognition.start();
-  };
-
   const handleSend = async (textOverride?: string) => {
     const textToSend = textOverride || input;
     if (!textToSend.trim() || !selectedScenario || isLoading) return;
@@ -783,7 +873,7 @@ function AppContent() {
     setIsLoading(true);
 
     try {
-      const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу. Также в самом начале сообщения всегда добавляй тег настроения в формате [MOOD: mood_name], где mood_name может быть: neutral, calm, tense, warm, cold. Например: [MOOD: calm] Приветствую тебя...";
+      const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу. Также в самом начале сообщения всегда добавляй тег настроения в формате [MOOD: mood_name] и оценку последнего сообщения пользователя в формате [SCORE: accuracy,empathy] (числа 0-100). Например: [MOOD: calm] [SCORE: 85,90] Приветствую тебя...";
       
       const result = await getChatResponse(
         "gemini-3-flash-preview",
@@ -798,12 +888,29 @@ function AppContent() {
       
       let cleanResponse = result;
       
-      // Extract mood
+      // Extract mood and score
       const moodMatch = cleanResponse.match(/\[MOOD:\s*(\w+)\]/);
+      const scoreMatch = cleanResponse.match(/\[SCORE:\s*(\d+),(\d+)\]/);
+      
+      let accuracy = 50;
+      let empathy = 50;
+      
+      if (scoreMatch) {
+        accuracy = parseInt(scoreMatch[1]);
+        empathy = parseInt(scoreMatch[2]);
+        cleanResponse = cleanResponse.replace(/\[SCORE:\s*\d+,\d+\]/, '').trim();
+      }
+      
       if (moodMatch) {
         const mood = moodMatch[1].toLowerCase() as any;
         if (['neutral', 'calm', 'tense', 'warm', 'cold'].includes(mood)) {
           setCurrentMood(mood);
+          setSessionMetrics(prev => [...prev, {
+            timestamp: Date.now(),
+            mood: mood,
+            accuracy,
+            empathy
+          }]);
         }
         cleanResponse = cleanResponse.replace(/\[MOOD:\s*\w+\]/, '').trim();
       }
@@ -823,24 +930,6 @@ function AppContent() {
       }
 
       setIsTyping(false);
-      
-      // Auto-speak if enabled
-      if (isAutoSpeak) {
-        try {
-          const apiKey = getEffectiveApiKey();
-          const audioBase64 = await getSpeechResponse(cleanResponse, 'Kore', apiKey);
-          if (audioBase64) {
-            stopSpeaking();
-            const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
-            audioRef.current = audio;
-            audio.onplay = () => setIsSpeaking(true);
-            audio.onended = () => setIsSpeaking(false);
-            audio.play();
-          }
-        } catch (e) {
-          console.error("TTS Error:", e);
-        }
-      }
       
       const modelMessage: Message = { 
         role: 'model', 
@@ -922,14 +1011,14 @@ function AppContent() {
     
     return parts.map((part, i) => {
       if (part.match(bibleRegex)) {
+        const verseText = BIBLE_VERSES[part] || "Текст стиха уточняется...";
         return (
           <button
             key={i}
             onClick={() => {
-              // In a real app, this would open the library or a tooltip
-              addNotification(`Открываем ссылку на Писание: ${part}`, 'info');
+              setSelectedVerse({ reference: part, text: verseText });
             }}
-            className="text-accent hover:underline font-bold cursor-pointer inline-flex items-center gap-1"
+            className="text-accent hover:underline font-bold cursor-pointer inline-flex items-center gap-1 bg-accent/5 px-1.5 py-0.5 rounded-md border border-accent/10 transition-all hover:bg-accent/10"
           >
             {part}
             <BookOpen className="w-3 h-3" />
@@ -1914,6 +2003,8 @@ function AppContent() {
                   </div>
                 )}
 
+                <SessionChart metrics={sessionMetrics} />
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
                     <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] flex items-center gap-2">
@@ -2037,7 +2128,14 @@ function AppContent() {
               animate={{ opacity: 1, y: 0 }}
               className="flex flex-col h-[calc(100dvh-140px)] sm:h-[calc(100vh-180px)] sber-card overflow-hidden !p-0"
             >
-              <div className="bg-card border-b border-border px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between backdrop-blur-md">
+              <div className="bg-card border-b border-border px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between backdrop-blur-md relative overflow-hidden">
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-border">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((messages.length / 15) * 100, 100)}%` }}
+                    className="h-full bg-accent transition-all duration-1000"
+                  />
+                </div>
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <button 
                     onClick={reset}
@@ -2086,11 +2184,11 @@ function AppContent() {
               <div 
                 ref={scrollRef}
                 className={cn(
-                  "flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth relative transition-colors duration-1000",
-                  currentMood === 'calm' && "bg-emerald-500/5",
-                  currentMood === 'tense' && "bg-amber-500/5",
-                  currentMood === 'warm' && "bg-rose-500/5",
-                  currentMood === 'cold' && "bg-blue-500/5",
+                  "flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth relative transition-all duration-1000",
+                  currentMood === 'calm' && "bg-emerald-500/[0.03] backdrop-blur-[2px]",
+                  currentMood === 'tense' && "bg-amber-500/[0.03] backdrop-blur-[2px]",
+                  currentMood === 'warm' && "bg-rose-500/[0.03] backdrop-blur-[2px]",
+                  currentMood === 'cold' && "bg-blue-500/[0.03] backdrop-blur-[2px]",
                   currentMood === 'neutral' && "bg-transparent"
                 )}
                 style={{
@@ -2100,6 +2198,7 @@ function AppContent() {
                   backgroundAttachment: 'fixed'
                 }}
               >
+                <BackgroundParticles mood={currentMood} />
                 {messages.map((m, i) => (
                   <motion.div
                     key={i}
@@ -2175,17 +2274,17 @@ function AppContent() {
                         <div className="flex items-center gap-1.5">
                           <motion.div 
                             animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }}
-                            transition={{ duration: 1.2, repeat: Infinity, delay: 0 }}
+                            transition={{ duration: currentMood === 'tense' ? 0.6 : currentMood === 'calm' ? 1.8 : 1.2, repeat: Infinity, delay: 0 }}
                             className="w-1.5 h-1.5 bg-accent rounded-full" 
                           />
                           <motion.div 
                             animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }}
-                            transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
+                            transition={{ duration: currentMood === 'tense' ? 0.6 : currentMood === 'calm' ? 1.8 : 1.2, repeat: Infinity, delay: 0.2 }}
                             className="w-1.5 h-1.5 bg-accent rounded-full" 
                           />
                           <motion.div 
                             animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }}
-                            transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
+                            transition={{ duration: currentMood === 'tense' ? 0.6 : currentMood === 'calm' ? 1.8 : 1.2, repeat: Infinity, delay: 0.4 }}
                             className="w-1.5 h-1.5 bg-accent rounded-full" 
                           />
                         </div>
@@ -2247,34 +2346,9 @@ function AppContent() {
                 )}
               </div>
 
-              <div className="p-4 sm:p-8 bg-card border-t border-border">
+              <div className="p-8 bg-card border-t border-border">
                 {selectedScenario.mode === 'chat' ? (
-                  <div className="relative flex items-center gap-3">
-                    <button
-                      onClick={isListening ? () => {} : startListening}
-                      className={cn(
-                        "p-3 rounded-xl transition-all active:scale-95 shrink-0",
-                        isListening ? "bg-red-500 text-white animate-pulse" : "bg-bg border border-border text-muted hover:text-accent hover:border-accent"
-                      )}
-                      title="Голосовой ввод"
-                    >
-                      {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        if (isSpeaking) stopSpeaking();
-                        setIsAutoSpeak(!isAutoSpeak);
-                      }}
-                      className={cn(
-                        "p-3 rounded-xl transition-all active:scale-95 shrink-0",
-                        isAutoSpeak ? "bg-accent/10 text-accent border border-accent/20" : "bg-bg border border-border text-muted"
-                      )}
-                      title={isAutoSpeak ? "Озвучка включена" : "Озвучка выключена"}
-                    >
-                      {isAutoSpeak ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-                    </button>
-
+                  <div className="relative flex items-center gap-4">
                     <textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
@@ -2284,9 +2358,8 @@ function AppContent() {
                           handleSend();
                         }
                       }}
-                      placeholder={isListening ? "Слушаю вас..." : "Напишите ваш ответ..."}
+                      placeholder="Напишите ваш ответ..."
                       className="flex-1 bg-bg border border-border p-4 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium resize-none h-[64px] placeholder:text-muted/30"
-                      disabled={isLoading}
                     />
                     <button 
                       onClick={() => handleSend()}
@@ -2891,6 +2964,43 @@ function AppContent() {
                   Отмена
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Verse Modal */}
+      <AnimatePresence>
+        {selectedVerse && (
+          <div className="fixed inset-0 z-[210] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedVerse(null)}
+              className="absolute inset-0 bg-bg/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="glass-card w-full max-w-lg relative overflow-hidden p-10 text-center"
+            >
+              <div className="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mb-8 mx-auto border border-accent/20">
+                <BookOpen className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-serif text-fg mb-6 tracking-tight leading-tight">
+                {selectedVerse.reference}
+              </h3>
+              <p className="text-lg text-fg/90 leading-relaxed italic font-medium mb-10">
+                "{selectedVerse.text}"
+              </p>
+              <button 
+                onClick={() => setSelectedVerse(null)}
+                className="sber-button px-12 py-4"
+              >
+                Закрыть
+              </button>
             </motion.div>
           </div>
         )}

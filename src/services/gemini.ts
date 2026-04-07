@@ -162,31 +162,6 @@ export async function getResponseOptions(
   }
 }
 
-export async function getSpeechResponse(
-  text: string,
-  voice: string = 'Kore',
-  providedApiKey?: string
-): Promise<string> {
-  try {
-    const response = await fetch("/api/speech", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voice, apiKey: providedApiKey })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Speech API Error: ${errorText}`);
-    }
-
-    const data = await response.json();
-    return data.audio;
-  } catch (error: any) {
-    console.error("Speech Proxy Error:", error);
-    throw error;
-  }
-}
-
 export async function getFeedback(
   history: Message[],
   providedApiKey?: string
