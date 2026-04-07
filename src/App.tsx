@@ -82,12 +82,11 @@ import {
 } from 'firebase/firestore';
 
 import { auth, db } from './firebase';
-import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord, SessionMetric } from './types';
+import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
 import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS, BIBLE_VERSES } from './constants';
 import { getChatResponse, getFeedback, getResponseOptions } from './services/gemini';
 import ErrorBoundary from './components/ErrorBoundary';
 import { handleFirestoreError, OperationType } from './lib/firebase-utils';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -140,76 +139,6 @@ const BackgroundParticles = ({ mood }: { mood: string }) => {
           }}
         />
       ))}
-    </div>
-  );
-};
-
-const SessionChart = ({ metrics }: { metrics: SessionMetric[] }) => {
-  if (metrics.length < 2) return null;
-
-  const data = metrics.map((m, i) => ({
-    name: `Шаг ${i + 1}`,
-    accuracy: m.accuracy,
-    empathy: m.empathy,
-  }));
-
-  return (
-    <div className="w-full h-64 mt-8 bg-card/50 p-6 rounded-2xl border border-border shadow-inner">
-      <h4 className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-6 text-center">Динамика сессии</h4>
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data}>
-          <defs>
-            <linearGradient id="colorAcc" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="var(--accent)" stopOpacity={0}/>
-            </linearGradient>
-            <linearGradient id="colorEmp" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(var(--muted), 0.1)" vertical={false} />
-          <XAxis 
-            dataKey="name" 
-            hide 
-          />
-          <YAxis 
-            domain={[0, 100]} 
-            hide 
-          />
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: 'var(--card)', 
-              borderColor: 'var(--border)',
-              borderRadius: '12px',
-              fontSize: '10px',
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              border: '1px solid var(--border)',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-            }}
-          />
-          <Area 
-            type="monotone" 
-            dataKey="accuracy" 
-            name="Точность"
-            stroke="var(--accent)" 
-            fillOpacity={1} 
-            fill="url(#colorAcc)" 
-            strokeWidth={3}
-          />
-          <Area 
-            type="monotone" 
-            dataKey="empathy" 
-            name="Эмпатия"
-            stroke="#10b981" 
-            fillOpacity={1} 
-            fill="url(#colorEmp)" 
-            strokeWidth={3}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
     </div>
   );
 };
@@ -303,7 +232,6 @@ function AppContent() {
   const [showStats, setShowStats] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
-  const [sessionMetrics, setSessionMetrics] = useState<SessionMetric[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
   const [selectedVerse, setSelectedVerse] = useState<{ reference: string; text: string } | null>(null);
@@ -807,7 +735,6 @@ function AppContent() {
   const startScenario = async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setIsDialogueEnded(false);
-    setSessionMetrics([]); // Reset metrics for new session
     
     // Add a random biblical fact for "enlivenment"
     const randomFact = BIBLICAL_FACTS[Math.floor(Math.random() * BIBLICAL_FACTS.length)];
@@ -873,7 +800,7 @@ function AppContent() {
     setIsLoading(true);
 
     try {
-      const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу. Также в самом начале сообщения всегда добавляй тег настроения в формате [MOOD: mood_name] и оценку последнего сообщения пользователя в формате [SCORE: accuracy,empathy] (числа 0-100). Например: [MOOD: calm] [SCORE: 85,90] Приветствую тебя...";
+      const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу. Также в самом начале сообщения всегда добавляй тег настроения в формате [MOOD: mood_name], где mood_name может быть: neutral, calm, tense, warm, cold. Например: [MOOD: calm] Приветствую тебя...";
       
       const result = await getChatResponse(
         "gemini-3-flash-preview",
@@ -888,29 +815,12 @@ function AppContent() {
       
       let cleanResponse = result;
       
-      // Extract mood and score
+      // Extract mood
       const moodMatch = cleanResponse.match(/\[MOOD:\s*(\w+)\]/);
-      const scoreMatch = cleanResponse.match(/\[SCORE:\s*(\d+),(\d+)\]/);
-      
-      let accuracy = 50;
-      let empathy = 50;
-      
-      if (scoreMatch) {
-        accuracy = parseInt(scoreMatch[1]);
-        empathy = parseInt(scoreMatch[2]);
-        cleanResponse = cleanResponse.replace(/\[SCORE:\s*\d+,\d+\]/, '').trim();
-      }
-      
       if (moodMatch) {
         const mood = moodMatch[1].toLowerCase() as any;
         if (['neutral', 'calm', 'tense', 'warm', 'cold'].includes(mood)) {
           setCurrentMood(mood);
-          setSessionMetrics(prev => [...prev, {
-            timestamp: Date.now(),
-            mood: mood,
-            accuracy,
-            empathy
-          }]);
         }
         cleanResponse = cleanResponse.replace(/\[MOOD:\s*\w+\]/, '').trim();
       }
@@ -2002,8 +1912,6 @@ function AppContent() {
                     ))}
                   </div>
                 )}
-
-                <SessionChart metrics={sessionMetrics} />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">

@@ -110,10 +110,3 @@ export interface SessionRecord {
   isUnlocked: boolean;
   createdAt: number;
 }
-
-export interface SessionMetric {
-  timestamp: number;
-  mood: 'neutral' | 'calm' | 'tense' | 'warm' | 'cold';
-  accuracy: number; // 0-100
-  empathy: number; // 0-100
-}
