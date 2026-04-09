@@ -108,5 +108,6 @@ export interface SessionRecord {
   score: number;
   detailedAnalysis: string;
   isUnlocked: boolean;
-  createdAt: number;
+  createdAt: any; // Using any for Timestamp compatibility
+  messages: Message[];
 }
