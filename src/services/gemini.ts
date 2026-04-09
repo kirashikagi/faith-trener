@@ -103,7 +103,11 @@ export async function getResponseOptions(
     const response = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, apiKey: providedApiKey })
+      body: JSON.stringify({ 
+        prompt, 
+        apiKey: providedApiKey,
+        config: { responseMimeType: "application/json" }
+      })
     });
 
     if (!response.ok) {
@@ -204,7 +208,11 @@ export async function getFeedback(
     const response = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, apiKey: providedApiKey })
+      body: JSON.stringify({ 
+        prompt, 
+        apiKey: providedApiKey,
+        config: { responseMimeType: "application/json" }
+      })
     });
 
     if (!response.ok) {
@@ -283,7 +291,26 @@ export async function getInitialMessage(
     }
 
     const data = await response.json();
-    return data.text || "Привет. Давай пообщаемся.";
+    let text = data.text || "Привет. Давай пообщаемся.";
+    
+    // Safety check: if the model still returns JSON despite text/plain (happens with some models)
+    if (text.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.greeting) text = parsed.greeting;
+        else if (parsed.message) text = parsed.message;
+        else if (parsed.text) text = parsed.text;
+        else if (Object.values(parsed).length > 0) {
+          // If we don't know the key, take the first string value
+          const firstString = Object.values(parsed).find(v => typeof v === 'string');
+          if (firstString) text = firstString as string;
+        }
+      } catch (e) {
+        // Not valid JSON, keep as is
+      }
+    }
+    
+    return text;
   } catch (e: any) {
     console.error("Error getting initial message:", e);
     return "Привет. Давай пообщаемся."; // Fallback

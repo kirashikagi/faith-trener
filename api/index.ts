@@ -218,11 +218,11 @@ app.post("/api/generate", async (req, res) => {
     const response = await ai.models.generateContent({
       model: "gemini-flash-latest",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: config || { 
-        responseMimeType: "application/json",
-        temperature: 0.7,
-        topP: 0.95,
-        topK: 40
+      config: { 
+        responseMimeType: config?.responseMimeType || "text/plain",
+        temperature: config?.temperature || 0.7,
+        topP: config?.topP || 0.95,
+        topK: config?.topK || 40
       }
     });
 

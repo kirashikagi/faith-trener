@@ -795,6 +795,22 @@ function AppContent() {
         cleanResponse = cleanResponse.replace('[КОНЕЦ_ДИАЛОГА]', '').trim();
         setIsDialogueEnded(true);
       }
+
+      // Safety check: if the model returns JSON (sometimes happens with flash models)
+      if (cleanResponse.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(cleanResponse);
+          if (parsed.text) cleanResponse = parsed.text;
+          else if (parsed.message) cleanResponse = parsed.message;
+          else if (parsed.response) cleanResponse = parsed.response;
+          else if (Object.values(parsed).length > 0) {
+            const firstString = Object.values(parsed).find(v => typeof v === 'string');
+            if (firstString) cleanResponse = firstString as string;
+          }
+        } catch (e) {
+          // Not valid JSON, keep as is
+        }
+      }
       
       // Simulate typing effect
       let currentText = "";
