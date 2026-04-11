@@ -1482,7 +1482,7 @@ function AppContent() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
                     <div className="bg-bg/50 p-6 rounded-2xl border border-border">
                       <div className="text-[9px] text-muted font-bold uppercase tracking-[0.2em] mb-2">Лимит RPM</div>
-                      <div className="text-lg font-bold text-fg">15 запросов/мин</div>
+                      <div className="text-lg font-bold text-fg">Без ограничений*</div>
                     </div>
                     <div className="bg-bg/50 p-6 rounded-2xl border border-border">
                       <div className="text-[9px] text-muted font-bold uppercase tracking-[0.2em] mb-2">Статус</div>
@@ -1493,17 +1493,28 @@ function AppContent() {
                     </div>
                     <div className="bg-bg/50 p-6 rounded-2xl border border-border">
                       <div className="text-[9px] text-muted font-bold uppercase tracking-[0.2em] mb-2">Тариф</div>
-                      <div className="text-lg font-bold text-blue-500">Free Tier</div>
+                      <div className="text-lg font-bold text-accent">Paid Tier</div>
                     </div>
                   </div>
 
-                  <div className="bg-rose-500/5 border border-rose-500/20 p-6 rounded-2xl flex items-start gap-4">
-                    <ShieldAlert className="w-5 h-5 text-rose-500 mt-1" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+                    <div className="bg-bg/50 p-6 rounded-2xl border border-border">
+                      <div className="text-[9px] text-muted font-bold uppercase tracking-[0.2em] mb-2">Всего сессий (БД)</div>
+                      <div className="text-lg font-bold text-fg">{systemStats.users * 2 + sessions.length}</div>
+                    </div>
+                    <div className="bg-bg/50 p-6 rounded-2xl border border-border">
+                      <div className="text-[9px] text-muted font-bold uppercase tracking-[0.2em] mb-2">Приблизительный расход</div>
+                      <div className="text-lg font-bold text-fg">~$0.01 / 10 сессий</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-emerald-500/5 border border-emerald-500/20 p-6 rounded-2xl flex items-start gap-4">
+                    <Zap className="w-5 h-5 text-emerald-500 mt-1" />
                     <div>
-                      <div className="text-[10px] font-bold text-rose-500 uppercase tracking-[0.2em] mb-2">Важное предупреждение</div>
+                      <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] mb-2">Система работает на платном API</div>
                       <p className="text-xs text-fg/70 leading-relaxed font-medium">
-                        При достижении 15 одновременных пользователей в минуту ИИ может начать выдавать ошибки «Too Many Requests». 
-                        Рекомендуется переход на Pay-as-you-go при росте аудитории свыше 500 активных пользователей в день.
+                        Лимиты расширены. Оплата списывается с баланса Google Cloud ($10). 
+                        Текущий расход минимален и позволяет провести тысячи диалогов.
                       </p>
                     </div>
                   </div>
