@@ -2234,7 +2234,7 @@ function AppContent() {
                           />
                         </div>
                         <span className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] animate-pulse">
-                          {selectedScenario?.title || 'Собеседник'} думает...
+                          Собеседник даёт ответ
                         </span>
                       </div>
                     </div>
