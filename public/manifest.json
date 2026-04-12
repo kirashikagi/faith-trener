@@ -1,15 +1,11 @@
 {
-  "id": "vera-plus-one-pwa",
   "name": "Вера Тренажёр",
   "short_name": "Вера +1",
   "description": "Интеллектуальный тренажер духовного общения",
-  "start_url": "/?utm_source=pwa",
-  "scope": "/",
+  "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#FDFCF8",
   "theme_color": "#5A5A40",
-  "categories": ["education", "lifestyle"],
   "icons": [
     {
       "src": "/logo.png",
