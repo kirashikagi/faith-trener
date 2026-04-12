@@ -188,25 +188,6 @@ function AppContent() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Telegram Web App initialization
-  useEffect(() => {
-    if ((window as any).Telegram?.WebApp) {
-      const tg = (window as any).Telegram.WebApp;
-      tg.ready();
-      tg.expand();
-      tg.setHeaderColor('#5A5A40');
-      tg.setBackgroundColor('#FDFCF8');
-      
-      // Handle back button
-      if (view !== 'menu') {
-        tg.BackButton.show();
-        tg.BackButton.onClick(() => setView('menu'));
-      } else {
-        tg.BackButton.hide();
-      }
-    }
-  }, [view]);
-
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
