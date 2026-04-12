@@ -164,6 +164,8 @@ function AppContent() {
   const [showSubscription, setShowSubscription] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
 
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -280,6 +282,35 @@ function AppContent() {
     console.error(`Firestore Error [${operation}]:`, JSON.stringify(errInfo));
     throw new Error(JSON.stringify(errInfo));
   };
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+    }
+  };
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', () => {
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+      addNotification("Приложение успешно установлено!", 'success');
+    });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
 
   // Firebase Auth & Profile
   useEffect(() => {
@@ -1059,6 +1090,16 @@ function AppContent() {
 
               {/* Desktop Menu */}
               <div className="hidden md:flex items-center gap-1.5 sm:gap-3">
+                {isInstallable && (
+                  <button 
+                    onClick={handleInstallClick}
+                    className="flex items-center gap-2 bg-accent/10 border border-accent/20 text-accent px-4 py-2.5 rounded-xl hover:bg-accent/20 transition-all shadow-sm active:scale-95 shrink-0"
+                    title="Установить приложение"
+                  >
+                    <Zap className="w-4 h-4 fill-accent" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Установить</span>
+                  </button>
+                )}
                 {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
                   <button 
                     onClick={fetchAdminFeedback}
@@ -2623,6 +2664,18 @@ function AppContent() {
               </div>
 
               <div className="flex-1 space-y-2">
+                {isInstallable && (
+                  <button 
+                    onClick={() => {
+                      handleInstallClick();
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-accent/10 text-accent hover:bg-accent/20 transition-all font-bold uppercase tracking-widest text-[10px] border border-accent/20"
+                  >
+                    <Zap className="w-5 h-5 fill-accent" />
+                    Установить приложение
+                  </button>
+                )}
                 {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
                   <button 
                     onClick={() => {
