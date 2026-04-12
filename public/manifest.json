@@ -1,16 +1,19 @@
 {
-  "id": "faith-trener-pwa",
-  "name": "Вера Тренажёр",
+  "id": "vera-plus-one-pwa",
+  "name": "Вера Тренажёр +1",
   "short_name": "Вера +1",
-  "description": "Тренажер духовного общения и духовного роста",
-  "start_url": "/",
+  "description": "Интеллектуальный тренажер для духовного общения и роста",
+  "start_url": "/?utm_source=pwa",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "fullscreen", "minimal-ui"],
   "background_color": "#FDFCF8",
   "theme_color": "#5A5A40",
   "orientation": "portrait",
-  "categories": ["education", "lifestyle"],
+  "categories": ["education", "lifestyle", "social"],
+  "dir": "ltr",
+  "lang": "ru",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/logo.png",
@@ -35,6 +38,15 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Начать диалог",
+      "short_name": "Диалог",
+      "description": "Начать новую сессию обучения",
+      "url": "/",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -186,17 +186,27 @@ function AppContent() {
   const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
+      setIsStandalone(true);
+    }
+  }, []);
 
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowInstallPrompt(true);
+      // Only show prompt if not already installed/standalone
+      if (!isStandalone) {
+        setShowInstallPrompt(true);
+      }
     };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
+  }, [isStandalone]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;

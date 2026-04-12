@@ -1,9 +1,12 @@
-const CACHE_NAME = 'vera-v15';
+const CACHE_NAME = 'vera-v16';
 const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo.png'
+  '/logo.png',
+  '/src/main.tsx',
+  '/src/App.tsx',
+  '/src/index.css'
 ];
 
 self.addEventListener('install', (event) => {
@@ -25,7 +28,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse;
       
       return fetch(event.request).then((response) => {
