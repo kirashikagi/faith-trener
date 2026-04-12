@@ -592,33 +592,6 @@ function AppContent() {
     }
   };
 
-  // Telegram Web App Integration
-  useEffect(() => {
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-      tg.setHeaderColor('#ffffff');
-      tg.setBackgroundColor('#fcfdfd');
-    }
-  }, []);
-
-  useEffect(() => {
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-      if (selectedScenario || showStats) {
-        tg.BackButton.show();
-        tg.BackButton.onClick(() => reset());
-      } else {
-        tg.BackButton.hide();
-      }
-    }
-    return () => {
-      const tg = (window as any).Telegram?.WebApp;
-      tg?.BackButton.offClick(() => reset());
-    };
-  }, [selectedScenario, showStats]);
-
   useEffect(() => {
     if (!user) {
       setSessions([]);
