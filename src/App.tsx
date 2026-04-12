@@ -184,7 +184,30 @@ function AppContent() {
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallPrompt(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+    }
+    setDeferredPrompt(null);
+    setShowInstallPrompt(false);
+  };
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
 
@@ -682,13 +705,6 @@ function AppContent() {
   };
 
   const startScenario = async (scenario: Scenario) => {
-    // Check for 2 free dialogues limit
-    if (sessions.length >= 2 && !isSubscribed) {
-      setShowSubscription(true);
-      addNotification("Вы использовали 2 бесплатных диалога. Оформите подписку для продолжения обучения.", 'info');
-      return;
-    }
-
     setSelectedScenario(scenario);
     setIsDialogueEnded(false);
     setIsLoading(true);
@@ -919,7 +935,8 @@ function AppContent() {
         throw new Error("Анализ диалога не удался. Проверьте API ключ.");
       }
 
-      const feedbackWithLock: Feedback = { ...result, isUnlocked: true };
+      // Only unlock full feedback if subscribed
+      const feedbackWithLock: Feedback = { ...result, isUnlocked: isSubscribed };
       setFeedback(feedbackWithLock);
 
       // Save to Firestore
@@ -930,7 +947,7 @@ function AppContent() {
             scenarioId: selectedScenario.id,
             score: result.score,
             detailedAnalysis: result.summary,
-            isUnlocked: true,
+            isUnlocked: isSubscribed,
             createdAt: Timestamp.now(),
             messages: messages // Save full correspondence
           });
@@ -997,6 +1014,39 @@ function AppContent() {
       </div>
 
       <div className="relative z-10">
+        {/* PWA Install Prompt */}
+        <AnimatePresence>
+          {showInstallPrompt && (
+            <motion.div 
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              className="sticky top-0 z-[100] bg-accent text-white px-4 py-3 flex items-center justify-between shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div className="text-xs font-bold uppercase tracking-wider">Установите приложение для удобства</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleInstallClick}
+                  className="bg-white text-accent px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-white/90 transition-colors"
+                >
+                  Установить
+                </button>
+                <button 
+                  onClick={() => setShowInstallPrompt(false)}
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Manual Key Input Fallback */}
         {showKeyInput && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
@@ -1656,8 +1706,8 @@ function AppContent() {
                           <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
                             <Lock className="w-8 h-8" />
                           </div>
-                          <h4 className="text-xl font-bold text-fg mb-3 tracking-tight">Достижения доступны в Премиум</h4>
-                          <p className="text-muted text-sm max-w-xs mb-8 font-medium">Оформите подписку, чтобы видеть свои награды и цели.</p>
+                          <h4 className="text-xl font-bold text-fg mb-3 tracking-tight">Достижения и история</h4>
+                          <p className="text-muted text-sm max-w-xs mb-8 font-medium">Оформите подписку, чтобы видеть свои награды и полный архив сессий.</p>
                           <button 
                             onClick={() => setShowSubscription(true)}
                             className="sber-button"
@@ -1717,31 +1767,15 @@ function AppContent() {
                         </div>
                       ) : (
                         <div className="grid gap-4">
-                          {sessions.map((session, idx) => {
-                            const isLockedForFree = !isSubscribed && idx >= 2;
+                          {sessions.map((session) => {
                             const scenario = SCENARIOS.find(s => s.id === session.scenarioId);
                             
                             return (
                               <button 
                                 key={session.id}
-                                onClick={() => {
-                                  if (!isLockedForFree) {
-                                    setViewingSession(session);
-                                  }
-                                }}
-                                className={cn(
-                                  "sber-card !p-6 flex items-center justify-between gap-4 transition-all relative overflow-hidden text-left w-full",
-                                  isLockedForFree ? "opacity-40 grayscale cursor-default" : "hover:border-accent/30 cursor-pointer active:scale-[0.98]"
-                                )}
+                                onClick={() => setViewingSession(session)}
+                                className="sber-card !p-6 flex items-center justify-between gap-4 transition-all relative overflow-hidden text-left w-full hover:border-accent/30 cursor-pointer active:scale-[0.98]"
                               >
-                                {isLockedForFree && (
-                                  <div className="absolute inset-0 bg-bg/40 backdrop-blur-[2px] flex items-center justify-center z-10">
-                                    <div className="flex flex-col items-center gap-2">
-                                      <Lock className="w-5 h-5 text-accent" />
-                                      <span className="text-[8px] font-bold text-accent uppercase tracking-widest">Премиум</span>
-                                    </div>
-                                  </div>
-                                )}
                                 <div className="flex items-center gap-4">
                                   <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center border border-accent/20">
                                     {scenario ? AchievementIcons[scenario.icon] || <MessageSquare className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
@@ -2680,6 +2714,16 @@ function AppContent() {
                   >
                     <ChevronLeft className="w-5 h-5" />
                     Назад
+                  </button>
+                )}
+
+                {deferredPrompt && (
+                  <button 
+                    onClick={handleInstallClick}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-accent/10 text-accent hover:bg-accent hover:text-white transition-all font-bold uppercase tracking-widest text-[10px] mt-4"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                    Установить приложение
                   </button>
                 )}
               </div>
