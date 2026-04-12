@@ -1,7 +1,6 @@
-const CACHE_NAME = 'vera-v1';
+const CACHE_NAME = 'vera-v2';
 const ASSETS = [
   '/',
-  '/index.html',
   '/manifest.json',
   '/logo.png'
 ];
