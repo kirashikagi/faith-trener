@@ -1,9 +1,9 @@
 {
-  "id": "vera-plus-one-pwa",
+  "id": "vera-plus-one-pwa-v1",
   "name": "Вера Тренажёр +1",
   "short_name": "Вера +1",
-  "description": "Интеллектуальный тренажер для духовного общения и роста",
-  "start_url": "/?utm_source=pwa",
+  "description": "Интеллектуальный тренажер для духовного общения и укрепления веры",
+  "start_url": "/?utm_source=pwa_install",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "fullscreen", "minimal-ui"],
@@ -45,7 +45,7 @@
       "name": "Начать диалог",
       "short_name": "Диалог",
       "description": "Начать новую сессию обучения",
-      "url": "/",
+      "url": "/?utm_source=shortcut",
       "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
     }
   ]
