@@ -1,9 +1,11 @@
-const CACHE_NAME = 'vera-v7';
+const CACHE_NAME = 'vera-v8';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo.png'
+  '/logo.png',
+  '/src/main.tsx',
+  '/src/App.tsx'
 ];
 
 self.addEventListener('install', (event) => {
