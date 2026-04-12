@@ -1,14 +1,15 @@
-const CACHE_NAME = 'vera-v4';
+const CACHE_NAME = 'vera-v5';
 const ASSETS = [
   '/',
-  '/index.html',
   '/manifest.json',
   '/logo.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS).catch(err => console.warn('Cache addAll failed:', err));
+    })
   );
   self.skipWaiting();
 });
@@ -25,7 +26,15 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/'))
+    );
+    return;
+  }
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
+    })
   );
 });

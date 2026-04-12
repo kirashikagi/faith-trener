@@ -1,8 +1,10 @@
 {
+  "id": "/",
   "name": "Вера Тренажёр",
   "short_name": "Вера +1",
   "description": "Интеллектуальный тренажер духовного общения",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#FDFCF8",
   "theme_color": "#5A5A40",
