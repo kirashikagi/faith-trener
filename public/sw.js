@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vera-v2';
+const CACHE_NAME = 'vera-v3';
 const ASSETS = [
   '/',
   '/manifest.json',
