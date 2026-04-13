@@ -13,25 +13,25 @@
   "categories": ["education", "lifestyle", "social"],
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "logo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo.png",
+      "src": "logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo.png",
+      "src": "logo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/logo.png",
+      "src": "logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -43,19 +43,19 @@
       "short_name": "Тренировка",
       "description": "Начать новый диалог с ИИ",
       "url": "/?action=new_chat",
-      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+      "icons": [{ "src": "logo.png", "sizes": "192x192" }]
     },
     {
       "name": "Библиотека знаний",
       "short_name": "Знания",
       "description": "Читать статьи по апологетике",
       "url": "/?action=library",
-      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+      "icons": [{ "src": "logo.png", "sizes": "192x192" }]
     }
   ],
   "screenshots": [
     {
-      "src": "/logo.png",
+      "src": "logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",

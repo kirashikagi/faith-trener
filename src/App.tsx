@@ -1072,8 +1072,17 @@ function AppContent() {
               transition={{ duration: 0.5, ease: "easeOut" }}
               className="relative"
             >
-              <div className="w-32 h-32 bg-accent/10 rounded-[2.5rem] flex items-center justify-center border border-accent/20 shadow-2xl shadow-accent/10">
-                <img src="/logo.png" alt="Logo" className="w-20 h-20 object-contain" referrerPolicy="no-referrer" />
+              <div className="w-32 h-32 bg-accent/10 rounded-[2.5rem] flex items-center justify-center border border-accent/20 shadow-2xl shadow-accent/10 overflow-hidden">
+                <img 
+                  src="logo.png" 
+                  alt="Logo" 
+                  className="w-20 h-20 object-contain" 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<div class="text-accent"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></div>');
+                  }}
+                />
               </div>
               <motion.div
                 animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
@@ -1176,8 +1185,17 @@ function AppContent() {
         {user && (
           <header className="sticky top-0 z-50 bg-card/60 backdrop-blur-xl border-b border-border/50 px-4 sm:px-6 py-3 flex items-center justify-between transition-all duration-300">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-accent rounded-2xl flex items-center justify-center text-white shadow-xl shadow-accent/20 shrink-0">
-                <img src="/logo.png" alt="Logo" className="w-6 h-6 object-contain brightness-0 invert" referrerPolicy="no-referrer" />
+              <div className="w-10 h-10 bg-accent rounded-2xl flex items-center justify-center text-white shadow-xl shadow-accent/20 shrink-0 overflow-hidden">
+                <img 
+                  src="logo.png" 
+                  alt="Logo" 
+                  className="w-6 h-6 object-contain brightness-0 invert" 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>');
+                  }}
+                />
               </div>
               <div className="min-w-0">
                 <h1 className="text-lg font-bold tracking-tight text-fg truncate leading-none mb-1">Вера +1</h1>
@@ -1229,9 +1247,17 @@ function AppContent() {
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
-                  className="w-20 h-20 bg-accent text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-accent/20 border border-white/20"
+                  className="w-20 h-20 bg-accent text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-accent/20 border border-white/20 overflow-hidden"
                 >
-                  <Compass className="w-10 h-10" />
+                  <img 
+                    src="logo.png" 
+                    alt="Logo" 
+                    className="w-12 h-12 object-contain brightness-0 invert" 
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>');
+                    }}
+                  />
                 </motion.div>
                 <motion.h2 
                   initial={{ opacity: 0 }}
@@ -1320,7 +1346,23 @@ function AppContent() {
                   transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                   className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-20"
                 />
-                <div className="relative z-10 space-y-4">
+                <div className="relative z-10 space-y-6">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto border border-accent/20 overflow-hidden"
+                  >
+                    <img 
+                      src="logo.png" 
+                      alt="Logo" 
+                      className="w-10 h-10 object-contain" 
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<div class="text-accent"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></div>');
+                      }}
+                    />
+                  </motion.div>
                   <motion.h2 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
