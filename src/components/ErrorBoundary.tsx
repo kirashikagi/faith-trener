@@ -28,9 +28,14 @@ class ErrorBoundary extends Component<Props, State> {
       let displayMessage = 'Произошла непредвиденная ошибка.';
       
       try {
-        const errorJson = JSON.parse(this.state.error?.message || '');
-        if (errorJson.error && errorJson.operationType) {
-          displayMessage = `Ошибка базы данных (${errorJson.operationType}): ${errorJson.error}. Пожалуйста, проверьте подключение или обратитесь в поддержку.`;
+        const errorMessage = this.state.error?.message || '';
+        if (errorMessage.startsWith('{')) {
+          const errorJson = JSON.parse(errorMessage);
+          if (errorJson.error && errorJson.operationType) {
+            displayMessage = `Ошибка базы данных (${errorJson.operationType}): ${errorJson.error}. Пожалуйста, проверьте подключение или обратитесь в поддержку.`;
+          }
+        } else {
+          displayMessage = errorMessage || displayMessage;
         }
       } catch (e) {
         displayMessage = this.state.error?.message || displayMessage;
