@@ -198,6 +198,7 @@ function AppContent() {
 
   useEffect(() => {
     const handler = (e: any) => {
+      console.log('PWA: beforeinstallprompt event fired');
       e.preventDefault();
       setDeferredPrompt(e);
       // Only show prompt if not already installed/standalone

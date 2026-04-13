@@ -1,8 +1,8 @@
 {
-  "id": "faith-trener-app-2026",
+  "id": "vera-plus-one-pwa-v1",
   "name": "Вера Тренажёр +1",
   "short_name": "Вера +1",
-  "description": "Тренажер для духовного общения",
+  "description": "Интеллектуальный тренажер для духовного общения",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FDFCF8",
@@ -41,13 +41,8 @@
       "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/logo.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "wide"
+      "form_factor": "narrow",
+      "label": "Главный экран"
     }
   ],
   "shortcuts": [
@@ -56,5 +51,6 @@
       "url": "/",
       "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }

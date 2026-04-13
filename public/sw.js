@@ -1,16 +1,19 @@
-const CACHE_NAME = 'vera-v27';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'vera-v28';
+const ESSENTIAL_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/logo.png'
+  '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Cache essential files first to ensure SW installs quickly
+      return cache.addAll(ESSENTIAL_ASSETS).then(() => {
+        // Try to cache the large logo separately so it doesn't block installation
+        return cache.add('/logo.png').catch(err => console.warn('PWA: Logo cache failed', err));
+      });
     })
   );
 });
@@ -33,17 +36,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  // For navigation requests, try network first, fallback to cache
+  // For navigation, try network first, fallback to cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match('/');
-      })
+      fetch(event.request).catch(() => caches.match('/'))
     );
     return;
   }
 
-  // For other requests, try cache first, fallback to network
+  // For other assets, try cache first
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
