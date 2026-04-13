@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vera-v21';
+const CACHE_NAME = 'vera-v22';
 const ASSETS = [
   '/',
   '/index.html',
@@ -10,7 +10,6 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Use individual add to prevent one failure from blocking everything
       return Promise.allSettled(
         ASSETS.map(asset => 
           cache.add(asset).catch(err => console.warn(`Failed to cache ${asset}:`, err))
@@ -31,10 +30,17 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
+  // For navigation requests, try network first, then cache
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/'))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse;
-      
       return fetch(event.request).then((response) => {
         if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
@@ -42,10 +48,6 @@ self.addEventListener('fetch', (event) => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
-      }).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('/');
-        }
       });
     })
   );

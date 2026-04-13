@@ -204,8 +204,20 @@ function AppContent() {
         setShowInstallPrompt(true);
       }
     };
+
+    const installedHandler = () => {
+      console.log('PWA: App installed successfully');
+      setShowInstallPrompt(false);
+      setIsStandalone(true);
+    };
+
     window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', installedHandler);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', installedHandler);
+    };
   }, [isStandalone]);
 
   const handleInstallClick = async () => {
