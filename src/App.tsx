@@ -184,7 +184,7 @@ function AppContent() {
     // Simulate initial app loading for splash screen
     const timer = setTimeout(() => {
       setIsAppLoading(false);
-    }, 2000);
+    }, 3000);
 
     // PWA Install Prompt Logic
     const handler = (e: any) => {
@@ -214,6 +214,7 @@ function AppContent() {
   }, [isStandalone]);
 
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
+  const [filter, setFilter] = useState<'all' | 'faith' | 'life' | 'crisis'>('all');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -1033,7 +1034,7 @@ function AppContent() {
               className="relative"
             >
               <div className="w-32 h-32 bg-accent/10 rounded-[2.5rem] flex items-center justify-center border border-accent/20 shadow-2xl shadow-accent/10">
-                <img src="/logo.png" alt="Logo" className="w-20 h-20 object-contain" referrerPolicy="no-referrer" />
+                <img src="logo.png" alt="Logo" className="w-20 h-20 object-contain" referrerPolicy="no-referrer" />
               </div>
               <motion.div
                 animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
@@ -1134,96 +1135,30 @@ function AppContent() {
         )}
 
         {user && (
-          <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20 shrink-0">
-                <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+          <header className="sticky top-0 z-50 bg-card/60 backdrop-blur-xl border-b border-border/50 px-4 sm:px-6 py-3 flex items-center justify-between transition-all duration-300">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-accent rounded-2xl flex items-center justify-center text-white shadow-xl shadow-accent/20 shrink-0">
+                <img src="logo.png" alt="Logo" className="w-6 h-6 object-contain brightness-0 invert" referrerPolicy="no-referrer" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-base sm:text-xl font-semibold tracking-tight text-fg truncate">Вера +1</h1>
-                <p className="text-[8px] sm:text-[9px] text-muted font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] truncate">AI Faith Training</p>
+                <h1 className="text-lg font-bold tracking-tight text-fg truncate leading-none mb-1">Вера +1</h1>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[9px] text-muted font-bold uppercase tracking-widest">Online Training</span>
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/5 border border-accent/10 rounded-xl shrink-0">
+                <Flame className="w-4 h-4 text-accent" />
+                <span className="text-xs font-black text-accent">{userProfile?.streak || 1}</span>
+              </div>
+              
               <button 
                 onClick={toggleTheme}
-                className="p-2 sm:p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm shrink-0"
+                className="p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm"
               >
-                {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              </button>
-              
-              <div className="h-6 w-[1px] bg-border mx-0.5 hidden sm:block" />
-
-              <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-accent/5 border border-accent/20 rounded-xl shrink-0">
-                <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent animate-pulse" />
-                <span className="text-[10px] sm:text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
-              </div>
-
-              {/* Desktop Menu */}
-              <div className="hidden md:flex items-center gap-1.5 sm:gap-3">
-                {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
-                  <button 
-                    onClick={fetchAdminFeedback}
-                    className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                    title="Админ-панель"
-                  >
-                    <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                )}
-                
-                <button 
-                  onClick={() => setShowLibrary(true)}
-                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                  title="Библиотека знаний"
-                >
-                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-
-                <button 
-                  onClick={() => {
-                    setFeedbackType('general');
-                    setShowFeedbackForm(true);
-                  }}
-                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                  title="Обратная связь"
-                >
-                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-
-                {!selectedScenario ? (
-                  <button 
-                    onClick={() => setShowStats(!showStats)}
-                    className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
-                  >
-                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 group-hover:scale-110 transition-transform" />
-                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Путь</span>
-                  </button>
-                ) : (
-                  <button 
-                    onClick={reset}
-                    className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
-                  >
-                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-[-2px] transition-transform" />
-                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Назад</span>
-                  </button>
-                )}
-
-                <button 
-                  onClick={handleLogout}
-                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95 shrink-0"
-                  title="Выйти"
-                >
-                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
-
-              {/* Mobile Menu Toggle */}
-              <button 
-                onClick={() => setShowMobileMenu(true)}
-                className="md:hidden p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                title="Меню"
-              >
-                <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
+                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </button>
             </div>
           </header>
@@ -1888,92 +1823,99 @@ function AppContent() {
                   </motion.p>
                 </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="inline-block px-3 py-1 bg-accent/10 text-accent rounded-full text-[9px] font-bold uppercase tracking-[0.2em] mb-2"
-                >
-                  Интеллектуальный тренажер
-                </motion.div>
                 <h2 className="text-4xl sm:text-5xl font-serif text-fg tracking-tight leading-tight">
-                  Готовы ли вы к <br/>
-                  <span className="text-accent italic">сложным вопросам?</span>
+                  Выберите <span className="text-accent italic">собеседника</span>
                 </h2>
                 <p className="text-base text-muted font-medium leading-relaxed max-w-lg mx-auto">
-                  Выберите режим и попрактикуйтесь в ведении диалога о вере, смысле жизни и Боге.
+                  Практикуйтесь в общении с разными людьми, каждый из которых имеет свой характер и вопросы.
                 </p>
               </div>
 
-              <div className="space-y-16">
-                <section>
-                  <div className="flex items-center gap-4 mb-8">
-                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] whitespace-nowrap">
-                      Свободный диалог
-                    </h3>
-                    <div className="flex-1 h-[1px] bg-border" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {SCENARIOS.filter(s => s.mode === 'chat').map((scenario) => (
-                      <motion.button
-                        key={scenario.id}
-                        whileHover={{ y: -4 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => startScenario(scenario)}
-                        className="group sber-card text-left flex flex-col h-full"
-                      >
-                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-accent transition-colors leading-tight tracking-tight">
-                          {scenario.title}
-                        </h3>
-                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
-                          {scenario.description}
-                        </p>
-                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
-                          <div className="w-12 h-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-all border border-accent/10">
-                            {ScenarioIcons[scenario.icon as string]}
-                          </div>
-                          <div className="text-accent font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
-                            Начать <ChevronRight className="w-3 h-3 inline" />
-                          </div>
-                        </div>
-                      </motion.button>
-                    ))}
-                  </div>
-                </section>
+              <div className="flex items-center justify-center gap-2 mb-12 overflow-x-auto no-scrollbar pb-2">
+                {[
+                  { id: 'all', label: 'Все' },
+                  { id: 'faith', label: 'О вере' },
+                  { id: 'life', label: 'О жизни' },
+                  { id: 'crisis', label: 'Кризис' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setFilter(tab.id as any)}
+                    className={cn(
+                      "px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
+                      filter === tab.id ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-bg border border-border text-muted hover:text-fg"
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-                <section>
-                  <div className="flex items-center gap-4 mb-8">
-                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] whitespace-nowrap">
-                      Работа с критикой
-                    </h3>
-                    <div className="flex-1 h-[1px] bg-border" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {SCENARIOS.filter(s => s.mode === 'criticism').map((scenario) => (
-                      <motion.button
-                        key={scenario.id}
-                        whileHover={{ y: -4 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => startScenario(scenario)}
-                        className="group sber-card text-left flex flex-col h-full"
-                      >
-                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-rose-500 transition-colors leading-tight tracking-tight">
-                          {scenario.title}
-                        </h3>
-                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
-                          {scenario.description}
-                        </p>
-                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
-                          <div className="w-12 h-12 bg-rose-500/5 text-rose-500 rounded-2xl flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all border border-rose-500/10">
-                            {ScenarioIcons[scenario.icon as string]}
-                          </div>
-                          <div className="text-rose-500 font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
-                            Начать <ChevronRight className="w-3 h-3 inline" />
-                          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {SCENARIOS.filter(s => filter === 'all' || s.category === filter).map((scenario) => (
+                  <motion.button
+                    key={scenario.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ y: -8 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => startScenario(scenario)}
+                    className="group relative flex flex-col h-full bg-card border border-border rounded-[2.5rem] overflow-hidden transition-all hover:border-accent/30 hover:shadow-2xl hover:shadow-accent/5"
+                  >
+                    <div className="aspect-[4/3] relative overflow-hidden">
+                      <img 
+                        src={scenario.backgroundUrl} 
+                        alt={scenario.title}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+                      
+                      <div className="absolute top-4 left-4 flex gap-2">
+                        <div className={cn(
+                          "px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest backdrop-blur-md border",
+                          scenario.difficulty === 'easy' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                          scenario.difficulty === 'medium' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                          "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                        )}>
+                          {scenario.difficulty === 'easy' ? 'Легко' : scenario.difficulty === 'medium' ? 'Средне' : 'Сложно'}
                         </div>
-                      </motion.button>
-                    ))}
-                  </div>
-                </section>
+                        <div className="px-3 py-1 bg-white/10 text-white rounded-full text-[8px] font-bold uppercase tracking-widest backdrop-blur-md border border-white/20">
+                          {scenario.mode === 'chat' ? 'Диалог' : 'Критика'}
+                        </div>
+                      </div>
+
+                      <div className="absolute -bottom-6 left-6">
+                        <div className="w-16 h-16 rounded-2xl bg-accent text-white flex items-center justify-center shadow-xl border-4 border-card">
+                          {ScenarioIcons[scenario.icon as string]}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-8 pt-10 flex flex-col flex-grow">
+                      <h3 className="text-2xl font-serif text-fg mb-3 group-hover:text-accent transition-colors leading-tight tracking-tight">
+                        {scenario.title}
+                      </h3>
+                      <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80 mb-8">
+                        {scenario.description}
+                      </p>
+                      
+                      <div className="flex items-center justify-between mt-auto pt-6 border-t border-border/50">
+                        <div className="flex -space-x-2">
+                          {[1, 2, 3].map(i => (
+                            <div key={i} className="w-6 h-6 rounded-full border-2 border-card bg-accent/10 flex items-center justify-center text-[8px] font-bold text-accent">
+                              {i}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="text-accent font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 group-hover:translate-x-1 transition-transform">
+                          Начать <ArrowRight className="w-3 h-3" />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.button>
+                ))}
               </div>
             </motion.div>
           ) : feedback ? (
@@ -3053,7 +2995,7 @@ function AppContent() {
       </div>
         {/* Mobile Bottom Navigation */}
         {user && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-[110] bg-bg/80 backdrop-blur-xl border-t border-border px-6 py-3 pb-safe-bottom flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-[110] bg-card/80 backdrop-blur-2xl border-t border-border/50 px-8 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.1)] rounded-t-[2.5rem]">
             <button 
               onClick={() => {
                 reset();
@@ -3061,17 +3003,15 @@ function AppContent() {
                 setShowStats(false);
               }}
               className={cn(
-                "flex flex-col items-center gap-1 transition-all",
-                !selectedScenario && !showLibrary && !showStats ? "text-accent scale-110" : "text-muted"
+                "flex flex-col items-center gap-1.5 transition-all relative",
+                !selectedScenario && !showLibrary && !showStats ? "text-accent" : "text-muted"
               )}
             >
-              <div className={cn(
-                "p-2 rounded-xl transition-all",
-                !selectedScenario && !showLibrary && !showStats ? "bg-accent/10" : ""
-              )}>
-                <Home className="w-6 h-6" />
-              </div>
-              <span className="text-[9px] font-bold uppercase tracking-wider">Главная</span>
+              <Home className={cn("w-6 h-6 transition-transform", !selectedScenario && !showLibrary && !showStats ? "scale-110" : "")} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Главная</span>
+              {!selectedScenario && !showLibrary && !showStats && (
+                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
+              )}
             </button>
             
             <button 
@@ -3081,17 +3021,15 @@ function AppContent() {
                 setShowStats(false);
               }}
               className={cn(
-                "flex flex-col items-center gap-1 transition-all",
-                showLibrary ? "text-accent scale-110" : "text-muted"
+                "flex flex-col items-center gap-1.5 transition-all relative",
+                showLibrary ? "text-accent" : "text-muted"
               )}
             >
-              <div className={cn(
-                "p-2 rounded-xl transition-all",
-                showLibrary ? "bg-accent/10" : ""
-              )}>
-                <BookOpen className="w-6 h-6" />
-              </div>
-              <span className="text-[9px] font-bold uppercase tracking-wider">Знания</span>
+              <BookOpen className={cn("w-6 h-6 transition-transform", showLibrary ? "scale-110" : "")} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Знания</span>
+              {showLibrary && (
+                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
+              )}
             </button>
 
             <button 
@@ -3101,27 +3039,23 @@ function AppContent() {
                 setShowLibrary(false);
               }}
               className={cn(
-                "flex flex-col items-center gap-1 transition-all",
-                showStats ? "text-accent scale-110" : "text-muted"
+                "flex flex-col items-center gap-1.5 transition-all relative",
+                showStats ? "text-accent" : "text-muted"
               )}
             >
-              <div className={cn(
-                "p-2 rounded-xl transition-all",
-                showStats ? "bg-accent/10" : ""
-              )}>
-                <Trophy className="w-6 h-6" />
-              </div>
-              <span className="text-[9px] font-bold uppercase tracking-wider">Путь</span>
+              <Trophy className={cn("w-6 h-6 transition-transform", showStats ? "scale-110" : "")} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Путь</span>
+              {showStats && (
+                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
+              )}
             </button>
 
             <button 
               onClick={() => setShowMobileMenu(true)}
-              className="flex flex-col items-center gap-1 text-muted"
+              className="flex flex-col items-center gap-1.5 text-muted relative"
             >
-              <div className="p-2 rounded-xl">
-                <Menu className="w-6 h-6" />
-              </div>
-              <span className="text-[9px] font-bold uppercase tracking-wider">Меню</span>
+              <Menu className="w-6 h-6" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Меню</span>
             </button>
           </div>
         )}

@@ -12,6 +12,8 @@ export interface Scenario {
   mode: Mode;
   avatarUrl?: string;
   backgroundUrl?: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  category: 'faith' | 'life' | 'crisis';
 }
 
 export interface Message {

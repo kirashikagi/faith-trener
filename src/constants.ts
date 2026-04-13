@@ -11,6 +11,8 @@ export const SCENARIOS: Scenario[] = [
     mode: 'chat',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
     backgroundUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=1200&h=800&fit=crop&q=80',
+    difficulty: 'hard',
+    category: 'faith',
   },
   {
     id: 'crisis',
@@ -22,6 +24,8 @@ export const SCENARIOS: Scenario[] = [
     mode: 'chat',
     avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop',
     backgroundUrl: 'https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?w=1200&h=800&fit=crop&q=80',
+    difficulty: 'medium',
+    category: 'crisis',
   },
   {
     id: 'seeker',
@@ -33,6 +37,8 @@ export const SCENARIOS: Scenario[] = [
     mode: 'chat',
     avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop',
     backgroundUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&h=800&fit=crop&q=80',
+    difficulty: 'easy',
+    category: 'life',
   },
   {
     id: 'atheist',
@@ -44,6 +50,8 @@ export const SCENARIOS: Scenario[] = [
     mode: 'chat',
     avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop',
     backgroundUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&h=800&fit=crop&q=80',
+    difficulty: 'hard',
+    category: 'faith',
   },
   {
     id: 'youth',
@@ -55,6 +63,8 @@ export const SCENARIOS: Scenario[] = [
     mode: 'chat',
     avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop',
     backgroundUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1200&h=800&fit=crop&q=80',
+    difficulty: 'medium',
+    category: 'life',
   },
   {
     id: 'critic_personal',
@@ -66,6 +76,8 @@ export const SCENARIOS: Scenario[] = [
     mode: 'criticism',
     avatarUrl: 'https://images.unsplash.com/photo-1552058544-f2b08422138a?w=150&h=150&fit=crop',
     backgroundUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1200&h=800&fit=crop&q=80',
+    difficulty: 'hard',
+    category: 'life',
   },
   {
     id: 'critic_logic',
@@ -77,6 +89,8 @@ export const SCENARIOS: Scenario[] = [
     mode: 'criticism',
     avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop',
     backgroundUrl: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=1200&h=800&fit=crop&q=80',
+    difficulty: 'hard',
+    category: 'faith',
   },
 ];
 
