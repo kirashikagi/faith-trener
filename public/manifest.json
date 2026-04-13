@@ -1,63 +1,17 @@
 {
-  "id": "vera-app-final-v1",
   "name": "Вера Тренажёр +1",
   "short_name": "Вера +1",
   "description": "Интеллектуальный тренажер для духовного общения",
-  "start_url": "/?utm_source=pwa",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#FDFCF8",
   "theme_color": "#5A5A40",
-  "orientation": "portrait",
-  "scope": "/",
-  "lang": "ru",
   "icons": [
     {
       "src": "/logo.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/logo.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/logo.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
-  ],
-  "screenshots": [
-    {
-      "src": "/logo.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Главный экран"
-    },
-    {
-      "src": "/logo.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Главный экран (ПК)"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Старт",
-      "url": "/",
-      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
-    }
-  ],
-  "prefer_related_applications": false
+  ]
 }

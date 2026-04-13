@@ -1,7 +1,6 @@
-const CACHE_NAME = 'vera-v32';
+const CACHE_NAME = 'vera-v33';
 const ESSENTIAL_ASSETS = [
   '/',
-  '/?utm_source=pwa',
   '/index.html',
   '/manifest.json'
 ];
