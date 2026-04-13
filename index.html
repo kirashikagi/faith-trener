@@ -32,6 +32,27 @@
                 if (installingWorker.state === 'installed') {
                   if (navigator.serviceWorker.controller) {
                     console.log('PWA: New content available, please refresh.');
+                    // Show a visible notification
+                    const notification = document.createElement('div');
+                    notification.style.position = 'fixed';
+                    notification.style.bottom = '20px';
+                    notification.style.left = '50%';
+                    notification.style.transform = 'translateX(-50%)';
+                    notification.style.backgroundColor = '#5A5A40';
+                    notification.style.color = 'white';
+                    notification.style.padding = '12px 24px';
+                    notification.style.borderRadius = '12px';
+                    notification.style.zIndex = '9999';
+                    notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    notification.style.display = 'flex';
+                    notification.style.alignItems = 'center';
+                    notification.style.gap = '12px';
+                    notification.style.fontFamily = 'sans-serif';
+                    notification.innerHTML = `
+                      <span>Доступно обновление</span>
+                      <button onclick="window.location.reload()" style="background: white; color: #5A5A40; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;">Обновить</button>
+                    `;
+                    document.body.appendChild(notification);
                   } else {
                     console.log('PWA: Content cached for offline use.');
                   }

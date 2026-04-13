@@ -1,8 +1,9 @@
-const CACHE_NAME = 'vera-v29';
+const CACHE_NAME = 'vera-v30';
 const ESSENTIAL_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/logo.png'
 ];
 
 self.addEventListener('install', (event) => {
