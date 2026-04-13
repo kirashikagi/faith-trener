@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#5A5A40" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FDFCF8" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#151512" />
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(registration => {
+          console.log('PWA: Service Worker is ready and active');
+        });
+      }
+    </script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

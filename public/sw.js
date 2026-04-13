@@ -1,19 +1,22 @@
-const CACHE_NAME = 'vera-v20';
+const CACHE_NAME = 'vera-v21';
 const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo.png',
-  '/favicon.ico',
-  '/src/main.tsx',
-  '/src/App.tsx',
-  '/src/index.css'
+  '/logo.png'
 ];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then((cache) => {
+      // Use individual add to prevent one failure from blocking everything
+      return Promise.allSettled(
+        ASSETS.map(asset => 
+          cache.add(asset).catch(err => console.warn(`Failed to cache ${asset}:`, err))
+        )
+      );
+    })
   );
 });
 
