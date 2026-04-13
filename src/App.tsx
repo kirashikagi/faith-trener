@@ -1074,7 +1074,7 @@ function AppContent() {
             >
               <div className="w-32 h-32 bg-accent/10 rounded-[2.5rem] flex items-center justify-center border border-accent/20 shadow-2xl shadow-accent/10 overflow-hidden">
                 <img 
-                  src="logo.png" 
+                  src="/logo.png" 
                   alt="Logo" 
                   className="w-20 h-20 object-contain" 
                   referrerPolicy="no-referrer"
@@ -1187,7 +1187,7 @@ function AppContent() {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-accent rounded-2xl flex items-center justify-center text-white shadow-xl shadow-accent/20 shrink-0 overflow-hidden">
                 <img 
-                  src="logo.png" 
+                  src="/logo.png" 
                   alt="Logo" 
                   className="w-6 h-6 object-contain brightness-0 invert" 
                   referrerPolicy="no-referrer"
@@ -1250,7 +1250,7 @@ function AppContent() {
                   className="w-20 h-20 bg-accent text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-accent/20 border border-white/20 overflow-hidden"
                 >
                   <img 
-                    src="logo.png" 
+                    src="/logo.png" 
                     alt="Logo" 
                     className="w-12 h-12 object-contain brightness-0 invert" 
                     onError={(e) => {
@@ -1354,7 +1354,7 @@ function AppContent() {
                     className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto border border-accent/20 overflow-hidden"
                   >
                     <img 
-                      src="logo.png" 
+                      src="/logo.png" 
                       alt="Logo" 
                       className="w-10 h-10 object-contain" 
                       onError={(e) => {
@@ -2847,6 +2847,19 @@ function AppContent() {
                   <MessageSquare className="w-5 h-5" />
                   Отзывы
                 </button>
+
+                {deferredPrompt && (
+                  <button 
+                    onClick={() => {
+                      handleInstallClick();
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-accent/10 text-accent hover:bg-accent/20 transition-all font-bold uppercase tracking-widest text-[10px] border border-accent/20"
+                  >
+                    <Zap className="w-5 h-5" />
+                    Установить приложение
+                  </button>
+                )}
 
                 {!selectedScenario ? (
                   <button 
