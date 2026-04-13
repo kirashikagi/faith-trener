@@ -41,6 +41,7 @@ import {
   CreditCard,
   Sun,
   Moon,
+  Home,
   Smile,
   Heart,
   LogIn,
