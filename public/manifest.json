@@ -4,7 +4,7 @@
   "short_name": "Вера +1",
   "description": "Интеллектуальный тренажер для оттачивания навыков христианского свидетельства и защиты веры.",
   "start_url": "/",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#ffffff",
   "theme_color": "#0066FF",
   "orientation": "portrait",

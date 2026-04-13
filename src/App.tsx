@@ -174,6 +174,34 @@ function AppContent() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
+  const playClickSound = () => {
+    try {
+      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(150, context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(40, context.currentTime + 0.1);
+
+      gainNode.gain.setValueAtTime(0.1, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.1);
+    } catch (e) {
+      // Ignore audio errors
+    }
+    
+    // Also try native haptics if available
+    if ('vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
+  };
+
   useEffect(() => {
     // Detect standalone mode
     const checkStandalone = () => {
@@ -1054,11 +1082,19 @@ function AppContent() {
   };
 
   return (
-    <div className={cn(
-      "fixed inset-0 bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-hidden flex flex-col", 
-      theme,
-      isStandalone && "pt-safe-top pb-safe-bottom"
-    )}>
+    <div 
+      className={cn(
+        "fixed inset-0 bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-hidden flex flex-col", 
+        theme,
+        isStandalone && "pt-safe-top pb-safe-bottom"
+      )}
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('a')) {
+          playClickSound();
+        }
+      }}
+    >
       <AnimatePresence>
         {isAppLoading && (
           <motion.div
