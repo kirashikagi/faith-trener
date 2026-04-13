@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vera-v28';
+const CACHE_NAME = 'vera-v29';
 const ESSENTIAL_ASSETS = [
   '/',
   '/index.html',
@@ -6,24 +6,23 @@ const ESSENTIAL_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  console.log('PWA: SW Install event');
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Cache essential files first to ensure SW installs quickly
-      return cache.addAll(ESSENTIAL_ASSETS).then(() => {
-        // Try to cache the large logo separately so it doesn't block installation
-        return cache.add('/logo.png').catch(err => console.warn('PWA: Logo cache failed', err));
-      });
+      return cache.addAll(ESSENTIAL_ASSETS);
     })
   );
 });
 
 self.addEventListener('activate', (event) => {
+  console.log('PWA: SW Activate event');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('PWA: Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })

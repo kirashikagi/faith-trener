@@ -9,13 +9,26 @@
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#151512" />
     <script>
       console.log('PWA: Initializing...');
+      
+      // Check if manifest is linked
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      if (manifestLink) {
+        console.log('PWA: Manifest link found:', manifestLink.href);
+      } else {
+        console.error('PWA: Manifest link NOT found!');
+      }
+
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').then(reg => {
             console.log('PWA: SW registered', reg.scope);
+            
+            // Check for updates
             reg.onupdatefound = () => {
               const installingWorker = reg.installing;
+              console.log('PWA: SW update found, state:', installingWorker.state);
               installingWorker.onstatechange = () => {
+                console.log('PWA: SW state changed:', installingWorker.state);
                 if (installingWorker.state === 'installed') {
                   if (navigator.serviceWorker.controller) {
                     console.log('PWA: New content available, please refresh.');
