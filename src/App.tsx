@@ -1055,7 +1055,7 @@ function AppContent() {
 
   return (
     <div className={cn(
-      "min-h-screen bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-x-hidden relative", 
+      "fixed inset-0 bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-hidden flex flex-col", 
       theme,
       isStandalone && "pt-safe-top pb-safe-bottom"
     )}>
@@ -1114,7 +1114,7 @@ function AppContent() {
         <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[200px]" />
       </div>
 
-      <div className="relative z-10">
+      <div className="relative z-10 flex-1 app-scroll">
         {/* PWA Install Prompt */}
         <AnimatePresence>
           {showInstallPrompt && (
@@ -2586,7 +2586,7 @@ function AppContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-bg overflow-y-auto"
+            className="fixed inset-0 z-[100] bg-bg app-scroll"
           >
             <div className="max-w-5xl mx-auto p-6 sm:p-12">
               <div className="flex items-center justify-between mb-16">
@@ -2799,7 +2799,7 @@ function AppContent() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute right-0 top-0 bottom-0 w-[280px] bg-card border-l border-border p-6 shadow-2xl flex flex-col"
+              className="absolute right-0 top-0 bottom-0 w-[280px] bg-card border-l border-border p-6 shadow-2xl flex flex-col app-scroll"
             >
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-lg font-serif text-fg tracking-tight">Меню</h3>
@@ -3200,6 +3200,7 @@ function AppContent() {
           </motion.div>
         )}
       </AnimatePresence>
+
       <div className="fixed bottom-8 right-8 z-[200] flex flex-col gap-4 pointer-events-none">
         <AnimatePresence>
           {notifications.map(n => (
