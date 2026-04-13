@@ -1,8 +1,9 @@
-const CACHE_NAME = 'vera-v36';
+const CACHE_NAME = 'vera-v37';
 const ESSENTIAL_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/logo.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -10,10 +11,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ESSENTIAL_ASSETS).then(() => {
-        // Cache logo separately to not block install
-        cache.add('/logo.png').catch(() => {});
-      });
+      return cache.addAll(ESSENTIAL_ASSETS);
     })
   );
 });

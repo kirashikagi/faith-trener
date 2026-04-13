@@ -164,39 +164,29 @@ function AppContent() {
   const [selectedArticle, setSelectedArticle] = useState<LibraryArticle | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isAppLoading, setIsAppLoading] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-
-  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
-  const [paymentConfirmation, setPaymentConfirmation] = useState<{
-    type: 'article' | 'subscription';
-    id?: string;
-    title: string;
-    price: string | number;
-  } | null>(null);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [options, setOptions] = useState<ResponseOption[]>([]);
-  const [showStats, setShowStats] = useState(false);
-  const [isDialogueEnded, setIsDialogueEnded] = useState(false);
-  const [sessions, setSessions] = useState<SessionRecord[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
-      setIsStandalone(true);
-    }
-  }, []);
+    // Detect standalone mode
+    const checkStandalone = () => {
+      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
+                              (window.navigator as any).standalone === true || 
+                              document.referrer.includes('android-app://');
+      setIsStandalone(isStandaloneMode);
+    };
 
-  useEffect(() => {
+    checkStandalone();
+    
+    // Simulate initial app loading for splash screen
+    const timer = setTimeout(() => {
+      setIsAppLoading(false);
+    }, 2000);
+
+    // PWA Install Prompt Logic
     const handler = (e: any) => {
       console.log('PWA: beforeinstallprompt event fired');
       e.preventDefault();
@@ -217,10 +207,32 @@ function AppContent() {
     window.addEventListener('appinstalled', installedHandler);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', installedHandler);
     };
   }, [isStandalone]);
+
+  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+  const [paymentConfirmation, setPaymentConfirmation] = useState<{
+    type: 'article' | 'subscription';
+    id?: string;
+    title: string;
+    price: string | number;
+  } | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [options, setOptions] = useState<ResponseOption[]>([]);
+  const [showStats, setShowStats] = useState(false);
+  const [isDialogueEnded, setIsDialogueEnded] = useState(false);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -1002,7 +1014,50 @@ function AppContent() {
   };
 
   return (
-    <div className={cn("min-h-screen bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-x-hidden relative", theme)}>
+    <div className={cn(
+      "min-h-screen bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-x-hidden relative", 
+      theme,
+      isStandalone && "pt-safe-top pb-safe-bottom"
+    )}>
+      <AnimatePresence>
+        {isAppLoading && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] bg-bg flex flex-col items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="relative"
+            >
+              <div className="w-32 h-32 bg-accent/10 rounded-[2.5rem] flex items-center justify-center border border-accent/20 shadow-2xl shadow-accent/10">
+                <img src="/logo.png" alt="Logo" className="w-20 h-20 object-contain" referrerPolicy="no-referrer" />
+              </div>
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="absolute -inset-4 bg-accent/5 rounded-[3rem] -z-10 blur-2xl"
+              />
+            </motion.div>
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="mt-12 text-center"
+            >
+              <h1 className="text-3xl font-serif text-fg tracking-tight mb-3">Вера +1</h1>
+              <div className="flex items-center gap-2 justify-center">
+                <div className="w-1 h-1 bg-accent rounded-full animate-bounce" />
+                <div className="w-1 h-1 bg-accent rounded-full animate-bounce [animation-delay:0.2s]" />
+                <div className="w-1 h-1 bg-accent rounded-full animate-bounce [animation-delay:0.4s]" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Background Accents */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-[180px] animate-pulse" />
@@ -2998,52 +3053,75 @@ function AppContent() {
       </div>
         {/* Mobile Bottom Navigation */}
         {user && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border px-6 py-3 pb-safe flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-[110] bg-bg/80 backdrop-blur-xl border-t border-border px-6 py-3 pb-safe-bottom flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
             <button 
-              onClick={reset}
+              onClick={() => {
+                reset();
+                setShowLibrary(false);
+                setShowStats(false);
+              }}
               className={cn(
                 "flex flex-col items-center gap-1 transition-all",
                 !selectedScenario && !showLibrary && !showStats ? "text-accent scale-110" : "text-muted"
               )}
             >
-              <Home className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Главная</span>
+              <div className={cn(
+                "p-2 rounded-xl transition-all",
+                !selectedScenario && !showLibrary && !showStats ? "bg-accent/10" : ""
+              )}>
+                <Home className="w-6 h-6" />
+              </div>
+              <span className="text-[9px] font-bold uppercase tracking-wider">Главная</span>
             </button>
             
             <button 
               onClick={() => {
                 reset();
                 setShowLibrary(true);
+                setShowStats(false);
               }}
               className={cn(
                 "flex flex-col items-center gap-1 transition-all",
                 showLibrary ? "text-accent scale-110" : "text-muted"
               )}
             >
-              <BookOpen className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Знания</span>
+              <div className={cn(
+                "p-2 rounded-xl transition-all",
+                showLibrary ? "bg-accent/10" : ""
+              )}>
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <span className="text-[9px] font-bold uppercase tracking-wider">Знания</span>
             </button>
 
             <button 
               onClick={() => {
                 reset();
                 setShowStats(true);
+                setShowLibrary(false);
               }}
               className={cn(
                 "flex flex-col items-center gap-1 transition-all",
                 showStats ? "text-accent scale-110" : "text-muted"
               )}
             >
-              <Trophy className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Путь</span>
+              <div className={cn(
+                "p-2 rounded-xl transition-all",
+                showStats ? "bg-accent/10" : ""
+              )}>
+                <Trophy className="w-6 h-6" />
+              </div>
+              <span className="text-[9px] font-bold uppercase tracking-wider">Путь</span>
             </button>
 
             <button 
               onClick={() => setShowMobileMenu(true)}
               className="flex flex-col items-center gap-1 text-muted"
             >
-              <Menu className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Меню</span>
+              <div className="p-2 rounded-xl">
+                <Menu className="w-6 h-6" />
+              </div>
+              <span className="text-[9px] font-bold uppercase tracking-wider">Меню</span>
             </button>
           </div>
         )}
