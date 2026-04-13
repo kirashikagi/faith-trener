@@ -1034,7 +1034,7 @@ function AppContent() {
               className="relative"
             >
               <div className="w-32 h-32 bg-accent/10 rounded-[2.5rem] flex items-center justify-center border border-accent/20 shadow-2xl shadow-accent/10">
-                <img src="logo.png" alt="Logo" className="w-20 h-20 object-contain" referrerPolicy="no-referrer" />
+                <img src="/logo.png" alt="Logo" className="w-20 h-20 object-contain" referrerPolicy="no-referrer" />
               </div>
               <motion.div
                 animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
@@ -1138,7 +1138,7 @@ function AppContent() {
           <header className="sticky top-0 z-50 bg-card/60 backdrop-blur-xl border-b border-border/50 px-4 sm:px-6 py-3 flex items-center justify-between transition-all duration-300">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-accent rounded-2xl flex items-center justify-center text-white shadow-xl shadow-accent/20 shrink-0">
-                <img src="logo.png" alt="Logo" className="w-6 h-6 object-contain brightness-0 invert" referrerPolicy="no-referrer" />
+                <img src="/logo.png" alt="Logo" className="w-6 h-6 object-contain brightness-0 invert" referrerPolicy="no-referrer" />
               </div>
               <div className="min-w-0">
                 <h1 className="text-lg font-bold tracking-tight text-fg truncate leading-none mb-1">Вера +1</h1>
@@ -1966,11 +1966,11 @@ function AppContent() {
                 {feedback.metrics && (
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {[
-                      { label: 'Библейская точность', val: feedback.metrics.theologicalAccuracy },
-                      { label: 'Логика', val: feedback.metrics.logic },
-                      { label: 'Писание', val: feedback.metrics.scriptureUsage },
-                      { label: 'Эмпатия', val: feedback.metrics.empathy },
-                      { label: 'Скорость', val: feedback.metrics.speed, suffix: 'с' },
+                      { label: 'Библейская точность', val: feedback.metrics?.theologicalAccuracy || 0 },
+                      { label: 'Логика', val: feedback.metrics?.logic || 0 },
+                      { label: 'Писание', val: feedback.metrics?.scriptureUsage || 0 },
+                      { label: 'Эмпатия', val: feedback.metrics?.empathy || 0 },
+                      { label: 'Скорость', val: feedback.metrics?.speed || 0, suffix: 'с' },
                     ].map((m, i) => (
                       <motion.div 
                         key={i} 
@@ -2342,12 +2342,13 @@ function AppContent() {
                           handleSend();
                         }
                       }}
-                      placeholder="Напишите ваш ответ..."
-                      className="flex-1 bg-bg border border-border p-4 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium resize-none h-[64px] placeholder:text-muted/30"
+                      placeholder={isDialogueEnded ? "Диалог завершен" : "Напишите ваш ответ..."}
+                      disabled={isLoading || isAnalyzing || isDialogueEnded}
+                      className="flex-1 bg-bg border border-border p-4 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium resize-none h-[64px] placeholder:text-muted/30 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <button 
                       onClick={() => handleSend()}
-                      disabled={!input.trim() || isLoading}
+                      disabled={!input.trim() || isLoading || isAnalyzing || isDialogueEnded}
                       className="w-16 h-16 bg-accent text-white rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 hover:bg-brand-secondary transition-all active:scale-95 disabled:opacity-50"
                     >
                       <Send className="w-6 h-6" />
