@@ -1,11 +1,18 @@
 {
+  "id": "faith-trener-plus-one-v2026",
   "name": "Вера Тренажёр +1",
   "short_name": "Вера +1",
-  "description": "Интеллектуальный тренажер для духовного общения",
-  "start_url": "/",
+  "description": "Интеллектуальный тренажер для духовного общения, личностного роста и укрепления веры через диалог.",
+  "start_url": "/?utm_source=pwa&utm_medium=standalone",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#FDFCF8",
   "theme_color": "#5A5A40",
+  "categories": ["education", "lifestyle", "social"],
+  "lang": "ru",
+  "dir": "ltr",
+  "orientation": "portrait",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/logo.png",
@@ -30,6 +37,31 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Интерфейс тренажёра на мобильном"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Интерфейс тренажёра на десктопе"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Новый диалог",
+      "short_name": "Диалог",
+      "description": "Начать новую сессию общения",
+      "url": "/?action=new_chat",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
     }
   ]
 }
