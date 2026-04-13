@@ -1,9 +1,9 @@
 {
-  "id": "vera-plus-one-pwa-v1",
+  "id": "vera-app-final-v1",
   "name": "Вера Тренажёр +1",
   "short_name": "Вера +1",
   "description": "Интеллектуальный тренажер для духовного общения",
-  "start_url": "/",
+  "start_url": "/?utm_source=pwa",
   "display": "standalone",
   "background_color": "#FDFCF8",
   "theme_color": "#5A5A40",
@@ -43,6 +43,13 @@
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Главный экран"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Главный экран (ПК)"
     }
   ],
   "shortcuts": [
