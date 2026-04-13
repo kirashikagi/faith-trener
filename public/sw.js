@@ -1,10 +1,9 @@
-const CACHE_NAME = 'vera-v31';
+const CACHE_NAME = 'vera-v32';
 const ESSENTIAL_ASSETS = [
   '/',
   '/?utm_source=pwa',
   '/index.html',
-  '/manifest.json',
-  '/logo.png'
+  '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -12,7 +11,12 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ESSENTIAL_ASSETS);
+      // Cache only small essential files first
+      return cache.addAll(ESSENTIAL_ASSETS).then(() => {
+        console.log('PWA: Essential assets cached');
+        // Try to cache logo in background, don't block install if it fails or takes too long
+        cache.add('/logo.png').catch(err => console.warn('PWA: Background logo cache failed', err));
+      });
     })
   );
 });
