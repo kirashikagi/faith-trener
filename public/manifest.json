@@ -1,15 +1,16 @@
 {
-  "id": "vera-app-final",
-  "name": "Вера +1",
+  "id": "vera-app-final-v2",
+  "name": "Вера +1: Тренажер апологетики",
   "short_name": "Вера +1",
-  "description": "Тренажер духовного общения",
+  "description": "Интеллектуальный тренажер для оттачивания навыков христианского свидетельства и защиты веры.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FDFCF8",
-  "theme_color": "#5A5A40",
+  "background_color": "#ffffff",
+  "theme_color": "#0066FF",
   "orientation": "portrait",
   "scope": "/",
   "lang": "ru",
+  "categories": ["education", "lifestyle", "social"],
   "icons": [
     {
       "src": "/logo.png",
@@ -36,12 +37,29 @@
       "purpose": "maskable"
     }
   ],
+  "shortcuts": [
+    {
+      "name": "Новая тренировка",
+      "short_name": "Тренировка",
+      "description": "Начать новый диалог с ИИ",
+      "url": "/?action=new_chat",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Библиотека знаний",
+      "short_name": "Знания",
+      "description": "Читать статьи по апологетике",
+      "url": "/?action=library",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+    }
+  ],
   "screenshots": [
     {
       "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "form_factor": "narrow"
+      "form_factor": "narrow",
+      "label": "Главный экран приложения"
     }
   ]
 }
