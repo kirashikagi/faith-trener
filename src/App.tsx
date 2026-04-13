@@ -1172,7 +1172,7 @@ function AppContent() {
           </header>
         )}
 
-      <main className="mx-auto max-w-4xl p-4 sm:p-6">
+      <main className="mx-auto max-w-4xl p-4 sm:p-6 pb-24 md:pb-6">
         {isAuthLoading || isProfileLoading ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCcw className="w-8 h-8 animate-spin text-emerald-600" />
@@ -2994,6 +2994,57 @@ function AppContent() {
           ))}
         </AnimatePresence>
       </div>
+        {/* Mobile Bottom Navigation */}
+        {user && (
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border px-6 py-3 pb-safe flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
+            <button 
+              onClick={reset}
+              className={cn(
+                "flex flex-col items-center gap-1 transition-all",
+                !selectedScenario && !showLibrary && !showStats ? "text-accent scale-110" : "text-muted"
+              )}
+            >
+              <Home className="w-6 h-6" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Главная</span>
+            </button>
+            
+            <button 
+              onClick={() => {
+                reset();
+                setShowLibrary(true);
+              }}
+              className={cn(
+                "flex flex-col items-center gap-1 transition-all",
+                showLibrary ? "text-accent scale-110" : "text-muted"
+              )}
+            >
+              <BookOpen className="w-6 h-6" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Знания</span>
+            </button>
+
+            <button 
+              onClick={() => {
+                reset();
+                setShowStats(true);
+              }}
+              className={cn(
+                "flex flex-col items-center gap-1 transition-all",
+                showStats ? "text-accent scale-110" : "text-muted"
+              )}
+            >
+              <Trophy className="w-6 h-6" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Путь</span>
+            </button>
+
+            <button 
+              onClick={() => setShowMobileMenu(true)}
+              className="flex flex-col items-center gap-1 text-muted"
+            >
+              <Menu className="w-6 h-6" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Меню</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

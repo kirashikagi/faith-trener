@@ -1,14 +1,15 @@
 {
-  "id": "vera-trener-2026-final",
+  "id": "faith-trener-pwa-final-2026",
   "name": "Вера Тренажёр +1",
   "short_name": "Вера +1",
-  "description": "Интеллектуальный тренажер для духовного общения",
+  "description": "Интеллектуальный тренажер для духовного общения и укрепления веры",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#FDFCF8",
   "theme_color": "#5A5A40",
   "orientation": "portrait",
+  "categories": ["education", "lifestyle"],
   "icons": [
     {
       "src": "/logo.png",
@@ -33,6 +34,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Мобильный интерфейс"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Десктопный интерфейс"
     }
   ]
 }
