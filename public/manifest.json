@@ -1,16 +1,15 @@
 {
+  "id": "vera-pwa-v1",
   "name": "Вера Тренажёр +1",
   "short_name": "Вера +1",
-  "description": "Интеллектуальный тренажер для духовного общения",
-  "id": "/?v=34",
-  "start_url": "/?utm_source=pwa_install",
+  "description": "Тренажер для духовного общения",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#FDFCF8",
   "theme_color": "#5A5A40",
   "orientation": "portrait",
   "scope": "/",
   "lang": "ru",
-  "categories": ["education", "lifestyle"],
   "icons": [
     {
       "src": "/logo.png",
@@ -43,14 +42,7 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Главный экран"
-    },
-    {
-      "src": "/logo.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Интерфейс тренажёра"
+      "label": "Экран приложения"
     }
   ]
 }
