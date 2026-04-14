@@ -13,7 +13,7 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'auto',
-        includeAssets: ['logo.png', 'icon-192.png', 'icon-512.png'],
+        includeAssets: ['logo.png'],
         manifest: {
           name: 'Вера +1: Тренажер апологетики',
           short_name: 'Вера +1',
@@ -24,25 +24,25 @@ export default defineConfig(({mode}) => {
           orientation: 'portrait-primary',
           icons: [
             {
-              src: '/icon-192.png',
+              src: '/logo.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: '/icon-512.png',
+              src: '/logo.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: '/icon-192.png',
+              src: '/logo.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'maskable'
             },
             {
-              src: '/icon-512.png',
+              src: '/logo.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
