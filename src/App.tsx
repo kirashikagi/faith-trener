@@ -173,6 +173,25 @@ function AppContent() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
+  const [filter, setFilter] = useState<'all' | 'faith' | 'life' | 'crisis'>('all');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+  const [paymentConfirmation, setPaymentConfirmation] = useState<{
+    type: 'article' | 'subscription';
+    id?: string;
+    title: string;
+    price: string | number;
+  } | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [options, setOptions] = useState<ResponseOption[]>([]);
+  const [showStats, setShowStats] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [isDialogueEnded, setIsDialogueEnded] = useState(false);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
 
   const playClickSound = () => {
     try {
@@ -279,25 +298,6 @@ function AppContent() {
     };
   }, [isStandalone]);
 
-  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
-  const [filter, setFilter] = useState<'all' | 'faith' | 'life' | 'crisis'>('all');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
-  const [paymentConfirmation, setPaymentConfirmation] = useState<{
-    type: 'article' | 'subscription';
-    id?: string;
-    title: string;
-    price: string | number;
-  } | null>(null);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [options, setOptions] = useState<ResponseOption[]>([]);
-  const [showStats, setShowStats] = useState(false);
-  const [showReview, setShowReview] = useState(false);
-  const [isDialogueEnded, setIsDialogueEnded] = useState(false);
-  const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
   const scrollRef = useRef<HTMLDivElement | null>(null);
