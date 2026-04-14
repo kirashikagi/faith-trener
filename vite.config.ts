@@ -12,8 +12,11 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: false,
-        includeAssets: ['logo.png', 'icon-192.png', 'icon-512.png'],
+        injectRegister: 'auto',
+        includeAssets: ['logo.png', 'icon-192.png', 'icon-512.png', 'favicon.png', 'favicon.ico'],
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
+        },
         manifest: {
           name: 'Вера +1: Тренажер апологетики',
           short_name: 'Вера +1',
