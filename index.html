@@ -3,7 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -16,70 +15,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Вера +1" />
-    <script>
-      console.log('PWA: Initializing...');
-      
-      // Check if manifest is linked
-      const manifestLink = document.querySelector('link[rel="manifest"]');
-      if (manifestLink) {
-        console.log('PWA: Manifest link found:', manifestLink.href);
-        fetch(manifestLink.href)
-          .then(res => res.json())
-          .then(data => console.log('PWA: Manifest loaded:', data))
-          .catch(err => console.error('PWA: Failed to load manifest:', err));
-      } else {
-        console.error('PWA: Manifest link NOT found!');
-      }
-
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
-            console.log('PWA: SW registered', reg.scope);
-            
-            // Check for updates
-            reg.onupdatefound = () => {
-              const installingWorker = reg.installing;
-              console.log('PWA: SW update found, state:', installingWorker.state);
-              installingWorker.onstatechange = () => {
-                console.log('PWA: SW state changed:', installingWorker.state);
-                if (installingWorker.state === 'installed') {
-                  if (navigator.serviceWorker.controller) {
-                    console.log('PWA: New content available, please refresh.');
-                    // Show a visible notification
-                    const notification = document.createElement('div');
-                    notification.style.position = 'fixed';
-                    notification.style.bottom = '20px';
-                    notification.style.left = '50%';
-                    notification.style.transform = 'translateX(-50%)';
-                    notification.style.backgroundColor = '#5A5A40';
-                    notification.style.color = 'white';
-                    notification.style.padding = '12px 24px';
-                    notification.style.borderRadius = '12px';
-                    notification.style.zIndex = '9999';
-                    notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-                    notification.style.display = 'flex';
-                    notification.style.alignItems = 'center';
-                    notification.style.gap = '12px';
-                    notification.style.fontFamily = 'sans-serif';
-                    notification.innerHTML = `
-                      <span>Доступно обновление</span>
-                      <button onclick="window.location.reload()" style="background: white; color: #5A5A40; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;">Обновить</button>
-                    `;
-                    document.body.appendChild(notification);
-                  } else {
-                    console.log('PWA: Content cached for offline use.');
-                  }
-                }
-              };
-            };
-          }).catch(err => {
-            console.error('PWA: SW registration failed', err);
-          });
-        });
-      } else {
-        console.warn('PWA: Service Workers are not supported in this browser.');
-      }
-    </script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
