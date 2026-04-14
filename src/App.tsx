@@ -259,6 +259,7 @@ function AppContent() {
     // Detect standalone mode
     const checkStandalone = () => {
       const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
+                               window.matchMedia('(display-mode: fullscreen)').matches ||
                               (window.navigator as any).standalone === true || 
                               document.referrer.includes('android-app://');
       setIsStandalone(isStandaloneMode);
@@ -384,29 +385,6 @@ function AppContent() {
     const day = new Date().getDate();
     return BIBLICAL_FACTS[(day - 1) % BIBLICAL_FACTS.length];
   }, []);
-  
-  const handleFirestoreError = (error: unknown, operation: string, path: string) => {
-    const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
-      authInfo: {
-        userId: auth.currentUser?.uid,
-        email: auth.currentUser?.email,
-        emailVerified: auth.currentUser?.emailVerified,
-        isAnonymous: auth.currentUser?.isAnonymous,
-        tenantId: auth.currentUser?.tenantId,
-        providerInfo: auth.currentUser?.providerData.map(p => ({
-          providerId: p.providerId,
-          displayName: p.displayName,
-          email: p.email,
-          photoUrl: p.photoURL
-        })) || []
-      },
-      operationType: operation,
-      path
-    };
-    console.error(`Firestore Error [${operation}]:`, JSON.stringify(errInfo));
-    throw new Error(JSON.stringify(errInfo));
-  };
 
   // Firebase Auth & Profile
   useEffect(() => {
@@ -564,7 +542,7 @@ function AppContent() {
           setUserProfile(newProfile);
           // Let onSnapshot handle setShowIntro(true)
         } catch (e) {
-          handleFirestoreError(e, 'create', `users/${newUser.uid}`);
+          handleFirestoreError(e, OperationType.CREATE, `users/${newUser.uid}`);
         }
       }
     } catch (error: any) {
@@ -1120,7 +1098,7 @@ function AppContent() {
       className={cn(
         "fixed inset-0 bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-hidden flex flex-col", 
         theme,
-        isStandalone && "pt-safe-top pb-safe-bottom"
+        isStandalone && "pt-safe pb-safe"
       )}
       onClick={(e) => {
         const target = e.target as HTMLElement;
