@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vera-v49';
+const CACHE_NAME = 'vera-v50';
 const ASSETS = [
   '/',
   '/index.html',
