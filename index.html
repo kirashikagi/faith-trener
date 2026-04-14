@@ -4,10 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/logo.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/logo.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/logo.png" />
-    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="theme-color" content="#FDFCF8" />
     <meta name="msapplication-TileColor" content="#FDFCF8" />
     <meta name="msapplication-TileImage" content="/logo.png" />
@@ -24,6 +23,10 @@
       const manifestLink = document.querySelector('link[rel="manifest"]');
       if (manifestLink) {
         console.log('PWA: Manifest link found:', manifestLink.href);
+        fetch(manifestLink.href)
+          .then(res => res.json())
+          .then(data => console.log('PWA: Manifest loaded:', data))
+          .catch(err => console.error('PWA: Failed to load manifest:', err));
       } else {
         console.error('PWA: Manifest link NOT found!');
       }

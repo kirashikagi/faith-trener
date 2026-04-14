@@ -1170,7 +1170,7 @@ function AppContent() {
               initial={{ opacity: 0, y: -50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -50 }}
-              className="sticky top-0 z-[100] bg-accent text-white px-4 py-3 flex items-center justify-between shadow-lg"
+              className="fixed top-0 left-0 right-0 z-[9999] bg-accent text-white px-4 py-3 flex items-center justify-between shadow-lg"
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
@@ -1254,6 +1254,14 @@ function AppContent() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {deferredPrompt && !isStandalone && (
+                <button 
+                  onClick={handleInstallClick}
+                  className="px-3 py-1.5 bg-accent text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-accent/90 transition-colors shadow-sm"
+                >
+                  Установить
+                </button>
+              )}
               <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/5 border border-accent/10 rounded-xl shrink-0">
                 <Flame className="w-4 h-4 text-accent" />
                 <span className="text-xs font-black text-accent">{userProfile?.streak || 1}</span>

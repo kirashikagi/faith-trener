@@ -1,9 +1,11 @@
-const CACHE_NAME = 'vera-v48';
+const CACHE_NAME = 'vera-v49';
 const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo.png'
+  '/logo.png',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
