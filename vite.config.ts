@@ -13,10 +13,7 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'auto',
-        includeAssets: ['logo.png', 'icon-192.png', 'icon-512.png', 'favicon.png', 'favicon.ico'],
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
-        },
+        includeAssets: ['favicon.ico', 'favicon.png', 'icon-192.png', 'icon-512.png'],
         manifest: {
           name: 'Вера +1: Тренажер апологетики',
           short_name: 'Вера +1',
@@ -25,8 +22,6 @@ export default defineConfig(({mode}) => {
           background_color: '#FDFCF8',
           display: 'standalone',
           start_url: '/',
-          scope: '/',
-          orientation: 'portrait-primary',
           icons: [
             {
               src: '/icon-192.png',
