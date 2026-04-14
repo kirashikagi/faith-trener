@@ -12,7 +12,7 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: 'auto',
+        injectRegister: false,
         includeAssets: ['logo.png', 'icon-192.png', 'icon-512.png'],
         manifest: {
           name: 'Вера +1: Тренажер апологетики',
@@ -21,6 +21,8 @@ export default defineConfig(({mode}) => {
           theme_color: '#FDFCF8',
           background_color: '#FDFCF8',
           display: 'standalone',
+          start_url: '/',
+          scope: '/',
           orientation: 'portrait-primary',
           icons: [
             {
