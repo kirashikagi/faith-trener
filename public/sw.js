@@ -1,6 +1,7 @@
-const CACHE_NAME = 'vera-v45';
+const CACHE_NAME = 'vera-v46';
 const ASSETS = [
   '/',
+  '/?utm_source=pwa',
   '/index.html',
   '/manifest.json',
   '/logo.png'
@@ -38,7 +39,7 @@ self.addEventListener('fetch', (event) => {
 
   // Stale-while-revalidate strategy
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    caches.match(event.request, { ignoreSearch: event.request.url.includes('utm_source=pwa') }).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const cacheCopy = networkResponse.clone();

@@ -181,17 +181,17 @@ function AppContent() {
       const gainNode = context.createGain();
 
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(150, context.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(40, context.currentTime + 0.1);
-
-      gainNode.gain.setValueAtTime(0.1, context.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
-
+      oscillator.frequency.setValueAtTime(400, context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(100, context.currentTime + 0.05);
+      
+      gainNode.gain.setValueAtTime(0.15, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.05);
+      
       oscillator.connect(gainNode);
       gainNode.connect(context.destination);
-
+      
       oscillator.start();
-      oscillator.stop(context.currentTime + 0.1);
+      oscillator.stop(context.currentTime + 0.05);
     } catch (e) {
       // Ignore audio errors
     }
@@ -201,6 +201,40 @@ function AppContent() {
       navigator.vibrate(10);
     }
   };
+
+  const playTransitionSound = () => {
+    try {
+      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(100, context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(300, context.currentTime + 0.3);
+
+      gainNode.gain.setValueAtTime(0.03, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.3);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.3);
+      
+      // Add subtle haptic for transition
+      if ('vibrate' in navigator) {
+        navigator.vibrate([5, 10, 5]);
+      }
+    } catch (e) {
+      // Ignore audio errors
+    }
+  };
+
+  useEffect(() => {
+    if (!isAppLoading) {
+      playTransitionSound();
+    }
+  }, [isAppLoading, selectedScenario, showLibrary, showStats, showAdmin, showMobileMenu, selectedArticle]);
 
   useEffect(() => {
     // Detect standalone mode
