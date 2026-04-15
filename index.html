@@ -97,39 +97,23 @@
         <p style="color: #5A5A40; font-weight: 500; font-size: 14px; letter-spacing: 0.05em;">ЗАГРУЗКА ТРЕНАЖЁРА...</p>
       </div>
     </div>
-    <script type="module">
-      let retryCount = 0;
-      const maxRetries = 1;
-
-      const loadMainScript = () => {
-        const script = document.createElement('script');
-        script.type = 'module';
-        script.src = '/src/main.tsx';
-        script.onerror = () => {
-          console.error('PWA: Failed to load main script');
-          if (retryCount < maxRetries) {
-            retryCount++;
-            console.log(`PWA: Retrying script load (${retryCount}/${maxRetries})...`);
-            setTimeout(loadMainScript, 2000); // Wait 2 seconds before retry
-            return;
-          }
-          
-          const loader = document.getElementById('pwa-loader');
-          if (loader) {
-            loader.innerHTML = `
-              <div style='text-align: center; padding: 20px;'>
-                <h2 style='color: #ef4444; margin-bottom: 10px;'>Ошибка сети</h2>
-                <p style='color: #6b7280; margin-bottom: 20px; max-width: 300px;'>Не удалось загрузить компоненты приложения. Попробуйте включить VPN или обновить страницу.</p>
-                <button onclick='window.location.reload()' style='background: #5A5A40; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: bold;'>Повторить</button>
-              </div>
-            `;
-          }
-        };
-        document.body.appendChild(script);
+    <script>
+      // Функция для отображения ошибки, если основной скрипт не загрузился
+      window.handleScriptError = function() {
+        console.error('PWA: Failed to load main script');
+        const loader = document.getElementById('pwa-loader');
+        if (loader) {
+          loader.innerHTML = `
+            <div style='text-align: center; padding: 20px;'>
+              <h2 style='color: #ef4444; margin-bottom: 10px;'>Ошибка сети</h2>
+              <p style='color: #6b7280; margin-bottom: 20px; max-width: 300px;'>Не удалось загрузить компоненты приложения. Попробуйте включить VPN или обновить страницу.</p>
+              <button onclick='window.location.reload()' style='background: #5A5A40; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: bold;'>Повторить</button>
+            </div>
+          `;
+        }
       };
-      
-      setTimeout(loadMainScript, 100);
     </script>
+    <script type="module" src="/src/main.tsx" onerror="window.handleScriptError()"></script>
   </body>
 </html>
 
