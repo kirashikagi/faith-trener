@@ -44,15 +44,37 @@ self.addEventListener('fetch', (event) => {
   // For navigation, try network first, fallback to cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/'))
+      fetch(event.request).catch(() => {
+        return caches.match('/').then(response => {
+          return response || caches.match('/index.html');
+        });
+      })
     );
     return;
   }
 
-  // For other assets, try cache first
+  // For other assets, try cache first, then network
   event.respondWith(
     caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+      if (response) {
+        return response;
+      }
+      return fetch(event.request).then(networkResponse => {
+        // Don't cache API calls or external resources unless necessary
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+          return networkResponse;
+        }
+        
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseToCache);
+        });
+        
+        return networkResponse;
+      }).catch(() => {
+        // If fetch fails and no cache, just return the error
+        return null;
+      });
     })
   );
 });

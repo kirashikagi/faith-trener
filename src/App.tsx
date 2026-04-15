@@ -52,6 +52,9 @@ import {
   MessageCircle,
   Flame,
   Lightbulb,
+  UserMinus,
+  Microscope,
+  Briefcase,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -110,6 +113,10 @@ const ScenarioIcons: Record<string, React.ReactNode> = {
   Zap: <Zap className="w-6 h-6" />,
   UserX: <UserX className="w-6 h-6" />,
   MessageSquareX: <MessageSquareX className="w-6 h-6" />,
+  UserMinus: <UserMinus className="w-6 h-6" />,
+  Microscope: <Microscope className="w-6 h-6" />,
+  Briefcase: <Briefcase className="w-6 h-6" />,
+  Sparkles: <Sparkles className="w-6 h-6" />,
 };
 
 export default function App() {
@@ -1919,6 +1926,14 @@ function AppContent() {
                     ))}
                   </div>
                 </section>
+              </div>
+
+              <div className="flex flex-col items-center gap-4 pt-12 pb-8 opacity-50">
+                <div className="flex items-center gap-2 px-3 py-1 bg-accent/5 border border-accent/10 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
+                  <span className="text-[9px] font-bold text-accent uppercase tracking-[0.2em]">PWA Ready</span>
+                </div>
+                <p className="text-[10px] text-muted font-medium">Версия 1.2.0 • Работает офлайн</p>
               </div>
             </motion.div>
           ) : feedback ? (
