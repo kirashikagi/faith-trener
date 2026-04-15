@@ -66,6 +66,7 @@ function AppContent() {
     roleStats: {}
   });
   const [adminFeedback, setAdminFeedback] = useState<FeedbackSubmission[]>([]);
+  const [adminUsers, setAdminUsers] = useState<UserProfile[]>([]);
   const [systemStats, setSystemStats] = useState({ users: 0, feedback: 0 });
 
   // Daily Fact
@@ -133,16 +134,24 @@ function AppContent() {
   // Fetch Admin Data
   useEffect(() => {
     if (view === 'admin' && userProfile?.role === 'admin') {
-      const q = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const qFeedback = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'));
+      const unsubscribeFeedback = onSnapshot(qFeedback, (snapshot) => {
         setAdminFeedback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FeedbackSubmission[]);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'feedback');
       });
       
-      getDocs(collection(db, 'users')).then(snap => {
-        setSystemStats(prev => ({ ...prev, users: snap.size }));
+      const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+        setSystemStats(prev => ({ ...prev, users: snapshot.size }));
+        setAdminUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as UserProfile[]);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'users');
       });
 
-      return () => unsubscribe();
+      return () => {
+        unsubscribeFeedback();
+        unsubscribeUsers();
+      };
     }
   }, [view, userProfile]);
 
@@ -295,9 +304,9 @@ function AppContent() {
               />
             </motion.div>
           )}
-          {view === 'admin' && (
+          {view === 'admin' && userProfile?.role === 'admin' && (
             <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-              <Admin feedback={adminFeedback} stats={systemStats} />
+              <Admin feedback={adminFeedback} users={adminUsers} stats={systemStats} />
             </motion.div>
           )}
         </AnimatePresence>

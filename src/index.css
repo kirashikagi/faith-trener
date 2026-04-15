@@ -40,19 +40,18 @@
   }
 
   html, body {
-    @apply m-0 p-0 w-full h-full overflow-hidden fixed;
+    @apply m-0 p-0 w-full min-h-full;
   }
 
   body {
     @apply antialiased font-sans transition-colors duration-500 bg-slate-50 text-slate-900;
     background-color: var(--bg);
     color: var(--fg);
-    overscroll-behavior: none;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
+    overscroll-behavior-y: auto;
+    user-select: text;
+    -webkit-user-select: text;
+    -webkit-touch-callout: default;
     -webkit-tap-highlight-color: transparent;
-    touch-action: none;
   }
 
   main {
