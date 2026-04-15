@@ -343,9 +343,9 @@ function AppContent() {
         await getDocFromServer(doc(db, '_connection_test', 'ping'));
         console.log("Firestore connection verified.");
       } catch (error: any) {
-        if (error.message?.includes('the client is offline')) {
-          console.error("Firestore is offline. Check your configuration.");
-          addNotification("Ошибка подключения к базе данных. Проверьте настройки Firebase.", 'error');
+        if (error.message?.includes('the client is offline') || error.message?.includes('failed-precondition')) {
+          console.error("Firestore is offline or blocked. Check your connection/VPN.");
+          addNotification("Ошибка подключения к базе данных. Если вы находитесь в РФ, попробуйте включить VPN или проверьте настройки сети.", 'error');
         }
       }
     };
@@ -1225,7 +1225,7 @@ function AppContent() {
                   transition={{ delay: 0.5 }}
                   className="text-muted text-sm font-medium leading-relaxed max-w-[240px] mx-auto italic"
                 >
-                  Интеллектуальный тренажер <br/> духовного общения
+                  Тренажёр духовного общения <br/> и навыков евангелизации
                 </motion.p>
               </div>
 
@@ -1845,7 +1845,7 @@ function AppContent() {
                   animate={{ opacity: 1, y: 0 }}
                   className="inline-block px-3 py-1 bg-accent/10 text-accent rounded-full text-[9px] font-bold uppercase tracking-[0.2em] mb-2"
                 >
-                  Интеллектуальный тренажер
+                  Тренажёр духовного общения
                 </motion.div>
                 <h2 className="text-4xl sm:text-5xl font-serif text-fg tracking-tight leading-tight">
                   Готовы ли вы к <br/>
