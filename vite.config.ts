@@ -18,9 +18,10 @@ export default defineConfig(({mode}) => {
           name: 'Вера +1: Тренажер апологетики',
           short_name: 'Вера +1',
           description: 'Интеллектуальный тренажер для оттачивания навыков христианского свидетельства и защиты веры.',
-          theme_color: '#FDFCF8',
-          background_color: '#FDFCF8',
+          theme_color: '#ffffff',
+          background_color: '#ffffff',
           display: 'standalone',
+          orientation: 'portrait',
           start_url: '/',
           icons: [
             {
