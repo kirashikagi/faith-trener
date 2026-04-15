@@ -1,7 +1,7 @@
 {
-  "name": "Вера Тренажёр +1",
+  "name": "Вера +1",
   "short_name": "Вера +1",
-  "description": "Интеллектуальный тренажер для духовного общения",
+  "description": "Тренажёр духовного общения и навыков евангелизации",
   "id": "/?v=34",
   "start_url": "/?utm_source=pwa_install",
   "display": "standalone",

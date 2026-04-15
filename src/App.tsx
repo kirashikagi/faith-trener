@@ -340,12 +340,14 @@ function AppContent() {
     // Test connection to Firestore
     const testConnection = async () => {
       try {
-        await getDocFromServer(doc(db, '_connection_test', 'ping'));
+        // Try to get a document, but don't fail the whole app if it takes a bit
+        const testDoc = doc(db, '_connection_test', 'ping');
+        await getDocFromServer(testDoc);
         console.log("Firestore connection verified.");
       } catch (error: any) {
+        console.warn("Initial connection test failed, but we enabled compatibility mode:", error.message);
         if (error.message?.includes('the client is offline') || error.message?.includes('failed-precondition')) {
-          console.error("Firestore is offline or blocked. Check your connection/VPN.");
-          addNotification("Ошибка подключения к базе данных. Если вы находитесь в РФ, попробуйте включить VPN или проверьте настройки сети.", 'error');
+          addNotification("Загрузка может быть медленной. Мы включили режим совместимости для работы без VPN. Если ошибка сохранится, попробуйте VPN.", 'info');
         }
       }
     };
