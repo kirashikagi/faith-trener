@@ -1,7 +1,7 @@
 const CACHE_NAME = 'vera-v34';
 const ESSENTIAL_ASSETS = [
   '/',
-  '/?utm_source=pwa_install',
+  '/?mode=pwa',
   '/index.html',
   '/manifest.json'
 ];
