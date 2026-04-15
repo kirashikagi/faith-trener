@@ -11,10 +11,16 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Cache only small essential files first
-      return cache.addAll(ESSENTIAL_ASSETS).then(() => {
-        console.log('PWA: Essential assets cached');
-        // Try to cache logo in background, don't block install if it fails or takes too long
+      console.log('PWA: Caching essential assets individually');
+      // Cache assets individually so one failure doesn't block the whole SW
+      return Promise.allSettled(
+        ESSENTIAL_ASSETS.map(asset => 
+          cache.add(asset).then(() => console.log(`PWA: Cached ${asset}`))
+            .catch(err => console.warn(`PWA: Failed to cache ${asset}`, err))
+        )
+      ).then(() => {
+        console.log('PWA: Essential assets caching attempt finished');
+        // Try to cache logo in background
         cache.add('/logo.png').catch(err => console.warn('PWA: Background logo cache failed', err));
       });
     })
