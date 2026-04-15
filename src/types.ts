@@ -6,13 +6,12 @@ export interface Scenario {
   id: string;
   title: string;
   description: string;
+  icon: string;
   systemInstruction: string;
   initialMessage: string;
   mode: Mode;
   avatarUrl?: string;
   backgroundUrl?: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  category: 'faith' | 'life' | 'crisis';
 }
 
 export interface Message {
@@ -20,6 +19,7 @@ export interface Message {
   text: string;
   timestamp: number;
   explanation?: string; // For criticism mode
+  reactions?: string[]; // Array of emoji strings
 }
 
 export interface ResponseOption {
@@ -53,6 +53,7 @@ export interface Achievement {
   id: string;
   title: string;
   description: string;
+  icon: string;
   unlocked: boolean;
 }
 
