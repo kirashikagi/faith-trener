@@ -9,6 +9,7 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firestore with settings to help bypass some network restrictions
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
+  experimentalAutoDetectLongPolling: true,
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })

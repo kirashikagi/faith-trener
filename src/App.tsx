@@ -1011,84 +1011,17 @@ function AppContent() {
   };
 
   return (
-    <div className={cn("min-h-screen bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-x-hidden relative", theme)}>
-      {/* Background Accents */}
+    <div className={cn("fixed inset-0 bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-hidden flex flex-col", theme)}>
+      {/* Background Accents (Fixed) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-[180px] animate-pulse" />
         <div className="absolute top-[20%] -right-[5%] w-[30%] h-[30%] bg-emerald-500/5 rounded-full blur-[160px]" />
         <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[200px]" />
       </div>
 
-      <div className="relative z-10">
-        {/* PWA Install Prompt */}
-        <AnimatePresence>
-          {showInstallPrompt && (
-            <motion.div 
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
-              className="sticky top-0 z-[100] bg-accent text-white px-4 py-3 flex items-center justify-between shadow-lg"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div className="text-xs font-bold uppercase tracking-wider">Установите приложение для удобства</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={handleInstallClick}
-                  className="bg-white text-accent px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-white/90 transition-colors"
-                >
-                  Установить
-                </button>
-                <button 
-                  onClick={() => setShowInstallPrompt(false)}
-                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Manual Key Input Fallback */}
-        {showKeyInput && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
-            <div className="bg-card rounded-[2rem] p-10 max-w-md w-full shadow-2xl border border-border">
-              <h3 className="text-2xl font-black mb-4 tracking-tight text-fg">Настройка API ключа</h3>
-              <p className="text-sm text-muted mb-8 leading-relaxed">
-                Если у вас не получается настроить ключ через панель Secrets, вы можете временно ввести его здесь. 
-                Ключ не сохраняется на сервере и будет активен только в этой сессии.
-              </p>
-              <input
-                type="password"
-                value={manualKey}
-                onChange={(e) => setManualKey(e.target.value)}
-                placeholder="AIza..."
-                className="w-full p-4 bg-bg border border-border rounded-2xl mb-8 focus:ring-2 focus:ring-accent outline-none text-fg transition-all"
-              />
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setShowKeyInput(false)}
-                  className="flex-1 py-4 bg-border hover:bg-border/80 text-fg rounded-2xl font-black transition-all uppercase tracking-[0.2em] text-[10px]"
-                >
-                  Закрыть
-                </button>
-                <button
-                  onClick={() => setShowKeyInput(false)}
-                  className="flex-1 py-4 bg-accent hover:bg-emerald-600 text-white rounded-2xl font-black transition-all shadow-xl shadow-accent/20 uppercase tracking-[0.2em] text-[10px]"
-                >
-                  Сохранить
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {user && (
-          <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300">
+      {/* Header (Sticky/Fixed) */}
+      {user && (
+        <header className="relative z-50 bg-card/80 backdrop-blur-md border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300 shrink-0">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20 shrink-0">
                 <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -1183,7 +1116,75 @@ function AppContent() {
           </header>
         )}
 
-      <main className="mx-auto max-w-4xl p-4 sm:p-6 pb-24 md:pb-6">
+      <div className="relative flex-1 overflow-y-auto overflow-x-hidden z-10 custom-scrollbar">
+        {/* PWA Install Prompt */}
+        <AnimatePresence>
+          {showInstallPrompt && (
+            <motion.div 
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              className="sticky top-0 z-[100] bg-accent text-white px-4 py-3 flex items-center justify-between shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div className="text-xs font-bold uppercase tracking-wider">Установите приложение для удобства</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleInstallClick}
+                  className="bg-white text-accent px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-white/90 transition-colors"
+                >
+                  Установить
+                </button>
+                <button 
+                  onClick={() => setShowInstallPrompt(false)}
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Manual Key Input Fallback */}
+        {showKeyInput && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
+            <div className="bg-card rounded-[2rem] p-10 max-w-md w-full shadow-2xl border border-border">
+              <h3 className="text-2xl font-black mb-4 tracking-tight text-fg">Настройка API ключа</h3>
+              <p className="text-sm text-muted mb-8 leading-relaxed">
+                Если у вас не получается настроить ключ через панель Secrets, вы можете временно ввести его здесь. 
+                Ключ не сохраняется на сервере и будет активен только в этой сессии.
+              </p>
+              <input
+                type="password"
+                value={manualKey}
+                onChange={(e) => setManualKey(e.target.value)}
+                placeholder="AIza..."
+                className="w-full p-4 bg-bg border border-border rounded-2xl mb-8 focus:ring-2 focus:ring-accent outline-none text-fg transition-all"
+              />
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowKeyInput(false)}
+                  className="flex-1 py-4 bg-border hover:bg-border/80 text-fg rounded-2xl font-black transition-all uppercase tracking-[0.2em] text-[10px]"
+                >
+                  Закрыть
+                </button>
+                <button
+                  onClick={() => setShowKeyInput(false)}
+                  className="flex-1 py-4 bg-accent hover:bg-emerald-600 text-white rounded-2xl font-black transition-all shadow-xl shadow-accent/20 uppercase tracking-[0.2em] text-[10px]"
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <main className="mx-auto max-w-4xl p-4 sm:p-6 pb-24 md:pb-6">
         {isAuthLoading || isProfileLoading ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCcw className="w-8 h-8 animate-spin text-emerald-600" />
@@ -2390,6 +2391,7 @@ function AppContent() {
       </>
     )}
   </main>
+      </div>
       {/* Feedback Modal */}
       <AnimatePresence>
         {showFeedbackForm && (
@@ -3064,7 +3066,6 @@ function AppContent() {
             </button>
           </div>
         )}
-      </div>
     </div>
   );
 }
