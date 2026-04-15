@@ -76,11 +76,19 @@ function AppContent() {
 
   // Auth Listener
   useEffect(() => {
+    let profileUnsubscribe: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Clean up previous profile listener if it exists
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+        profileUnsubscribe = null;
+      }
+
       if (firebaseUser) {
         setUser(firebaseUser);
         // Profile Listener
-        const profileUnsubscribe = onSnapshot(doc(db, 'users', firebaseUser.uid), async (docSnap) => {
+        profileUnsubscribe = onSnapshot(doc(db, 'users', firebaseUser.uid), async (docSnap) => {
           if (docSnap.exists()) {
             const profile = docSnap.data() as UserProfile;
             setUserProfile(profile);
@@ -106,18 +114,20 @@ function AppContent() {
             await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
           }
         });
-        return () => profileUnsubscribe();
       } else {
         setUser(null);
         setUserProfile(null);
       }
-      setIsAuthLoading(false);
       
-      // Artificial delay for splash screen
-      setTimeout(() => setIsAppLoading(false), 2000);
+      setIsAuthLoading(false);
+      // Artificial delay for splash screen to ensure smooth transition
+      setTimeout(() => setIsAppLoading(false), 1500);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (profileUnsubscribe) profileUnsubscribe();
+    };
   }, []);
 
   // Fetch Admin Data
