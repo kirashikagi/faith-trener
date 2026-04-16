@@ -310,7 +310,7 @@ function AppContent() {
 
     setLoadingItemId(articleId);
     try {
-      const response = await fetch('/api/payments/create', {
+      const response = await fetch('/server/payments/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -604,7 +604,7 @@ function AppContent() {
     setLoadingItemId('subscription');
     try {
       const priceValue = parseFloat(plan.price.replace(/[^0-9.]/g, ''));
-      const response = await fetch('/api/payments/create', {
+      const response = await fetch('/server/payments/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

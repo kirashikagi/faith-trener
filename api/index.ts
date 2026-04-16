@@ -1,11 +1,40 @@
 import express from "express";
+import cors from "cors";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
+
+// Priority logging to track ALL requests
+app.use((req, res, next) => {
+  console.log(`[DEBUG] ${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
+app.use(cors());
 app.use(express.json());
+
+// Options handler for ALL routes to help with CORS
+app.options('*', cors());
+
+// Diagnostic: Log all defined routes
+app.get("/server/routes-list", (req, res) => {
+  const routes = [];
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      routes.push(`${Object.keys(middleware.route.methods).join(',').toUpperCase()} ${middleware.route.path}`);
+    } else if (middleware.name === 'router') {
+      middleware.handle.stack.forEach((handler) => {
+        if (handler.route) {
+          routes.push(`${Object.keys(handler.route.methods).join(',').toUpperCase()} ${handler.route.path}`);
+        }
+      });
+    }
+  });
+  res.json({ routes });
+});
 
 // Lazy load heavy dependencies to avoid top-level crashes
 let admin: any;
@@ -66,7 +95,7 @@ async function getDb() {
 }
 
 // Ping endpoint
-app.get("/api/payments/test-config", async (req, res) => {
+app.get("/server/payments/test-config", async (req, res) => {
   const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
   const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
   
@@ -122,7 +151,7 @@ app.get("/api/payments/status", async (req, res) => {
   });
 });
 
-app.post("/api/payments/create", async (req, res) => {
+app.post("/server/payments/create", async (req, res) => {
   try {
     const { amount, description, metadata, return_url } = req.body;
     console.log("Payment creation request received:", { amount, description, metadata, return_url });
@@ -174,7 +203,7 @@ app.post("/api/payments/create", async (req, res) => {
   }
 });
 
-app.post("/api/payments/webhook", async (req, res) => {
+app.post("/server/payments/webhook", async (req, res) => {
   try {
     const event = req.body;
     if (event.event === 'payment.succeeded') {
@@ -197,7 +226,7 @@ app.post("/api/payments/webhook", async (req, res) => {
 });
 
 // Gemini
-app.post("/api/chat", async (req, res) => {
+app.post("/server/chat", async (req, res) => {
   try {
     const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
     const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
@@ -228,7 +257,7 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-app.post("/api/generate", async (req, res) => {
+app.post("/server/generate", async (req, res) => {
   try {
     const { prompt, config, apiKey: clientApiKey } = req.body;
     const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
@@ -259,7 +288,7 @@ app.post("/api/generate", async (req, res) => {
 });
 
 // Server-side profile proxy to bypass VPN blocks in Russia
-app.get("/api/users/:uid", async (req, res) => {
+app.get("/server/users/:uid", async (req, res) => {
   try {
     const db = await getDb();
     const docRef = db.collection('users').doc(req.params.uid);
@@ -274,6 +303,12 @@ app.get("/api/users/:uid", async (req, res) => {
     console.error("Profile proxy error:", error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// Catch-all for /server/* to help debug 404/405
+app.all("/server/*", (req, res) => {
+  console.log(`[404/405] Request for ${req.method} ${req.url} was not handled by any route.`);
+  res.status(404).json({ error: `Эндпоинт ${req.method} ${req.url} не найден на этом сервере.` });
 });
 
 app.use((err: any, req: any, res: any, next: any) => {
