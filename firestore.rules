@@ -50,7 +50,7 @@ service cloud.firestore {
       return isAuthenticated() && 
         ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
          (request.auth.token.email == "arunavsharmanaba@gmail.com") ||
-         (request.auth.token.email == "admin@vera.plus"));
+         (request.auth.token.email.matches(".*@vera\\.plus")));
     }
 
     function isValidEmail(email) {
@@ -100,8 +100,8 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
-      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
-      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+      allow create: if isAuthenticated() && (isAdmin() || request.resource.data.role == 'user');
+      allow update: if isAuthenticated() && (isOwner(uid) || isAdmin());
     }
 
     match /feedback/{feedbackId} {
