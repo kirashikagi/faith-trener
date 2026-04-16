@@ -65,10 +65,6 @@ async function getDb() {
   }
 }
 
-async function ensureAdminInitialized() {
-  await getDb();
-}
-
 // Ping endpoint
 app.get("/api/ping", (req, res) => {
   res.json({ status: "ok", env: Object.keys(process.env).filter(k => !k.includes('KEY') && !k.includes('SECRET')) });
@@ -237,29 +233,6 @@ app.post("/api/generate", async (req, res) => {
     res.json({ text: response.text });
   } catch (error: any) {
     console.error("Generate error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post("/api/admin/reset-password", async (req, res) => {
-  try {
-    const { email, newPassword, secretKey } = req.body;
-    
-    // Security check: only allow for admin emails and check for a secret key
-    const isAdminEmail = email === 'admin@vera.plus' || email === 'arunavsharmanaba@gmail.com';
-    const isSecretValid = secretKey === 'VERA_RESET_2024';
-
-    if (!isAdminEmail || !isSecretValid) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-
-    await ensureAdminInitialized();
-    const user = await admin.auth().getUserByEmail(email);
-    await admin.auth().updateUser(user.uid, { password: newPassword });
-
-    res.json({ success: true, message: `Password for ${email} has been updated.` });
-  } catch (error: any) {
-    console.error("Admin reset error:", error);
     res.status(500).json({ error: error.message });
   }
 });
