@@ -16,11 +16,8 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(express.json());
 
-// Options handler for ALL routes to help with CORS
-app.options('*', cors());
-
 // Diagnostic: Log all defined routes
-app.get("/server/routes-list", (req, res) => {
+app.get("/api/routes-list", (req, res) => {
   const routes = [];
   app._router.stack.forEach((middleware) => {
     if (middleware.route) {
@@ -94,8 +91,12 @@ async function getDb() {
   }
 }
 
+app.get("/api/status", (req, res) => {
+  res.json({ status: "ok", time: new Date().toISOString(), env: !!process.env.YOOKASSA_SHOP_ID });
+});
+
 // Ping endpoint
-app.get("/server/payments/test-config", async (req, res) => {
+app.get("/api/payments/test-config", async (req, res) => {
   const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
   const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
   
@@ -151,7 +152,7 @@ app.get("/api/payments/status", async (req, res) => {
   });
 });
 
-app.post("/server/payments/create", async (req, res) => {
+app.post("/api/payments/create", async (req, res) => {
   try {
     const { amount, description, metadata, return_url } = req.body;
     console.log("Payment creation request received:", { amount, description, metadata, return_url });
@@ -203,7 +204,7 @@ app.post("/server/payments/create", async (req, res) => {
   }
 });
 
-app.post("/server/payments/webhook", async (req, res) => {
+app.post("/api/payments/webhook", async (req, res) => {
   try {
     const event = req.body;
     if (event.event === 'payment.succeeded') {
@@ -226,7 +227,7 @@ app.post("/server/payments/webhook", async (req, res) => {
 });
 
 // Gemini
-app.post("/server/chat", async (req, res) => {
+app.post("/api/chat", async (req, res) => {
   try {
     const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
     const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
@@ -257,7 +258,7 @@ app.post("/server/chat", async (req, res) => {
   }
 });
 
-app.post("/server/generate", async (req, res) => {
+app.post("/api/generate", async (req, res) => {
   try {
     const { prompt, config, apiKey: clientApiKey } = req.body;
     const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
@@ -288,7 +289,7 @@ app.post("/server/generate", async (req, res) => {
 });
 
 // Server-side profile proxy to bypass VPN blocks in Russia
-app.get("/server/users/:uid", async (req, res) => {
+app.get("/api/users/:uid", async (req, res) => {
   try {
     const db = await getDb();
     const docRef = db.collection('users').doc(req.params.uid);
@@ -305,8 +306,8 @@ app.get("/server/users/:uid", async (req, res) => {
   }
 });
 
-// Catch-all for /server/* to help debug 404/405
-app.all("/server/*", (req, res) => {
+// Catch-all for /api/* to help debug 404/405
+app.all("/api/*", (req, res) => {
   console.log(`[404/405] Request for ${req.method} ${req.url} was not handled by any route.`);
   res.status(404).json({ error: `Эндпоинт ${req.method} ${req.url} не найден на этом сервере.` });
 });

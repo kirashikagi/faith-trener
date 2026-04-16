@@ -10,24 +10,6 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const PORT = 3000;
 
-  // Add specific handlers for payments to ensure they are hit first
-  // Handles POST and OPTIONS, provides a descriptive error for GET
-  app.all('/server/payments/create/?', (req, res, next) => {
-    if (req.method === 'OPTIONS') {
-      res.header('Access-Control-Allow-Origin', '*');
-      res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type');
-      return res.sendStatus(200);
-    }
-    
-    if (req.method === 'GET') {
-      return res.status(405).json({ error: "Method Not Allowed - Please use POST for payment creation" });
-    }
-    
-    console.log(`[SERVER_TS] Payment creation hit: ${req.method} ${req.url}`);
-    next();
-  });
-
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
