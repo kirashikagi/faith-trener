@@ -387,26 +387,10 @@ function AppContent() {
 
   useEffect(() => {
     let profileUnsubscribe: (() => void) | null = null;
-    const savedUserId = localStorage.getItem('vera_userId');
-
-    // Restoration logic for regions where Google Auth is unstable (Russia)
-    if (savedUserId && !user) {
-      fetch(`/api/users/${savedUserId}`)
-        .then(res => res.json())
-        .then(profile => {
-          if (profile && !profile.error) {
-            setUserProfile(profile);
-            setUser({ uid: savedUserId, email: profile.email } as any);
-          }
-        })
-        .catch(err => console.error("Restore session error:", err))
-        .finally(() => setIsAuthLoading(false));
-    }
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        localStorage.setItem('vera_userId', firebaseUser.uid);
         setIsProfileLoading(true);
         
         // Use onSnapshot for real-time profile updates
@@ -432,11 +416,13 @@ function AppContent() {
                 streak: newStreak,
                 lastVisit: now
               });
+              // onSnapshot will trigger again with updated data
             }
 
             setUserProfile(profile);
             setIsProfileLoading(false);
             
+            // Sync achievements from profile to local stats if they exist
             if (profile.achievements) {
               setStats(prev => ({
                 ...prev,
@@ -444,30 +430,40 @@ function AppContent() {
               }));
             }
             
+            // Only show intro if it hasn't been seen AND we haven't manually closed it in this session
             const seen = profile.hasSeenWelcome === true || localStorage.getItem(`vera_intro_seen_${firebaseUser.uid}`) === 'true';
             if (!seen && !hasManuallyClosedIntro.current) {
               setShowIntro(true);
             } else {
               setShowIntro(false);
             }
+          } else {
+            // Create profile if it doesn't exist
+            const newProfile: UserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              role: (firebaseUser.email === 'arunavsharmanaba@gmail.com' || firebaseUser.email === 'admin@vera.plus') ? 'admin' : 'user',
+              createdAt: Timestamp.now() as any,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              hasSeenWelcome: false,
+              streak: 1,
+              lastVisit: Date.now()
+            };
+            try {
+              await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+            } catch (error) {
+              handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUser.uid}`);
+            }
+            setIsProfileLoading(false);
+            // onSnapshot will pick this up
           }
         }, (error) => {
-          console.error("Error listening to user profile, trying proxy fallback...");
-          // Fallback to proxy if direct Firestore is blocked (Russia workaround)
-          fetch(`/api/users/${firebaseUser.uid}`)
-            .then(res => res.json())
-            .then(profile => {
-              if (profile && !profile.error) {
-                setUserProfile(profile);
-              }
-            }).catch(e => console.error("Proxy fallback failed:", e));
+          console.error("Error listening to user profile:", error);
         });
       } else {
-        if (!localStorage.getItem('vera_userId')) {
-          setUser(null);
-          setUserProfile(null);
-          setIsProfileLoading(false);
-        }
+        setUser(null);
+        setUserProfile(null);
+        setIsProfileLoading(false);
         if (profileUnsubscribe) {
           profileUnsubscribe();
           profileUnsubscribe = null;
@@ -501,72 +497,56 @@ function AppContent() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
-    setIsAuthLoading(true);
     
     // Convert name to email format for Firebase Auth
     const internalEmail = email.includes('@') ? email : `${email.trim().toLowerCase()}@vera.plus`;
     
     try {
       if (authMode === 'login') {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: internalEmail, password })
-        });
-        
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
-        
-        localStorage.setItem('vera_userId', data.uid);
-        setUserProfile(data.profile);
-        setUser({ uid: data.uid, email: internalEmail } as any);
+        await signInWithEmailAndPassword(auth, internalEmail, password);
       } else {
-        // "Golden Ticket" Bypass
+        const { user: newUser } = await createUserWithEmailAndPassword(auth, internalEmail, password);
+        // "Golden Ticket" Bypass: Any user who registers with the password "MASTER_ADMIN" 
+        // OR follows admin naming conventions becomes an admin
         const isAdminEmail = internalEmail === 'admin@vera.plus' || 
-                           internalEmail === 'arunavsharmanaba@gmail.com' ||
+                           newUser.email === 'arunavsharmanaba@gmail.com' ||
                            password === 'MASTER_ADMIN' ||
                            email.toLowerCase().trim() === 'admin' ||
                            email.toLowerCase().trim() === 'superadmin';
-
-        const response = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            email: internalEmail, 
-            password, 
-            displayName: email,
-            role: isAdminEmail ? 'admin' : 'user'
-          })
-        });
-
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
-
-        localStorage.setItem('vera_userId', data.uid);
-        setUserProfile(data.profile);
-        setUser({ uid: data.uid, email: internalEmail } as any);
+        
+        const newProfile: UserProfile = {
+          uid: newUser.uid,
+          email: newUser.email || '',
+          role: isAdminEmail ? 'admin' : 'user',
+          createdAt: Timestamp.now() as any,
+          displayName: email, // Store the original name
+          hasSeenWelcome: false,
+          streak: 1,
+          lastVisit: Date.now()
+        };
+        try {
+          await setDoc(doc(db, 'users', newUser.uid), newProfile);
+          setUserProfile(newProfile);
+          // Let onSnapshot handle setShowIntro(true)
+        } catch (e) {
+          handleFirestoreError(e, 'create', `users/${newUser.uid}`);
+        }
       }
-      addNotification("Успешный вход!", 'success');
     } catch (error: any) {
-      console.error("Auth error:", error);
-      const msg = error.message;
-      if (msg.includes('EMAIL_NOT_FOUND') || msg.includes('INVALID_PASSWORD') || msg.includes('INVALID_LOGIN_CREDENTIALS')) {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
         setAuthError('Неверное имя или пароль');
-      } else if (msg.includes('EMAIL_EXISTS')) {
+      } else if (error.code === 'auth/email-already-in-use') {
         setAuthError('Это имя уже занято');
-      } else if (msg.includes('WEAK_PASSWORD')) {
+      } else if (error.code === 'auth/weak-password') {
         setAuthError('Пароль должен быть не менее 6 символов');
       } else {
-        setAuthError('Ошибка: ' + msg);
+        setAuthError('Ошибка: ' + error.message);
       }
-    } finally {
-      setIsAuthLoading(false);
     }
   };
 
   const handleLogout = async () => {
     try {
-      localStorage.removeItem('vera_userId');
       await signOut(auth);
       setUser(null);
       setUserProfile(null);

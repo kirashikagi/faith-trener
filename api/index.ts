@@ -255,66 +255,6 @@ app.get("/api/users/:uid", async (req, res) => {
   }
 });
 
-app.post("/api/auth/register", async (req, res) => {
-  try {
-    const { email, password, displayName, role } = req.body;
-    await loadDependencies();
-    
-    // Create user in Firebase Auth
-    const userRecord = await admin.auth().createUser({
-      email,
-      password,
-      displayName
-    });
-
-    const db = await getDb();
-    const newProfile = {
-      uid: userRecord.uid,
-      email: email,
-      role: role || 'user',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      displayName: displayName,
-      hasSeenWelcome: false,
-      streak: 1,
-      lastVisit: Date.now()
-    };
-
-    await db.collection('users').doc(userRecord.uid).set(newProfile);
-    
-    res.json({ success: true, uid: userRecord.uid, profile: newProfile });
-  } catch (error: any) {
-    console.error("Registration error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    // Firebase Admin doesn't have a direct "signInWithPassword". 
-    // We use the REST API to verify credentials.
-    const apiKey = "AIzaSyBr--JSzibS0CXR6B1WDKOngML5LYsn7_I";
-    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, returnSecureToken: true })
-    });
-
-    const data = await response.json();
-    if (data.error) {
-      return res.status(401).json({ error: data.error.message });
-    }
-
-    const db = await getDb();
-    const profile = (await db.collection('users').doc(data.localId).get()).data();
-
-    res.json({ success: true, uid: data.localId, profile });
-  } catch (error: any) {
-    console.error("Login error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.use((err: any, req: any, res: any, next: any) => {
   console.error("Global error:", err);
   res.status(500).json({ error: "Internal server error" });
