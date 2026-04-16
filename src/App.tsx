@@ -1098,92 +1098,33 @@ function AppContent() {
                 <p className="text-[8px] sm:text-[9px] text-muted font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] truncate">AI Faith Training</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar">
-              <button 
-                onClick={toggleTheme}
-                className="p-2 sm:p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm shrink-0"
-              >
-                {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              </button>
-              
-              <div className="h-6 w-[1px] bg-border mx-0.5 hidden sm:block" />
-
-              <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-accent/5 border border-accent/20 rounded-xl shrink-0">
-                <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent animate-pulse" />
-                <span className="text-[10px] sm:text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
-              </div>
-
-              {/* Desktop Menu */}
-              <div className="hidden md:flex items-center gap-1.5 sm:gap-3">
-                {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
-                  <button 
-                    onClick={fetchAdminFeedback}
-                    className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                    title="Админ-панель"
-                  >
-                    <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                )}
+              <div className="flex items-center gap-1.5 sm:gap-3">
+                <button 
+                  onClick={toggleTheme}
+                  className="p-2 sm:p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm shrink-0"
+                >
+                  {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                </button>
                 
+                <div className="h-6 w-[1px] bg-border mx-0.5" />
+
+                <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-accent/5 border border-accent/20 rounded-xl shrink-0">
+                  <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent animate-pulse" />
+                  <span className="text-[10px] sm:text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
+                </div>
+
                 <button 
-                  onClick={() => setShowLibrary(true)}
+                  onClick={() => setShowMobileMenu(true)}
                   className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                  title="Библиотека знаний"
+                  title="Меню"
                 >
-                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-
-                <button 
-                  onClick={() => {
-                    setFeedbackType('general');
-                    setShowFeedbackForm(true);
-                  }}
-                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                  title="Обратная связь"
-                >
-                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-
-                {!selectedScenario ? (
-                  <button 
-                    onClick={() => setShowStats(!showStats)}
-                    className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
-                  >
-                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 group-hover:scale-110 transition-transform" />
-                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Путь</span>
-                  </button>
-                ) : (
-                  <button 
-                    onClick={reset}
-                    className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
-                  >
-                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-[-2px] transition-transform" />
-                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Назад</span>
-                  </button>
-                )}
-
-                <button 
-                  onClick={handleLogout}
-                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95 shrink-0"
-                  title="Выйти"
-                >
-                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
-
-              {/* Mobile Menu Toggle */}
-              <button 
-                onClick={() => setShowMobileMenu(true)}
-                className="md:hidden p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                title="Меню"
-              >
-                <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            </div>
           </header>
         )}
 
-      <main className="mx-auto max-w-4xl p-4 sm:p-6 pb-24 md:pb-6">
+      <main className="mx-auto max-w-4xl p-4 sm:p-6 md:pb-6">
         {isAuthLoading || isProfileLoading ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCcw className="w-8 h-8 animate-spin text-emerald-600" />
@@ -2642,10 +2583,10 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {/* Mobile Menu Overlay */}
+      {/* Side Menu Overlay */}
       <AnimatePresence>
         {showMobileMenu && (
-          <div className="fixed inset-0 z-[150] md:hidden">
+          <div className="fixed inset-0 z-[150]">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2658,26 +2599,48 @@ function AppContent() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute right-0 top-0 bottom-0 w-[280px] bg-card border-l border-border p-6 shadow-2xl flex flex-col"
+              className="absolute right-0 top-0 bottom-0 w-full max-w-[320px] bg-card border-l border-border p-8 shadow-2xl flex flex-col"
             >
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-lg font-serif text-fg tracking-tight">Меню</h3>
+              <div className="flex items-center justify-between mb-12">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-xl font-serif text-fg tracking-tight">Вера +1</h3>
+                </div>
                 <button 
                   onClick={() => setShowMobileMenu(false)}
-                  className="p-2 text-muted hover:text-accent transition-colors"
+                  className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar pr-2 -mr-2">
+                <button 
+                  onClick={() => {
+                    reset();
+                    setShowMobileMenu(false);
+                  }}
+                  className={cn(
+                    "w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold uppercase tracking-[0.2em] text-[10px]",
+                    !selectedScenario && !showLibrary && !showStats ? "bg-accent text-white shadow-lg shadow-accent/20" : "hover:bg-accent/5 text-muted hover:text-accent"
+                  )}
+                >
+                  <Home className="w-5 h-5" />
+                  Главная
+                </button>
+
                 {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
                   <button 
                     onClick={() => {
                       fetchAdminFeedback();
                       setShowMobileMenu(false);
                     }}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
+                    className={cn(
+                      "w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold uppercase tracking-[0.2em] text-[10px]",
+                      showAdmin ? "bg-accent text-white shadow-lg shadow-accent/20" : "hover:bg-accent/5 text-muted hover:text-accent"
+                    )}
                   >
                     <ShieldCheck className="w-5 h-5" />
                     Админ-панель
@@ -2686,13 +2649,32 @@ function AppContent() {
                 
                 <button 
                   onClick={() => {
+                    reset();
                     setShowLibrary(true);
                     setShowMobileMenu(false);
                   }}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
+                  className={cn(
+                    "w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold uppercase tracking-[0.2em] text-[10px]",
+                    showLibrary ? "bg-accent text-white shadow-lg shadow-accent/20" : "hover:bg-accent/5 text-muted hover:text-accent"
+                  )}
                 >
                   <BookOpen className="w-5 h-5" />
                   Библиотека
+                </button>
+
+                <button 
+                  onClick={() => {
+                    reset();
+                    setShowStats(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className={cn(
+                    "w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold uppercase tracking-[0.2em] text-[10px]",
+                    showStats ? "bg-accent text-white shadow-lg shadow-accent/20" : "hover:bg-accent/5 text-muted hover:text-accent"
+                  )}
+                >
+                  <Trophy className="w-5 h-5" />
+                  Мой путь
                 </button>
 
                 <button 
@@ -2701,56 +2683,32 @@ function AppContent() {
                     setShowFeedbackForm(true);
                     setShowMobileMenu(false);
                   }}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-[0.2em] text-[10px]"
                 >
                   <MessageSquare className="w-5 h-5" />
-                  Отзывы
+                  Обратная связь
                 </button>
-
-                {!selectedScenario ? (
-                  <button 
-                    onClick={() => {
-                      setShowStats(!showStats);
-                      setShowMobileMenu(false);
-                    }}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
-                  >
-                    <Trophy className="w-5 h-5 text-amber-500" />
-                    Мой путь
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => {
-                      reset();
-                      setShowMobileMenu(false);
-                    }}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                    Назад
-                  </button>
-                )}
 
                 {deferredPrompt && (
                   <button 
                     onClick={handleInstallClick}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-accent/10 text-accent hover:bg-accent hover:text-white transition-all font-bold uppercase tracking-widest text-[10px] mt-4"
+                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all font-bold uppercase tracking-[0.2em] text-[10px] mt-6"
                   >
                     <Sparkles className="w-5 h-5" />
-                    Установить приложение
+                    Установить PWA
                   </button>
                 )}
               </div>
 
-              <div className="pt-6 border-t border-border mt-auto">
+              <div className="pt-8 border-t border-border mt-8 space-y-2">
                 <button 
                   onClick={() => {
                     setShowAgreement(true);
                     setShowMobileMenu(false);
                   }}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
+                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted/60 hover:text-accent transition-all font-bold uppercase tracking-[0.2em] text-[9px]"
                 >
-                  <ShieldCheck className="w-5 h-5" />
+                  <ShieldCheck className="w-4 h-4" />
                   Соглашение
                 </button>
 
@@ -2759,10 +2717,10 @@ function AppContent() {
                     handleLogout();
                     setShowMobileMenu(false);
                   }}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-rose-500/5 text-muted hover:text-rose-500 transition-all font-bold uppercase tracking-widest text-[10px]"
+                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-rose-500/5 text-rose-500 transition-all font-bold uppercase tracking-[0.2em] text-[9px]"
                 >
-                  <LogOut className="w-5 h-5" />
-                  Выйти
+                  <LogOut className="w-4 h-4" />
+                  Выйти из системы
                 </button>
               </div>
             </motion.div>
@@ -3013,57 +2971,6 @@ function AppContent() {
           ))}
         </AnimatePresence>
       </div>
-        {/* Mobile Bottom Navigation */}
-        {user && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border px-6 py-3 pb-safe flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
-            <button 
-              onClick={reset}
-              className={cn(
-                "flex flex-col items-center gap-1 transition-all",
-                !selectedScenario && !showLibrary && !showStats ? "text-accent scale-110" : "text-muted"
-              )}
-            >
-              <Home className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Главная</span>
-            </button>
-            
-            <button 
-              onClick={() => {
-                reset();
-                setShowLibrary(true);
-              }}
-              className={cn(
-                "flex flex-col items-center gap-1 transition-all",
-                showLibrary ? "text-accent scale-110" : "text-muted"
-              )}
-            >
-              <BookOpen className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Знания</span>
-            </button>
-
-            <button 
-              onClick={() => {
-                reset();
-                setShowStats(true);
-              }}
-              className={cn(
-                "flex flex-col items-center gap-1 transition-all",
-                showStats ? "text-accent scale-110" : "text-muted"
-              )}
-            >
-              <Trophy className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Путь</span>
-            </button>
-
-            <button 
-              onClick={() => setShowMobileMenu(true)}
-              className="flex flex-col items-center gap-1 text-muted"
-            >
-              <Menu className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Меню</span>
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
