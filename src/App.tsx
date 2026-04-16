@@ -85,6 +85,10 @@ import {
 } from 'firebase/firestore';
 
 import { auth, db } from './firebase';
+
+const APP_URL = "https://ais-dev-ygg54zzh4qzctmlmj4kol2-170190464031.europe-west2.run.app";
+const API_BASE = window.location.hostname === 'localhost' ? '' : APP_URL;
+
 import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
 import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
 import { getChatResponse, getFeedback, getResponseOptions, getInitialMessage } from './services/gemini';
@@ -310,7 +314,7 @@ function AppContent() {
 
     setLoadingItemId(articleId);
     try {
-      const response = await fetch('/api/payments/create', {
+      const response = await fetch(`${API_BASE}/api/payments/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -604,7 +608,7 @@ function AppContent() {
     setLoadingItemId('subscription');
     try {
       const priceValue = parseFloat(plan.price.replace(/[^0-9.]/g, ''));
-      const response = await fetch('/api/payments/create', {
+      const response = await fetch(`${API_BASE}/api/payments/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
