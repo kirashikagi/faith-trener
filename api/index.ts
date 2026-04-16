@@ -66,8 +66,18 @@ async function getDb() {
 }
 
 // Ping endpoint
-app.get("/api/ping", (req, res) => {
-  res.json({ status: "ok", env: Object.keys(process.env).filter(k => !k.includes('KEY') && !k.includes('SECRET')) });
+app.get("/api/payments/test-config", async (req, res) => {
+  const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
+  const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
+  
+  res.json({
+    shopIdPresent: !!shopId,
+    secretKeyPresent: !!secretKey,
+    shopIdLength: shopId.length,
+    secretKeyPrefix: secretKey ? secretKey.substring(0, 5) + '...' : 'none',
+    nodeVersion: process.version,
+    envKeys: Object.keys(process.env).filter(k => k.startsWith('YOOKASSA'))
+  });
 });
 
 // YooKassa
@@ -115,6 +125,12 @@ app.get("/api/payments/status", async (req, res) => {
 app.post("/api/payments/create", async (req, res) => {
   try {
     const { amount, description, metadata, return_url } = req.body;
+    console.log("Payment creation request received:", { amount, description, metadata, return_url });
+    
+    if (!amount || isNaN(Number(amount))) {
+      return res.status(400).json({ error: "Некорректная сумма платежа" });
+    }
+
     const checkout = await getCheckout();
     
     if (!checkout) {
@@ -130,26 +146,31 @@ app.post("/api/payments/create", async (req, res) => {
       });
     }
 
-    console.log("Creating payment for amount:", amount, "description:", description);
+    const value = Number(amount).toFixed(2);
+    console.log(`Creating YooKassa payment for amount: ${value} RUB, description: ${description}`);
+    
     const payment = await checkout.createPayment({
-      amount: { value: Number(amount).toFixed(2), currency: 'RUB' },
+      amount: { value, currency: 'RUB' },
       payment_method_data: { type: 'bank_card' },
       confirmation: { type: 'redirect', return_url: return_url || 'https://vera.plus' },
-      description,
+      description: description || 'Оплата услуг',
       metadata,
       capture: true
     });
     
-    console.log("Payment created successfully:", payment.id);
+    console.log("YooKassa payment created successfully. ID:", payment.id);
+    
     if (payment.confirmation && payment.confirmation.confirmation_url) {
       res.json({ confirmation_url: payment.confirmation.confirmation_url });
     } else {
-      console.error("Payment created but no confirmation URL found:", payment);
-      res.status(500).json({ error: "No confirmation URL returned from YooKassa." });
+      console.error("Payment created but no confirmation URL found. Response:", JSON.stringify(payment));
+      res.status(500).json({ error: "ЮKassa не вернула ссылку для подтверждения платежа." });
     }
   } catch (error: any) {
-    console.error("Payment error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("YooKassa Payment Error:", error);
+    res.status(500).json({ 
+      error: error.message || "Произошла непредвиденная ошибка при создании платежа" 
+    });
   }
 });
 

@@ -321,11 +321,18 @@ function AppContent() {
         })
       });
       
-      const data = await response.json();
-      if (data.confirmation_url) {
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Сервер вернул невалидный JSON (${response.status}): ${text.substring(0, 100)}...`);
+      }
+
+      if (response.ok && data.confirmation_url) {
         window.location.href = data.confirmation_url;
       } else {
-        throw new Error(data.error || "Не удалось создать платеж");
+        throw new Error(data.error || `Ошибка сервера (${response.status}): ${text.substring(0, 100)}`);
       }
     } catch (error: any) {
       console.error("Error buying article:", error);
@@ -608,11 +615,18 @@ function AppContent() {
         })
       });
       
-      const data = await response.json();
-      if (data.confirmation_url) {
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Сервер вернул невалидный JSON (${response.status}): ${text.substring(0, 100)}...`);
+      }
+
+      if (response.ok && data.confirmation_url) {
         window.location.href = data.confirmation_url;
       } else {
-        throw new Error(data.error || "Не удалось создать платеж");
+        throw new Error(data.error || `Ошибка сервера (${response.status}): ${text.substring(0, 100)}`);
       }
     } catch (error: any) {
       console.error("Error buying subscription:", error);
