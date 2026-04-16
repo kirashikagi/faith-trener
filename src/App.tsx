@@ -163,7 +163,6 @@ function AppContent() {
   const [adminTab, setAdminTab] = useState<'feedback' | 'system'>('feedback');
   const [librarySearch, setLibrarySearch] = useState('');
   const [libraryCategory, setLibraryCategory] = useState('Все');
-  const [showLibrary, setShowLibrary] = useState(false);
   const [viewingSession, setViewingSession] = useState<SessionRecord | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<LibraryArticle | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
@@ -270,7 +269,6 @@ function AppContent() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [options, setOptions] = useState<ResponseOption[]>([]);
-  const [showStats, setShowStats] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
@@ -401,7 +399,7 @@ function AppContent() {
     testConnection();
 
     window.scrollTo(0, 0);
-  }, [user, selectedScenario, showStats, showLibrary, showAdmin]);
+  }, [user, selectedScenario, showAdmin]);
 
   useEffect(() => {
     let profileUnsubscribe: (() => void) | null = null;
@@ -1458,73 +1456,74 @@ function AppContent() {
                 </motion.p>
               </div>
 
-            <div className="space-y-6">
-              <button
-                onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center space-x-3 minimal-button bg-white text-black border border-border hover:bg-gray-50"
-              >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
-                <span>Войти через Google</span>
-              </button>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border"></div>
-                </div>
-                <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
-                  <span className="bg-card px-3 text-muted">или по имени</span>
-                </div>
-              </div>
-
-              <form onSubmit={handleAuth} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Имя</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
-                  placeholder="Ваше имя"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Пароль</label>
-                <input 
-                  type="password" 
-                  required 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
-                  placeholder="••••••••"
-                />
-              </div>
-
-              {authError && (
-                <div className="text-rose-500 text-[10px] font-bold text-center bg-rose-500/5 p-3 rounded-xl border border-rose-500/10">
-                  {authError}
-                </div>
-              )}
-
-              <button 
-                type="submit"
-                className="sber-button w-full"
-              >
-                {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
-              </button>
-
-              <div className="text-center pt-2 space-y-4">
-                <button 
-                  type="button"
-                  onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                  className="text-[10px] font-bold text-muted hover:text-accent uppercase tracking-widest transition-colors block w-full"
+              <div className="space-y-6">
+                <button
+                  onClick={handleGoogleLogin}
+                  className="w-full flex items-center justify-center space-x-3 minimal-button bg-white text-black border border-border hover:bg-gray-50"
                 >
-                  {authMode === 'login' ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Вход'}
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+                  <span>Войти через Google</span>
                 </button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+                    <span className="bg-card px-3 text-muted">или по имени</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAuth} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Имя</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
+                      placeholder="Ваше имя"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Пароль</label>
+                    <input 
+                      type="password" 
+                      required 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
+                      placeholder="••••••••"
+                    />
+                  </div>
+
+                  {authError && (
+                    <div className="text-rose-500 text-[10px] font-bold text-center bg-rose-500/5 p-3 rounded-xl border border-rose-500/10">
+                      {authError}
+                    </div>
+                  )}
+
+                  <button 
+                    type="submit"
+                    className="sber-button w-full"
+                  >
+                    {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
+                  </button>
+
+                  <div className="text-center pt-2 space-y-4">
+                    <button 
+                      type="button"
+                      onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+                      className="text-[10px] font-bold text-muted hover:text-accent uppercase tracking-widest transition-colors block w-full"
+                    >
+                      {authMode === 'login' ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Вход'}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
-          </motion.div>
-        </div>
+            </motion.div>
+          </div>
       ) : (showIntro && localStorage.getItem(`vera_intro_seen_${user?.uid}`) !== 'true') ? (
           <div className="min-h-screen flex items-center justify-center p-6 sm:p-12 relative overflow-hidden">
             <motion.div 
@@ -1859,444 +1858,15 @@ function AppContent() {
           </motion.div>
         )}
         <AnimatePresence mode="wait">
-          {showStats ? (
-            <motion.div 
-              key="stats"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-10 max-w-4xl mx-auto pb-20"
-            >
-              {viewingSession ? (
-                <div className="space-y-10">
-                  <button 
-                    onClick={() => setViewingSession(null)}
-                    className="flex items-center gap-2 text-accent font-bold text-[10px] uppercase tracking-[0.2em] hover:opacity-70 transition-all w-fit"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Назад к статистике
-                  </button>
-
-                  <div className="sber-card p-10 space-y-10">
-                    <div className="flex items-center justify-between border-b border-border pb-8">
-                      <div className="flex items-center gap-6">
-                        <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
-                          {ScenarioIcons[SCENARIOS.find(s => s.id === viewingSession.scenarioId)?.icon || 'MessageCircle']}
-                        </div>
-                        <div>
-                          <h3 className="text-2xl font-serif text-fg">
-                            {SCENARIOS.find(s => s.id === viewingSession.scenarioId)?.title || 'Удаленный сценарий'}
-                          </h3>
-                          <p className="text-muted text-xs font-bold uppercase tracking-widest mt-1">
-                            {viewingSession.createdAt && typeof (viewingSession.createdAt as any).toDate === 'function' 
-                              ? (viewingSession.createdAt as any).toDate().toLocaleString('ru-RU') 
-                              : new Date(viewingSession.createdAt).toLocaleString('ru-RU')}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mb-1">Оценка</div>
-                        <div className="text-4xl font-black text-accent">{viewingSession.score * 10}%</div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-8 py-4">
-                      {viewingSession.messages && viewingSession.messages.length > 0 ? (
-                        viewingSession.messages.map((m, i) => (
-                          <div key={i} className={cn(
-                            "flex flex-col max-w-[85%]",
-                            m.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
-                          )}>
-                            <div className={cn(
-                              "p-5 rounded-2xl text-sm leading-relaxed font-medium",
-                              m.role === 'user' 
-                                ? "bg-accent text-white rounded-tr-none" 
-                                : "bg-card border border-border text-fg rounded-tl-none shadow-sm"
-                            )}>
-                              {m.text}
-                            </div>
-                            <div className="text-[9px] text-muted/50 mt-2 font-bold uppercase tracking-widest">
-                              {m.role === 'user' ? 'Вы' : 'Собеседник'}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-20 text-muted italic font-medium opacity-60">Переписка не сохранена для этого сеанса</div>
-                      )}
-                    </div>
-
-                    <div className="pt-10 border-t border-border">
-                      <div className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mb-6">Анализ диалога</div>
-                      <div className="p-8 bg-accent/5 border border-accent/10 rounded-2xl text-fg/90 italic leading-relaxed font-medium">
-                        {viewingSession.detailedAnalysis}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-4xl font-serif text-fg tracking-tight">Ваш путь</h2>
-                      <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Путь к совершенству в общении</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={() => {
-                          const text = `Мой прогресс в приложении "Вера +1":\nВсего сессий: ${stats.totalSessions}\nСредний балл: ${stats.averageScore.toFixed(1)}\nДостижений: ${stats.achievements.filter(a => a.unlocked).length}\n\nПрисоединяйся к обучению!`;
-                          navigator.clipboard.writeText(text);
-                          addNotification("Прогресс скопирован!", 'success');
-                        }}
-                        className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm"
-                      >
-                        <Share2 className="w-5 h-5" />
-                      </button>
-                      <button 
-                        onClick={() => setShowStats(false)} 
-                        className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm uppercase tracking-[0.1em] text-[10px] font-bold"
-                      >
-                        Закрыть
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="sber-card">
-                      <div className="text-muted mb-2 font-bold text-[10px] uppercase tracking-[0.2em]">Всего сессий</div>
-                      <div className="text-3xl font-bold text-fg tracking-tight">{stats.totalSessions}</div>
-                    </div>
-                    <div className="sber-card">
-                      <div className="text-muted mb-2 font-bold text-[10px] uppercase tracking-[0.2em]">Средний балл</div>
-                      <div className="text-3xl font-bold text-fg tracking-tight">{stats.averageScore.toFixed(1)}</div>
-                    </div>
-                    <div className="sber-card">
-                      <div className="text-muted mb-2 font-bold text-[10px] uppercase tracking-[0.2em]">Достижения</div>
-                      <div className="text-3xl font-bold text-fg tracking-tight">{stats.achievements.filter(a => a.unlocked).length}/{stats.achievements.length}</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-4">
-                      <div className="h-[1px] flex-1 bg-border" />
-                      <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Прогресс навыков</h3>
-                      <div className="h-[1px] flex-1 bg-border" />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {['Вера', 'Жизнь', 'Кризис'].map(cat => {
-                        const catSessions = sessions.filter(s => {
-                          const scenario = SCENARIOS.find(sc => sc.id === s.scenarioId);
-                          return scenario?.category === cat;
-                        });
-                        const avgScore = catSessions.length > 0 
-                          ? catSessions.reduce((acc, s) => acc + s.score, 0) / catSessions.length 
-                          : 0;
-                        
-                        return (
-                          <div key={cat} className="sber-card !p-6 space-y-4">
-                            <div className="flex justify-between items-end">
-                              <div className="text-[10px] font-bold text-muted uppercase tracking-widest">{cat}</div>
-                              <div className="text-xl font-serif text-accent">{avgScore.toFixed(1)}</div>
-                            </div>
-                            <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                              <motion.div 
-                                initial={{ width: 0 }}
-                                animate={{ width: `${(avgScore / 10) * 100}%` }}
-                                className="h-full bg-accent"
-                              />
-                            </div>
-                            <div className="text-[8px] text-muted font-bold uppercase tracking-tighter">
-                              {catSessions.length} сессий пройдено
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-4">
-                      <div className="h-[1px] flex-1 bg-border" />
-                      <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Достижения</h3>
-                      <div className="h-[1px] flex-1 bg-border" />
-                    </div>
-                    
-                    <div className="relative">
-                      {!isSubscribed && (
-                        <div className="absolute inset-0 bg-bg/60 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-12 text-center rounded-[2.5rem] border border-border/50">
-                          <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
-                            <Lock className="w-8 h-8" />
-                          </div>
-                          <h4 className="text-xl font-bold text-fg mb-3 tracking-tight">Достижения и история</h4>
-                          <p className="text-muted text-sm max-w-xs mb-8 font-medium">Оформите подписку, чтобы видеть свои награды и полный архив сессий.</p>
-                          <button 
-                            onClick={() => setShowSubscription(true)}
-                            className="sber-button"
-                          >
-                            Узнать больше
-                          </button>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {stats.achievements.map((achievement, idx) => {
-                          const isLockedForFree = !isSubscribed && idx >= 3;
-                          return (
-                            <div 
-                              key={achievement.id} 
-                              className={cn(
-                                "sber-card !p-6 flex flex-col items-center text-center gap-3 transition-all relative overflow-hidden",
-                                achievement.unlocked && !isLockedForFree ? "border-accent/30 bg-accent/5" : "opacity-40 grayscale"
-                              )}
-                            >
-                              {isLockedForFree && (
-                                <div className="absolute inset-0 bg-bg/40 backdrop-blur-[2px] flex items-center justify-center z-10">
-                                  <Lock className="w-5 h-5 text-accent" />
-                                </div>
-                              )}
-                              <div className={cn(
-                                "w-12 h-12 rounded-xl flex items-center justify-center border",
-                                achievement.unlocked && !isLockedForFree ? "bg-accent text-white border-accent/20" : "bg-bg text-muted border-border"
-                              )}>
-                                {AchievementIcons[achievement.icon]}
-                              </div>
-                              <div className="space-y-1">
-                                <div className="text-[11px] font-bold text-fg tracking-tight leading-tight">
-                                  {isLockedForFree ? 'Премиум' : achievement.title}
-                                </div>
-                                <div className="text-[9px] text-muted font-medium leading-tight">
-                                  {isLockedForFree ? 'Доступно в подписке' : achievement.description}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-4">
-                      <div className="h-[1px] flex-1 bg-border" />
-                      <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">История сессий</h3>
-                      <div className="h-[1px] flex-1 bg-border" />
-                    </div>
-                    
-                    <div className="space-y-4">
-                      {sessions.length === 0 ? (
-                        <div className="sber-card p-16 text-center text-muted font-medium italic opacity-60">
-                          Здесь будет отображаться история ваших тренировок
-                        </div>
-                      ) : (
-                        <div className="grid gap-4">
-                          {sessions.map((session) => {
-                            const scenario = SCENARIOS.find(s => s.id === session.scenarioId);
-                            
-                            return (
-                              <button 
-                                key={session.id}
-                                onClick={() => setViewingSession(session)}
-                                className="sber-card !p-6 flex items-center justify-between gap-4 transition-all relative overflow-hidden text-left w-full hover:border-accent/30 cursor-pointer active:scale-[0.98]"
-                              >
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center border border-accent/20">
-                                    {scenario ? ScenarioIcons[scenario.icon] || <MessageSquare className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
-                                  </div>
-                                  <div className="space-y-1">
-                                    <div className="text-[11px] font-bold text-fg tracking-tight leading-tight">
-                                      {scenario?.title || 'Неизвестный сценарий'}
-                                    </div>
-                                    <div className="text-[9px] text-muted font-medium">
-                                      {(() => {
-                                        const date = session.createdAt && (session.createdAt as any).toDate 
-                                          ? (session.createdAt as any).toDate() 
-                                          : new Date(session.createdAt);
-                                        return `${date.toLocaleDateString()} • ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                                      })()}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-xl font-serif text-accent">{session.score}/10</div>
-                                  <div className="text-[8px] font-bold text-muted uppercase tracking-widest">Балл</div>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          ) : !selectedScenario ? (
-            <motion.div 
-              key="selector"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-12"
-            >
-              <div className="text-center space-y-4 max-w-2xl mx-auto mb-12">
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="glass-card bg-accent/5 border-accent/20 mb-16 relative overflow-hidden group"
-                >
-                  <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform">
-                    <Sparkles className="w-20 h-20 text-accent" />
-                  </div>
-                  <div className="text-[11px] font-bold text-accent uppercase tracking-[0.4em] mb-6">Интересный факт</div>
-                  <motion.p 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5, duration: 1 }}
-                    className="text-2xl sm:text-3xl font-medium text-fg italic leading-tight tracking-tight"
-                  >
-                    {dailyFact}
-                  </motion.p>
-                </motion.div>
-
-                <h2 className="text-4xl sm:text-5xl font-serif text-fg tracking-tight leading-tight">
-                  Выберите <span className="text-accent italic">собеседника</span>
-                </h2>
-                <p className="text-base text-muted font-medium leading-relaxed max-w-lg mx-auto">
-                  Практикуйтесь в общении с разными людьми, каждый из которых имеет свой характер и вопросы.
-                </p>
-              </div>
-
-      <div className="flex-1 app-scroll pb-24">
-        {activeTab === 'home' && (
-          <div className="max-w-7xl mx-auto px-6 py-12">
-            <header className="mb-16 text-center">
-              <motion.h2 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-4xl font-serif mb-4"
+          {selectedScenario ? (
+            feedback ? (
+              <motion.div 
+                key="feedback"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", damping: 20 }}
+                className="sber-card max-w-4xl mx-auto overflow-hidden !p-0"
               >
-                Выберите собеседника
-              </motion.h2>
-              <motion.p 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-muted italic"
-              >
-                Практика духовного общения в безопасной среде
-              </motion.p>
-            </header>
-
-            <div className="flex items-center justify-center gap-4 mb-12 overflow-x-auto no-scrollbar">
-              {[
-                { id: 'all', label: 'Все' },
-                { id: 'faith', label: 'Вера' },
-                { id: 'life', label: 'Жизнь' },
-                { id: 'crisis', label: 'Кризис' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setFilter(tab.id as any)}
-                  className={cn(
-                    "px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all",
-                    filter === tab.id ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-card/50 text-muted hover:text-fg"
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {SCENARIOS.filter(s => filter === 'all' || s.category === filter).map((scenario) => (
-                <motion.button
-                  key={scenario.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ y: -4 }}
-                  onClick={() => startScenario(scenario)}
-                  className="dossier-card text-left flex flex-col h-full group"
-                >
-                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-6">
-                    <img 
-                      src={scenario.backgroundUrl} 
-                      alt={scenario.title}
-                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-[8px] text-white/80 uppercase tracking-widest font-bold">Активен</span>
-                      </div>
-                      <h3 className="text-xl font-serif text-white leading-tight">{scenario.title}</h3>
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1 flex flex-col">
-                    <p className="text-sm text-muted leading-relaxed mb-6 line-clamp-3 italic">
-                      {scenario.description}
-                    </p>
-                    
-                    <div className="mt-auto flex items-center justify-between pt-4 border-t border-border/50">
-                      <div className="flex items-center gap-2">
-                        {ScenarioIcons[scenario.icon as string]}
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-muted">
-                          {scenario.difficulty === 'easy' ? 'Легко' : scenario.difficulty === 'medium' ? 'Средне' : 'Сложно'}
-                        </span>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-accent transition-transform group-hover:translate-x-1" />
-                    </div>
-                  </div>
-                </motion.button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'library' && (
-          <div className="max-w-7xl mx-auto px-6 py-12">
-            <header className="mb-16 text-center">
-              <h2 className="text-4xl font-serif mb-4">Библиотека знаний</h2>
-              <p className="text-muted italic">Глубокие смыслы и практические советы</p>
-            </header>
-            {/* Library content will be rendered here */}
-            {renderLibrary()}
-          </div>
-        )}
-
-        {activeTab === 'stats' && (
-          <div className="max-w-7xl mx-auto px-6 py-12">
-            <header className="mb-16 text-center">
-              <h2 className="text-4xl font-serif mb-4">Ваш путь</h2>
-              <p className="text-muted italic">Прогресс и достижения</p>
-            </header>
-            {/* Stats content will be rendered here */}
-            {renderStats()}
-          </div>
-        )}
-
-        {activeTab === 'settings' && (
-          <div className="max-w-7xl mx-auto px-6 py-12">
-            <header className="mb-16 text-center">
-              <h2 className="text-4xl font-serif mb-4">Профиль</h2>
-              <p className="text-muted italic">Настройки и аккаунт</p>
-            </header>
-            {/* Profile content will be rendered here */}
-            {renderProfile()}
-          </div>
-        )}
-      </div>
-            </motion.div>
-          ) : feedback ? (
-            <motion.div 
-              key="feedback"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: "spring", damping: 20 }}
-              className="sber-card max-w-4xl mx-auto overflow-hidden !p-0"
-            >
               <div className="bg-accent p-12 text-white text-center relative overflow-hidden">
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.5 }}
@@ -2725,6 +2295,135 @@ function AppContent() {
                 </p>
               </div>
             </motion.div>
+          )) : (
+            <motion.div 
+              key="tabs"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex-1 flex flex-col min-h-0"
+            >
+              <div className="flex-1 app-scroll pb-24">
+                {activeTab === 'home' && (
+                  <div className="max-w-7xl mx-auto px-6 py-12">
+                    <header className="mb-16 text-center">
+                      <motion.h2 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-4xl font-serif mb-4"
+                      >
+                        Выберите собеседника
+                      </motion.h2>
+                      <motion.p 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="text-muted italic"
+                      >
+                        Практика духовного общения в безопасной среде
+                      </motion.p>
+                    </header>
+
+                    <div className="flex items-center justify-center gap-4 mb-12 overflow-x-auto no-scrollbar">
+                      {[
+                        { id: 'all', label: 'Все' },
+                        { id: 'faith', label: 'Вера' },
+                        { id: 'life', label: 'Жизнь' },
+                        { id: 'crisis', label: 'Кризис' }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setFilter(tab.id as any)}
+                          className={cn(
+                            "px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all",
+                            filter === tab.id ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-card/50 text-muted hover:text-fg"
+                          )}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {SCENARIOS.filter(s => filter === 'all' || s.category === filter).map((scenario) => (
+                        <motion.button
+                          key={scenario.id}
+                          layout
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          whileHover={{ y: -4 }}
+                          onClick={() => startScenario(scenario)}
+                          className="dossier-card text-left flex flex-col h-full group"
+                        >
+                          <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-6">
+                            <img 
+                              src={scenario.backgroundUrl} 
+                              alt={scenario.title}
+                              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                            <div className="absolute bottom-4 left-4 right-4">
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span className="text-[8px] text-white/80 uppercase tracking-widest font-bold">Активен</span>
+                              </div>
+                              <h3 className="text-xl font-serif text-white leading-tight">{scenario.title}</h3>
+                            </div>
+                          </div>
+                          
+                          <div className="flex-1 flex flex-col">
+                            <p className="text-sm text-muted leading-relaxed mb-6 line-clamp-3 italic">
+                              {scenario.description}
+                            </p>
+                            
+                            <div className="mt-auto flex items-center justify-between pt-4 border-t border-border/50">
+                              <div className="flex items-center gap-2">
+                                {ScenarioIcons[scenario.icon as string]}
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-muted">
+                                  {scenario.difficulty === 'easy' ? 'Легко' : scenario.difficulty === 'medium' ? 'Средне' : 'Сложно'}
+                                </span>
+                              </div>
+                              <ArrowRight className="w-4 h-4 text-accent transition-transform group-hover:translate-x-1" />
+                            </div>
+                          </div>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'library' && (
+                  <div className="max-w-7xl mx-auto px-6 py-12">
+                    <header className="mb-16 text-center">
+                      <h2 className="text-4xl font-serif mb-4">Библиотека знаний</h2>
+                      <p className="text-muted italic">Глубокие смыслы и практические советы</p>
+                    </header>
+                    {renderLibrary()}
+                  </div>
+                )}
+
+                {activeTab === 'stats' && (
+                  <div className="max-w-7xl mx-auto px-6 py-12">
+                    <header className="mb-16 text-center">
+                      <h2 className="text-4xl font-serif mb-4">Ваш путь</h2>
+                      <p className="text-muted italic">Прогресс и достижения</p>
+                    </header>
+                    {renderStats()}
+                  </div>
+                )}
+
+                {activeTab === 'settings' && (
+                  <div className="max-w-7xl mx-auto px-6 py-12">
+                    <header className="mb-16 text-center">
+                      <h2 className="text-4xl font-serif mb-4">Профиль</h2>
+                      <p className="text-muted italic">Настройки и аккаунт</p>
+                    </header>
+                    {renderProfile()}
+                  </div>
+                )}
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </>
@@ -2815,210 +2514,6 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {/* Library Modal */}
-      <AnimatePresence>
-        {showLibrary && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-bg app-scroll"
-          >
-            <div className="max-w-5xl mx-auto p-6 sm:p-12">
-              <div className="flex items-center justify-between mb-16">
-                <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
-                    <BookOpen className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-semibold text-fg tracking-tight">Библиотека знаний</h2>
-                    <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Мудрость и практика духовного общения</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setShowLibrary(false)}
-                  className="p-4 bg-card border border-border text-muted rounded-2xl hover:border-accent hover:text-accent transition-all shadow-sm group"
-                >
-                  <ChevronLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
-                </button>
-              </div>
-
-              <div className="mb-12 space-y-8">
-                <div className="relative">
-                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
-                  <input 
-                    type="text"
-                    placeholder="Поиск по статьям..."
-                    value={librarySearch}
-                    onChange={(e) => setLibrarySearch(e.target.value)}
-                    className="w-full bg-card border border-border rounded-2xl py-5 pl-16 pr-8 text-fg placeholder:text-muted focus:border-accent focus:ring-1 focus:ring-accent transition-all outline-none shadow-sm"
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  {['Все', 'Теория', 'Практика', 'История', 'Философия', 'Теология'].map(cat => (
-                    <button
-                      key={cat}
-                      onClick={() => setLibraryCategory(cat)}
-                      className={cn(
-                        "px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
-                        libraryCategory === cat 
-                          ? "bg-accent text-white shadow-lg shadow-accent/20" 
-                          : "bg-card border border-border text-muted hover:text-fg"
-                      )}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {LIBRARY_ARTICLES
-                    .filter(a => {
-                      const matchesSearch = a.title.toLowerCase().includes(librarySearch.toLowerCase()) || 
-                                          a.description.toLowerCase().includes(librarySearch.toLowerCase());
-                      const matchesCategory = libraryCategory === 'Все' || a.category === libraryCategory;
-                      return matchesSearch && matchesCategory;
-                    })
-                    .map((article, idx) => {
-                    const isPurchased = userProfile?.purchasedArticles?.includes(article.id);
-                    const canRead = !article.isPremium || isPurchased || isSubscribed;
-
-                    return (
-                      <motion.div 
-                        key={article.id} 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        className="sber-card relative group p-10 flex flex-col h-full bg-card/50 backdrop-blur-sm cursor-pointer overflow-hidden"
-                        onClick={() => {
-                          if (canRead) {
-                            setSelectedArticle(article);
-                          }
-                        }}
-                      >
-                        {article.isPremium && !isPurchased && !isSubscribed && (
-                          <div className="absolute inset-0 bg-bg/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-10 text-center rounded-2xl border border-border/50">
-                            <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
-                              <Lock className="w-7 h-7" />
-                            </div>
-                            <h4 className="font-bold text-fg mb-3 uppercase tracking-wider text-xs">Доступно после покупки</h4>
-                            <p className="text-muted text-xs mb-8 max-w-[200px] leading-relaxed">{article.description}</p>
-                            <div className="flex flex-col gap-3 w-full max-w-[200px]">
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  buyArticle(article.id);
-                                }}
-                                disabled={loadingItemId === article.id}
-                                className="sber-button py-3 px-8 text-xs flex items-center justify-center gap-2"
-                              >
-                                {loadingItemId === article.id ? (
-                                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : null}
-                                Купить за {article.price} ₽
-                              </button>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowSubscription(true);
-                                }}
-                                className="text-accent font-bold text-[10px] uppercase tracking-widest hover:underline"
-                              >
-                                Или по подписке
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] bg-accent/5 px-3 py-1 rounded-lg border border-accent/10">{article.category}</div>
-                          {article.isPremium && <Sparkles className="w-4 h-4 text-amber-500" />}
-                        </div>
-                        <h3 className="text-2xl font-semibold text-fg mb-6 tracking-tight leading-tight">{article.title}</h3>
-                        <p className="text-muted text-sm leading-relaxed font-medium opacity-90 flex-grow line-clamp-3">{article.description}</p>
-                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
-                          <span className="text-[9px] font-bold text-muted uppercase tracking-widest">5 мин чтения</span>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (canRead) {
-                                setSelectedArticle(article);
-                              }
-                            }}
-                            className="text-accent font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all"
-                          >
-                            {canRead ? 'Читать полностью' : 'Заблокировано'} <ArrowRight className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              
-              <div className="mt-20 text-center">
-                <button 
-                  onClick={() => setShowLibrary(false)}
-                  className="px-12 py-5 bg-card border border-border text-muted font-bold rounded-2xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.2em] text-xs shadow-sm"
-                >
-                  Вернуться на главную
-                </button>
-              </div>
-            </div>
-
-            {/* Article Detail View */}
-            <AnimatePresence>
-              {selectedArticle && (
-                <motion.div 
-                  initial={{ opacity: 0, x: 100 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 100 }}
-                  className="fixed inset-0 z-[110] bg-bg overflow-y-auto"
-                >
-                  <div className="max-w-3xl mx-auto p-6 sm:p-12">
-                    <button 
-                      onClick={() => setSelectedArticle(null)}
-                      className="mb-12 flex items-center gap-3 text-muted hover:text-accent transition-colors font-bold uppercase tracking-widest text-[10px]"
-                    >
-                      <ChevronLeft className="w-4 h-4" /> Назад в библиотеку
-                    </button>
-
-                    <div className="mb-10">
-                      <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] bg-accent/5 px-3 py-1 rounded-lg border border-accent/10 inline-block mb-6">
-                        {selectedArticle.category}
-                      </div>
-                      <h2 className="text-4xl sm:text-5xl font-semibold text-fg tracking-tight leading-tight mb-8">
-                        {selectedArticle.title}
-                      </h2>
-                      <div className="flex items-center gap-6 text-muted text-[10px] font-bold uppercase tracking-widest border-y border-border/50 py-6">
-                        <span className="flex items-center gap-2"><Clock className="w-3 h-3" /> 5 минут чтения</span>
-                        <span className="flex items-center gap-2"><BookOpen className="w-3 h-3" /> Теория и практика</span>
-                      </div>
-                    </div>
-
-                    <div className="prose prose-invert max-w-none">
-                      <div className="text-fg/90 text-lg leading-relaxed space-y-8 font-medium whitespace-pre-wrap">
-                        {selectedArticle.content}
-                      </div>
-                    </div>
-
-                    <div className="mt-20 pb-20 pt-12 border-t border-border flex flex-col items-center">
-                      <p className="text-muted text-xs font-bold uppercase tracking-[0.2em] mb-8">Понравилась статья?</p>
-                      <button 
-                        onClick={() => setSelectedArticle(null)}
-                        className="sber-button px-12 py-5"
-                      >
-                        Завершить чтение
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {showMobileMenu && (
@@ -3100,7 +2595,7 @@ function AppContent() {
                 {!selectedScenario ? (
                   <button 
                     onClick={() => {
-                      setShowStats(!showStats);
+                      setActiveTab('stats');
                       setShowMobileMenu(false);
                     }}
                     className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
@@ -3472,17 +2967,16 @@ function AppContent() {
             <button 
               onClick={() => {
                 reset();
-                setShowLibrary(false);
-                setShowStats(false);
+                setActiveTab('home');
               }}
               className={cn(
                 "flex flex-col items-center gap-1.5 transition-all relative",
-                !selectedScenario && !showLibrary && !showStats ? "text-accent" : "text-muted"
+                activeTab === 'home' && !selectedScenario ? "text-accent" : "text-muted"
               )}
             >
-              <Home className={cn("w-6 h-6 transition-transform", !selectedScenario && !showLibrary && !showStats ? "scale-110" : "")} />
+              <Home className={cn("w-6 h-6 transition-transform", activeTab === 'home' && !selectedScenario ? "scale-110" : "")} />
               <span className="text-[10px] font-bold uppercase tracking-widest">Главная</span>
-              {!selectedScenario && !showLibrary && !showStats && (
+              {activeTab === 'home' && !selectedScenario && (
                 <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
               )}
             </button>
@@ -3490,17 +2984,16 @@ function AppContent() {
             <button 
               onClick={() => {
                 reset();
-                setShowLibrary(true);
-                setShowStats(false);
+                setActiveTab('library');
               }}
               className={cn(
                 "flex flex-col items-center gap-1.5 transition-all relative",
-                showLibrary ? "text-accent" : "text-muted"
+                activeTab === 'library' ? "text-accent" : "text-muted"
               )}
             >
-              <BookOpen className={cn("w-6 h-6 transition-transform", showLibrary ? "scale-110" : "")} />
+              <BookOpen className={cn("w-6 h-6 transition-transform", activeTab === 'library' ? "scale-110" : "")} />
               <span className="text-[10px] font-bold uppercase tracking-widest">Знания</span>
-              {showLibrary && (
+              {activeTab === 'library' && (
                 <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
               )}
             </button>
@@ -3508,31 +3001,35 @@ function AppContent() {
             <button 
               onClick={() => {
                 reset();
-                setShowStats(true);
-                setShowLibrary(false);
+                setActiveTab('stats');
               }}
               className={cn(
                 "flex flex-col items-center gap-1.5 transition-all relative",
-                showStats ? "text-accent" : "text-muted"
+                activeTab === 'stats' ? "text-accent" : "text-muted"
               )}
             >
-              <Trophy className={cn("w-6 h-6 transition-transform", showStats ? "scale-110" : "")} />
+              <Trophy className={cn("w-6 h-6 transition-transform", activeTab === 'stats' ? "scale-110" : "")} />
               <span className="text-[10px] font-bold uppercase tracking-widest">Путь</span>
-              {showStats && (
+              {activeTab === 'stats' && (
                 <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
               )}
             </button>
 
             <button 
-              onClick={() => setShowMobileMenu(true)}
-              className="flex flex-col items-center gap-1.5 text-muted relative"
+              onClick={() => setActiveTab('settings')}
+              className={cn(
+                "flex flex-col items-center gap-1.5 transition-all relative",
+                activeTab === 'settings' ? "text-accent" : "text-muted"
+              )}
             >
-              <Menu className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Меню</span>
+              <User className={cn("w-6 h-6 transition-transform", activeTab === 'settings' ? "scale-110" : "")} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Профиль</span>
+              {activeTab === 'settings' && (
+                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
+              )}
             </button>
           </div>
         )}
       </div>
-    </div>
   );
 }
