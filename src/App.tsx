@@ -96,22 +96,22 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const AchievementIcons: Record<string, React.ReactNode> = {
-  Flag: <Flag className="w-6 h-6" />,
-  Sun: <Sun className="w-6 h-6" />,
-  Shield: <Shield className="w-6 h-6" />,
-  Heart: <Heart className="w-6 h-6" />,
-  Zap: <Zap className="w-6 h-6" />,
-  Smile: <Smile className="w-6 h-6" />,
+  Flag: <Compass className="w-5 h-5 stroke-[1.5]" />,
+  Sun: <Sparkles className="w-5 h-5 stroke-[1.5]" />,
+  Shield: <ShieldCheck className="w-5 h-5 stroke-[1.5]" />,
+  Heart: <Heart className="w-5 h-5 stroke-[1.5]" />,
+  Zap: <Zap className="w-5 h-5 stroke-[1.5]" />,
+  Smile: <Smile className="w-5 h-5 stroke-[1.5]" />,
 };
 
 const ScenarioIcons: Record<string, React.ReactNode> = {
-  Brain: <Brain className="w-6 h-6" />,
-  HeartOff: <HeartOff className="w-6 h-6" />,
-  Compass: <Compass className="w-6 h-6" />,
-  ShieldAlert: <ShieldAlert className="w-6 h-6" />,
-  Zap: <Zap className="w-6 h-6" />,
-  UserX: <UserX className="w-6 h-6" />,
-  MessageSquareX: <MessageSquareX className="w-6 h-6" />,
+  Brain: <Brain className="w-5 h-5 stroke-[1.5]" />,
+  HeartOff: <HeartOff className="w-5 h-5 stroke-[1.5]" />,
+  Compass: <Compass className="w-5 h-5 stroke-[1.5]" />,
+  ShieldAlert: <ShieldAlert className="w-5 h-5 stroke-[1.5]" />,
+  Zap: <Zap className="w-5 h-5 stroke-[1.5]" />,
+  UserX: <UserX className="w-5 h-5 stroke-[1.5]" />,
+  MessageSquareX: <MessageSquareX className="w-5 h-5 stroke-[1.5]" />,
 };
 
 export default function App() {
@@ -172,7 +172,17 @@ function AppContent() {
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [activeTab, setActiveTab] = useState<'home' | 'library' | 'stats' | 'settings'>('home');
+
+  const handleGoogleLogin = async () => {
+    setAuthError('');
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      setAuthError('Ошибка входа через Google: ' + error.message);
+    }
+  };
 
   const playClickSound = () => {
     try {
@@ -576,7 +586,142 @@ function AppContent() {
     }
   };
 
-  const buySubscription = async () => {
+  const renderLibrary = () => (
+    <div className="space-y-12">
+      <div className="flex items-center justify-center gap-2 overflow-x-auto no-scrollbar pb-2">
+        {['Все', 'Теория', 'Практика', 'История', 'Философия', 'Теология'].map(cat => (
+          <button
+            key={cat}
+            onClick={() => setLibraryCategory(cat)}
+            className={cn(
+              "px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
+              libraryCategory === cat ? "bg-accent text-white" : "bg-card/50 text-muted"
+            )}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {LIBRARY_ARTICLES
+          .filter(a => libraryCategory === 'Все' || a.category === libraryCategory)
+          .map((article) => {
+            const isPurchased = userProfile?.purchasedArticles?.includes(article.id) || isSubscribed;
+            return (
+              <motion.button
+                key={article.id}
+                onClick={() => setSelectedArticle(article)}
+                className="dossier-card text-left flex gap-6 group"
+              >
+                <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0">
+                  <img src={article.imageUrl} className="w-full h-full object-cover" alt={article.title} referrerPolicy="no-referrer" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[8px] font-bold uppercase tracking-widest text-accent">{article.category}</span>
+                    {!isPurchased && <Lock className="w-3 h-3 text-muted" />}
+                  </div>
+                  <h4 className="text-lg font-serif mb-2 truncate">{article.title}</h4>
+                  <p className="text-xs text-muted line-clamp-2 italic">{article.description}</p>
+                </div>
+              </motion.button>
+            );
+          })}
+      </div>
+    </div>
+  );
+
+  const renderStats = () => (
+    <div className="space-y-12">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Сессий', val: sessions.length, icon: <History /> },
+          { label: 'Средний балл', val: stats.averageScore, icon: <Star /> },
+          { label: 'Дней подряд', val: userProfile?.streak || 0, icon: <Flame /> },
+          { label: 'Достижений', val: stats.achievements.filter(a => a.unlocked).length, icon: <Trophy /> },
+        ].map((s, i) => (
+          <div key={i} className="glass-panel p-6 rounded-3xl text-center">
+            <div className="text-accent mb-3 flex justify-center opacity-50">{s.icon}</div>
+            <div className="text-2xl font-bold mb-1">{s.val}</div>
+            <div className="text-[8px] font-bold uppercase tracking-widest text-muted">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-6">
+        <h3 className="text-xl font-serif">История диалогов</h3>
+        <div className="space-y-4">
+          {sessions.map((session) => (
+            <button
+              key={session.id}
+              onClick={() => setViewingSession(session)}
+              className="w-full dossier-card flex items-center justify-between"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+                  {ScenarioIcons[SCENARIOS.find(s => s.id === session.scenarioId)?.icon || 'MessageCircle']}
+                </div>
+                <div className="text-left">
+                  <div className="font-medium">{SCENARIOS.find(s => s.id === session.scenarioId)?.title}</div>
+                  <div className="text-[10px] text-muted uppercase tracking-widest">
+                    {new Date(session.createdAt.seconds * 1000).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+              <div className="text-xl font-bold text-accent">{session.score}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderProfile = () => (
+    <div className="max-w-2xl mx-auto space-y-12">
+      <div className="text-center">
+        <div className="w-24 h-24 rounded-full bg-accent/10 mx-auto mb-6 flex items-center justify-center text-accent border border-accent/20">
+          <User className="w-12 h-12" />
+        </div>
+        <h3 className="text-2xl font-serif mb-1">{userProfile?.displayName}</h3>
+        <p className="text-muted text-sm">{userProfile?.email}</p>
+      </div>
+
+      <div className="space-y-4">
+        <button 
+          onClick={() => setShowSubscription(true)}
+          className="w-full dossier-card flex items-center justify-between group"
+        >
+          <div className="flex items-center gap-4">
+            <Crown className="w-5 h-5 text-yellow-500" />
+            <span className="font-medium">Управление подпиской</span>
+          </div>
+          <ChevronRight className="w-5 h-5 text-muted group-hover:translate-x-1 transition-transform" />
+        </button>
+
+        <button 
+          onClick={() => setShowFeedbackForm(true)}
+          className="w-full dossier-card flex items-center justify-between group"
+        >
+          <div className="flex items-center gap-4">
+            <MessageCircle className="w-5 h-5 text-accent" />
+            <span className="font-medium">Связаться с нами</span>
+          </div>
+          <ChevronRight className="w-5 h-5 text-muted group-hover:translate-x-1 transition-transform" />
+        </button>
+
+        <button 
+          onClick={handleLogout}
+          className="w-full dossier-card flex items-center justify-between group border-red-500/10"
+        >
+          <div className="flex items-center gap-4 text-red-500">
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Выйти из аккаунта</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
     if (!user || !userProfile) {
       setAuthMode('login');
       addNotification("Пожалуйста, войдите в систему, чтобы оформить подписку", 'error');
@@ -1313,7 +1458,25 @@ function AppContent() {
                 </motion.p>
               </div>
 
-            <form onSubmit={handleAuth} className="space-y-4">
+            <div className="space-y-6">
+              <button
+                onClick={handleGoogleLogin}
+                className="w-full flex items-center justify-center space-x-3 minimal-button bg-white text-black border border-border hover:bg-gray-50"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+                <span>Войти через Google</span>
+              </button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border"></div>
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+                  <span className="bg-card px-3 text-muted">или по имени</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleAuth} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Имя</label>
                 <input 
@@ -2002,92 +2165,129 @@ function AppContent() {
                 </p>
               </div>
 
-              <div className="flex items-center justify-center gap-2 mb-12 overflow-x-auto no-scrollbar pb-2">
-                {[
-                  { id: 'all', label: 'Все' },
-                  { id: 'faith', label: 'О вере' },
-                  { id: 'life', label: 'О жизни' },
-                  { id: 'crisis', label: 'Кризис' }
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setFilter(tab.id as any)}
-                    className={cn(
-                      "px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-                      filter === tab.id ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-bg border border-border text-muted hover:text-fg"
-                    )}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+      <div className="flex-1 app-scroll pb-24">
+        {activeTab === 'home' && (
+          <div className="max-w-7xl mx-auto px-6 py-12">
+            <header className="mb-16 text-center">
+              <motion.h2 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-4xl font-serif mb-4"
+              >
+                Выберите собеседника
+              </motion.h2>
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-muted italic"
+              >
+                Практика духовного общения в безопасной среде
+              </motion.p>
+            </header>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {SCENARIOS.filter(s => filter === 'all' || s.category === filter).map((scenario) => (
-                  <motion.button
-                    key={scenario.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ y: -8 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => startScenario(scenario)}
-                    className="group relative flex flex-col h-full bg-card border border-border rounded-[2.5rem] overflow-hidden transition-all hover:border-accent/30 hover:shadow-2xl hover:shadow-accent/5"
-                  >
-                    <div className="aspect-[4/3] relative overflow-hidden">
-                      <img 
-                        src={scenario.backgroundUrl} 
-                        alt={scenario.title}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
-                      
-                      <div className="absolute top-4 left-4 flex gap-2">
-                        <div className={cn(
-                          "px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest backdrop-blur-md border",
-                          scenario.difficulty === 'easy' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
-                          scenario.difficulty === 'medium' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
-                          "bg-rose-500/10 text-rose-500 border-rose-500/20"
-                        )}>
+            <div className="flex items-center justify-center gap-4 mb-12 overflow-x-auto no-scrollbar">
+              {[
+                { id: 'all', label: 'Все' },
+                { id: 'faith', label: 'Вера' },
+                { id: 'life', label: 'Жизнь' },
+                { id: 'crisis', label: 'Кризис' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilter(tab.id as any)}
+                  className={cn(
+                    "px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all",
+                    filter === tab.id ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-card/50 text-muted hover:text-fg"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {SCENARIOS.filter(s => filter === 'all' || s.category === filter).map((scenario) => (
+                <motion.button
+                  key={scenario.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ y: -4 }}
+                  onClick={() => startScenario(scenario)}
+                  className="dossier-card text-left flex flex-col h-full group"
+                >
+                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-6">
+                    <img 
+                      src={scenario.backgroundUrl} 
+                      alt={scenario.title}
+                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-[8px] text-white/80 uppercase tracking-widest font-bold">Активен</span>
+                      </div>
+                      <h3 className="text-xl font-serif text-white leading-tight">{scenario.title}</h3>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col">
+                    <p className="text-sm text-muted leading-relaxed mb-6 line-clamp-3 italic">
+                      {scenario.description}
+                    </p>
+                    
+                    <div className="mt-auto flex items-center justify-between pt-4 border-t border-border/50">
+                      <div className="flex items-center gap-2">
+                        {ScenarioIcons[scenario.icon as string]}
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-muted">
                           {scenario.difficulty === 'easy' ? 'Легко' : scenario.difficulty === 'medium' ? 'Средне' : 'Сложно'}
-                        </div>
-                        <div className="px-3 py-1 bg-white/10 text-white rounded-full text-[8px] font-bold uppercase tracking-widest backdrop-blur-md border border-white/20">
-                          {scenario.mode === 'chat' ? 'Диалог' : 'Критика'}
-                        </div>
+                        </span>
                       </div>
-
-                      <div className="absolute -bottom-6 left-6">
-                        <div className="w-16 h-16 rounded-2xl bg-accent text-white flex items-center justify-center shadow-xl border-4 border-card">
-                          {ScenarioIcons[scenario.icon as string]}
-                        </div>
-                      </div>
+                      <ArrowRight className="w-4 h-4 text-accent transition-transform group-hover:translate-x-1" />
                     </div>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        )}
 
-                    <div className="p-8 pt-10 flex flex-col flex-grow">
-                      <h3 className="text-2xl font-serif text-fg mb-3 group-hover:text-accent transition-colors leading-tight tracking-tight">
-                        {scenario.title}
-                      </h3>
-                      <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80 mb-8">
-                        {scenario.description}
-                      </p>
-                      
-                      <div className="flex items-center justify-between mt-auto pt-6 border-t border-border/50">
-                        <div className="flex -space-x-2">
-                          {[1, 2, 3].map(i => (
-                            <div key={i} className="w-6 h-6 rounded-full border-2 border-card bg-accent/10 flex items-center justify-center text-[8px] font-bold text-accent">
-                              {i}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="text-accent font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 group-hover:translate-x-1 transition-transform">
-                          Начать <ArrowRight className="w-3 h-3" />
-                        </div>
-                      </div>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
+        {activeTab === 'library' && (
+          <div className="max-w-7xl mx-auto px-6 py-12">
+            <header className="mb-16 text-center">
+              <h2 className="text-4xl font-serif mb-4">Библиотека знаний</h2>
+              <p className="text-muted italic">Глубокие смыслы и практические советы</p>
+            </header>
+            {/* Library content will be rendered here */}
+            {renderLibrary()}
+          </div>
+        )}
+
+        {activeTab === 'stats' && (
+          <div className="max-w-7xl mx-auto px-6 py-12">
+            <header className="mb-16 text-center">
+              <h2 className="text-4xl font-serif mb-4">Ваш путь</h2>
+              <p className="text-muted italic">Прогресс и достижения</p>
+            </header>
+            {/* Stats content will be rendered here */}
+            {renderStats()}
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="max-w-7xl mx-auto px-6 py-12">
+            <header className="mb-16 text-center">
+              <h2 className="text-4xl font-serif mb-4">Профиль</h2>
+              <p className="text-muted italic">Настройки и аккаунт</p>
+            </header>
+            {/* Profile content will be rendered here */}
+            {renderProfile()}
+          </div>
+        )}
+      </div>
             </motion.div>
           ) : feedback ? (
             <motion.div 
