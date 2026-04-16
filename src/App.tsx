@@ -3033,6 +3033,24 @@ function AppContent() {
           ))}
         </AnimatePresence>
       </div>
+      
+      {/* Network Diagnostic Button (Temporary) */}
+      <div className="fixed bottom-2 left-2 z-[200]">
+        <button 
+          onClick={async () => {
+            try {
+              const res = await fetch(`${API_BASE}/api/status`);
+              const data = await res.json();
+              alert(`Связь установлена! Статус: ${JSON.stringify(data)}`);
+            } catch (e: any) {
+              alert(`Ошибка связи: ${e.message}. Проверьте доступ к ${API_BASE}`);
+            }
+          }}
+          className="p-1 bg-black/5 hover:bg-black/10 text-[8px] text-gray-400 rounded transition-colors"
+        >
+          Проверить связь
+        </button>
+      </div>
       </div>
     </div>
   );

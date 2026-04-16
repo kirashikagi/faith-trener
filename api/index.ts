@@ -7,13 +7,19 @@ dotenv.config();
 
 const app = express();
 
-// Priority logging to track ALL requests
+// Absolute most permissive CORS policy for debugging
 app.use((req, res, next) => {
-  console.log(`[DEBUG] ${new Date().toISOString()} - ${req.method} ${req.url}`);
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
   next();
 });
 
-app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 // Diagnostic: Log all defined routes
