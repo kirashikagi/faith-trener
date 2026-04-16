@@ -86,6 +86,8 @@ import {
 
 import { auth, db } from './firebase';
 
+const API_BASE = "https://api.faith-trener.ru";
+
 import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
 import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
 import { getChatResponse, getFeedback, getResponseOptions, getInitialMessage } from './services/gemini';
@@ -311,7 +313,7 @@ function AppContent() {
 
     setLoadingItemId(articleId);
     try {
-      const response = await fetch('/api/payments/create', {
+      const response = await fetch(`${API_BASE}/api/payments/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -605,7 +607,7 @@ function AppContent() {
     setLoadingItemId('subscription');
     try {
       const priceValue = parseFloat(plan.price.replace(/[^0-9.]/g, ''));
-      const response = await fetch('/api/payments/create', {
+      const response = await fetch(`${API_BASE}/api/payments/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
