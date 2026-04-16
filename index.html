@@ -2,11 +2,15 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#5A5A40" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FDFCF8" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#151512" />
+    <meta name="theme-color" content="#0066FF" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Вера +1" />
     <script>
       console.log('PWA: Initializing...');
       
@@ -20,7 +24,7 @@
 
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(reg => {
+          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
             console.log('PWA: SW registered', reg.scope);
             
             // Check for updates
@@ -90,30 +94,8 @@
         </div>
       </div>
     </noscript>
-    <div id="root">
-      <div id="pwa-loader" style="height: 100vh; display: flex; align-items: center; justify-content: center; background: #FDFCF8; font-family: sans-serif; flex-direction: column; gap: 20px;">
-        <div style="width: 40px; height: 40px; border: 3px solid #5A5A4020; border-top-color: #5A5A40; border-radius: 50%; animate: spin 1s linear infinite;"></div>
-        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
-        <p style="color: #5A5A40; font-weight: 500; font-size: 14px; letter-spacing: 0.05em;">ЗАГРУЗКА ТРЕНАЖЁРА...</p>
-      </div>
-    </div>
-    <script>
-      // Функция для отображения ошибки, если основной скрипт не загрузился
-      window.handleScriptError = function() {
-        console.error('PWA: Failed to load main script');
-        const loader = document.getElementById('pwa-loader');
-        if (loader) {
-          loader.innerHTML = `
-            <div style='text-align: center; padding: 20px;'>
-              <h2 style='color: #ef4444; margin-bottom: 10px;'>Ошибка сети</h2>
-              <p style='color: #6b7280; margin-bottom: 20px; max-width: 300px;'>Не удалось загрузить компоненты приложения. Попробуйте включить VPN или обновить страницу.</p>
-              <button onclick='window.location.reload()' style='background: #5A5A40; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-weight: bold;'>Повторить</button>
-            </div>
-          `;
-        }
-      };
-    </script>
-    <script type="module" src="/src/main.tsx" onerror="window.handleScriptError()"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
 

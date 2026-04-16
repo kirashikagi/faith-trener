@@ -52,9 +52,8 @@ import {
   MessageCircle,
   Flame,
   Lightbulb,
-  UserMinus,
-  Microscope,
-  Briefcase,
+  Search,
+  Share2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -113,10 +112,6 @@ const ScenarioIcons: Record<string, React.ReactNode> = {
   Zap: <Zap className="w-6 h-6" />,
   UserX: <UserX className="w-6 h-6" />,
   MessageSquareX: <MessageSquareX className="w-6 h-6" />,
-  UserMinus: <UserMinus className="w-6 h-6" />,
-  Microscope: <Microscope className="w-6 h-6" />,
-  Briefcase: <Briefcase className="w-6 h-6" />,
-  Sparkles: <Sparkles className="w-6 h-6" />,
 };
 
 export default function App() {
@@ -166,44 +161,64 @@ function AppContent() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [systemStats, setSystemStats] = useState<{ users: number; feedback: number }>({ users: 0, feedback: 0 });
   const [adminTab, setAdminTab] = useState<'feedback' | 'system'>('feedback');
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [libraryCategory, setLibraryCategory] = useState('Все');
   const [showLibrary, setShowLibrary] = useState(false);
   const [viewingSession, setViewingSession] = useState<SessionRecord | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<LibraryArticle | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isAppLoading, setIsAppLoading] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-
-  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
-  const [paymentConfirmation, setPaymentConfirmation] = useState<{
-    type: 'article' | 'subscription';
-    id?: string;
-    title: string;
-    price: string | number;
-  } | null>(null);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [options, setOptions] = useState<ResponseOption[]>([]);
-  const [showStats, setShowStats] = useState(false);
-  const [isDialogueEnded, setIsDialogueEnded] = useState(false);
-  const [sessions, setSessions] = useState<SessionRecord[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
-      setIsStandalone(true);
+  const playClickSound = () => {
+    try {
+      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(150, context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(40, context.currentTime + 0.1);
+
+      gainNode.gain.setValueAtTime(0.1, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.1);
+    } catch (e) {
+      // Ignore audio errors
     }
-  }, []);
+    
+    // Also try native haptics if available
+    if ('vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
+  };
 
   useEffect(() => {
+    // Detect standalone mode
+    const checkStandalone = () => {
+      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
+                              (window.navigator as any).standalone === true || 
+                              document.referrer.includes('android-app://');
+      setIsStandalone(isStandaloneMode);
+    };
+
+    checkStandalone();
+    
+    // Simulate initial app loading for splash screen
+    const timer = setTimeout(() => {
+      setIsAppLoading(false);
+    }, 3000);
+
+    // PWA Install Prompt Logic
     const handler = (e: any) => {
       console.log('PWA: beforeinstallprompt event fired');
       e.preventDefault();
@@ -224,10 +239,34 @@ function AppContent() {
     window.addEventListener('appinstalled', installedHandler);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', installedHandler);
     };
   }, [isStandalone]);
+
+  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
+  const [filter, setFilter] = useState<'all' | 'faith' | 'life' | 'crisis'>('all');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+  const [paymentConfirmation, setPaymentConfirmation] = useState<{
+    type: 'article' | 'subscription';
+    id?: string;
+    title: string;
+    price: string | number;
+  } | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [options, setOptions] = useState<ResponseOption[]>([]);
+  const [showStats, setShowStats] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [isDialogueEnded, setIsDialogueEnded] = useState(false);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -340,14 +379,12 @@ function AppContent() {
     // Test connection to Firestore
     const testConnection = async () => {
       try {
-        // Try to get a document, but don't fail the whole app if it takes a bit
-        const testDoc = doc(db, '_connection_test', 'ping');
-        await getDocFromServer(testDoc);
+        await getDocFromServer(doc(db, '_connection_test', 'ping'));
         console.log("Firestore connection verified.");
       } catch (error: any) {
-        console.warn("Initial connection test failed, but we enabled compatibility mode:", error.message);
-        if (error.message?.includes('the client is offline') || error.message?.includes('failed-precondition')) {
-          addNotification("Загрузка может быть медленной. Мы включили режим совместимости для работы без VPN. Если ошибка сохранится, попробуйте VPN.", 'info');
+        if (error.message?.includes('the client is offline')) {
+          console.error("Firestore is offline. Check your configuration.");
+          addNotification("Ошибка подключения к базе данных. Проверьте настройки Firebase.", 'error');
         }
       }
     };
@@ -937,13 +974,14 @@ function AppContent() {
     try {
       const result = await getFeedback(messages, apiKey);
       
-      if (!result || (result.score === 0 && result.summary === "Ошибка при анализе диалога.")) {
-        throw new Error("Анализ диалога не удался. Проверьте API ключ.");
+      if (!result) {
+        throw new Error("Анализ диалога не удался. Пожалуйста, попробуйте еще раз.");
       }
 
       // Only unlock full feedback if subscribed
       const feedbackWithLock: Feedback = { ...result, isUnlocked: isSubscribed };
       setFeedback(feedbackWithLock);
+      setIsDialogueEnded(true); // Ensure it's marked as ended
 
       // Save to Firestore
       if (user && selectedScenario) {
@@ -952,13 +990,16 @@ function AppContent() {
             uid: user.uid,
             scenarioId: selectedScenario.id,
             score: result.score,
-            detailedAnalysis: result.summary,
+            summary: result.summary,
+            strengths: result.strengths,
+            improvements: result.improvements,
+            metrics: result.metrics,
             isUnlocked: isSubscribed,
             createdAt: Timestamp.now(),
-            messages: messages // Save full correspondence
+            messages: messages
           });
         } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, 'sessions');
+          console.error("Firestore save error:", err);
         }
       }
 
@@ -999,6 +1040,36 @@ function AppContent() {
     }
   };
 
+  const handleShare = async () => {
+    if (!feedback) return;
+
+    const shareText = `Результат тренировки в "Вера +1":\nСценарий: ${selectedScenario?.title}\nБалл: ${feedback.score}/10\n\nРезюме: ${feedback.summary}\n\nСильные стороны:\n${feedback.strengths.map((s, i) => `${i+1}. ${s}`).join('\n')}\n\nЗоны роста:\n${feedback.improvements.map((s, i) => `${i+1}. ${s}`).join('\n')}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Мой результат в Вера +1',
+          text: shareText,
+          url: window.location.origin
+        });
+        addNotification("Результат успешно отправлен!", 'success');
+      } catch (err) {
+        // Fallback to clipboard
+        copyToClipboard(shareText);
+      }
+    } else {
+      copyToClipboard(shareText);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      addNotification("Результат скопирован в буфер обмена!", 'success');
+    }).catch(() => {
+      addNotification("Не удалось скопировать. Попробуйте вручную.", 'error');
+    });
+  };
+
   const reset = () => {
     setSelectedScenario(null);
     setMessages([]);
@@ -1011,112 +1082,75 @@ function AppContent() {
   };
 
   return (
-    <div className={cn("fixed inset-0 bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-hidden flex flex-col", theme)}>
-      {/* Background Accents (Fixed) */}
+    <div 
+      className={cn(
+        "fixed inset-0 bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-hidden flex flex-col", 
+        theme,
+        isStandalone && "pt-safe-top pb-safe-bottom"
+      )}
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('a')) {
+          playClickSound();
+        }
+      }}
+    >
+      <AnimatePresence>
+        {isAppLoading && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] bg-bg flex flex-col items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="relative"
+            >
+              <div className="w-32 h-32 bg-accent/10 rounded-[2.5rem] flex items-center justify-center border border-accent/20 shadow-2xl shadow-accent/10 overflow-hidden">
+                <img 
+                  src="/logo.png" 
+                  alt="Logo" 
+                  className="w-20 h-20 object-contain" 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<div class="text-accent"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></div>');
+                  }}
+                />
+              </div>
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="absolute -inset-4 bg-accent/5 rounded-[3rem] -z-10 blur-2xl"
+              />
+            </motion.div>
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="mt-12 text-center"
+            >
+              <h1 className="text-3xl font-serif text-fg tracking-tight mb-3">Вера +1</h1>
+              <div className="flex items-center gap-2 justify-center">
+                <div className="w-1 h-1 bg-accent rounded-full animate-bounce" />
+                <div className="w-1 h-1 bg-accent rounded-full animate-bounce [animation-delay:0.2s]" />
+                <div className="w-1 h-1 bg-accent rounded-full animate-bounce [animation-delay:0.4s]" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Background Accents */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-[180px] animate-pulse" />
         <div className="absolute top-[20%] -right-[5%] w-[30%] h-[30%] bg-emerald-500/5 rounded-full blur-[160px]" />
         <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[200px]" />
       </div>
 
-      {/* Header (Sticky/Fixed) */}
-      {user && (
-        <header className="relative z-50 bg-card/80 backdrop-blur-md border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300 shrink-0">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20 shrink-0">
-                <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-base sm:text-xl font-semibold tracking-tight text-fg truncate">Вера +1</h1>
-                <p className="text-[8px] sm:text-[9px] text-muted font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] truncate">AI Faith Training</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar">
-              <button 
-                onClick={toggleTheme}
-                className="p-2 sm:p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm shrink-0"
-              >
-                {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              </button>
-              
-              <div className="h-6 w-[1px] bg-border mx-0.5 hidden sm:block" />
-
-              <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-accent/5 border border-accent/20 rounded-xl shrink-0">
-                <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent animate-pulse" />
-                <span className="text-[10px] sm:text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
-              </div>
-
-              {/* Desktop Menu */}
-              <div className="hidden md:flex items-center gap-1.5 sm:gap-3">
-                {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
-                  <button 
-                    onClick={fetchAdminFeedback}
-                    className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                    title="Админ-панель"
-                  >
-                    <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                )}
-                
-                <button 
-                  onClick={() => setShowLibrary(true)}
-                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                  title="Библиотека знаний"
-                >
-                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-
-                <button 
-                  onClick={() => {
-                    setFeedbackType('general');
-                    setShowFeedbackForm(true);
-                  }}
-                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                  title="Обратная связь"
-                >
-                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-
-                {!selectedScenario ? (
-                  <button 
-                    onClick={() => setShowStats(!showStats)}
-                    className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
-                  >
-                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 group-hover:scale-110 transition-transform" />
-                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Путь</span>
-                  </button>
-                ) : (
-                  <button 
-                    onClick={reset}
-                    className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
-                  >
-                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-[-2px] transition-transform" />
-                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Назад</span>
-                  </button>
-                )}
-
-                <button 
-                  onClick={handleLogout}
-                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95 shrink-0"
-                  title="Выйти"
-                >
-                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
-
-              {/* Mobile Menu Toggle */}
-              <button 
-                onClick={() => setShowMobileMenu(true)}
-                className="md:hidden p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
-                title="Меню"
-              >
-                <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            </div>
-          </header>
-        )}
-
-      <div className="relative flex-1 overflow-y-auto overflow-x-hidden z-10 custom-scrollbar">
+      <div className="relative z-10 flex-1 app-scroll">
         {/* PWA Install Prompt */}
         <AnimatePresence>
           {showInstallPrompt && (
@@ -1184,7 +1218,46 @@ function AppContent() {
           </div>
         )}
 
-        <main className="mx-auto max-w-4xl p-4 sm:p-6 pb-24 md:pb-6">
+        {user && (
+          <header className="sticky top-0 z-50 bg-card/60 backdrop-blur-xl border-b border-border/50 px-4 sm:px-6 py-3 flex items-center justify-between transition-all duration-300">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-accent rounded-2xl flex items-center justify-center text-white shadow-xl shadow-accent/20 shrink-0 overflow-hidden">
+                <img 
+                  src="/logo.png" 
+                  alt="Logo" 
+                  className="w-6 h-6 object-contain brightness-0 invert" 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>');
+                  }}
+                />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold tracking-tight text-fg truncate leading-none mb-1">Вера +1</h1>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[9px] text-muted font-bold uppercase tracking-widest">Online Training</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/5 border border-accent/10 rounded-xl shrink-0">
+                <Flame className="w-4 h-4 text-accent" />
+                <span className="text-xs font-black text-accent">{userProfile?.streak || 1}</span>
+              </div>
+              
+              <button 
+                onClick={toggleTheme}
+                className="p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm"
+              >
+                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              </button>
+            </div>
+          </header>
+        )}
+
+      <main className="mx-auto max-w-4xl p-4 sm:p-6 pb-24 md:pb-6">
         {isAuthLoading || isProfileLoading ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCcw className="w-8 h-8 animate-spin text-emerald-600" />
@@ -1210,9 +1283,17 @@ function AppContent() {
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
-                  className="w-20 h-20 bg-accent text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-accent/20 border border-white/20"
+                  className="w-20 h-20 bg-accent text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-accent/20 border border-white/20 overflow-hidden"
                 >
-                  <Compass className="w-10 h-10" />
+                  <img 
+                    src="/logo.png" 
+                    alt="Logo" 
+                    className="w-12 h-12 object-contain brightness-0 invert" 
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>');
+                    }}
+                  />
                 </motion.div>
                 <motion.h2 
                   initial={{ opacity: 0 }}
@@ -1228,7 +1309,7 @@ function AppContent() {
                   transition={{ delay: 0.5 }}
                   className="text-muted text-sm font-medium leading-relaxed max-w-[240px] mx-auto italic"
                 >
-                  Тренажёр духовного общения <br/> и навыков евангелизации
+                  Интеллектуальный тренажер <br/> духовного общения
                 </motion.p>
               </div>
 
@@ -1301,7 +1382,23 @@ function AppContent() {
                   transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                   className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-20"
                 />
-                <div className="relative z-10 space-y-4">
+                <div className="relative z-10 space-y-6">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto border border-accent/20 overflow-hidden"
+                  >
+                    <img 
+                      src="/logo.png" 
+                      alt="Logo" 
+                      className="w-10 h-10 object-contain" 
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<div class="text-accent"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></div>');
+                      }}
+                    />
+                  </motion.div>
                   <motion.h2 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1676,13 +1773,28 @@ function AppContent() {
               ) : (
                 <>
                   <div className="flex items-center justify-between">
-                    <h2 className="text-4xl font-serif text-fg tracking-tight">Ваш путь</h2>
-                    <button 
-                      onClick={() => setShowStats(false)} 
-                      className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm uppercase tracking-[0.1em] text-[10px] font-bold"
-                    >
-                      Закрыть
-                    </button>
+                    <div>
+                      <h2 className="text-4xl font-serif text-fg tracking-tight">Ваш путь</h2>
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Путь к совершенству в общении</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => {
+                          const text = `Мой прогресс в приложении "Вера +1":\nВсего сессий: ${stats.totalSessions}\nСредний балл: ${stats.averageScore.toFixed(1)}\nДостижений: ${stats.achievements.filter(a => a.unlocked).length}\n\nПрисоединяйся к обучению!`;
+                          navigator.clipboard.writeText(text);
+                          addNotification("Прогресс скопирован!", 'success');
+                        }}
+                        className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm"
+                      >
+                        <Share2 className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => setShowStats(false)} 
+                        className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm uppercase tracking-[0.1em] text-[10px] font-bold"
+                      >
+                        Закрыть
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1697,6 +1809,45 @@ function AppContent() {
                     <div className="sber-card">
                       <div className="text-muted mb-2 font-bold text-[10px] uppercase tracking-[0.2em]">Достижения</div>
                       <div className="text-3xl font-bold text-fg tracking-tight">{stats.achievements.filter(a => a.unlocked).length}/{stats.achievements.length}</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-[1px] flex-1 bg-border" />
+                      <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Прогресс навыков</h3>
+                      <div className="h-[1px] flex-1 bg-border" />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {['Вера', 'Жизнь', 'Кризис'].map(cat => {
+                        const catSessions = sessions.filter(s => {
+                          const scenario = SCENARIOS.find(sc => sc.id === s.scenarioId);
+                          return scenario?.category === cat;
+                        });
+                        const avgScore = catSessions.length > 0 
+                          ? catSessions.reduce((acc, s) => acc + s.score, 0) / catSessions.length 
+                          : 0;
+                        
+                        return (
+                          <div key={cat} className="sber-card !p-6 space-y-4">
+                            <div className="flex justify-between items-end">
+                              <div className="text-[10px] font-bold text-muted uppercase tracking-widest">{cat}</div>
+                              <div className="text-xl font-serif text-accent">{avgScore.toFixed(1)}</div>
+                            </div>
+                            <div className="h-1.5 bg-border rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(avgScore / 10) * 100}%` }}
+                                className="h-full bg-accent"
+                              />
+                            </div>
+                            <div className="text-[8px] text-muted font-bold uppercase tracking-tighter">
+                              {catSessions.length} сессий пройдено
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1785,7 +1936,7 @@ function AppContent() {
                               >
                                 <div className="flex items-center gap-4">
                                   <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center border border-accent/20">
-                                    {scenario ? AchievementIcons[scenario.icon] || <MessageSquare className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
+                                    {scenario ? ScenarioIcons[scenario.icon] || <MessageSquare className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
                                   </div>
                                   <div className="space-y-1">
                                     <div className="text-[11px] font-bold text-fg tracking-tight leading-tight">
@@ -1843,100 +1994,99 @@ function AppContent() {
                   </motion.p>
                 </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="inline-block px-3 py-1 bg-accent/10 text-accent rounded-full text-[9px] font-bold uppercase tracking-[0.2em] mb-2"
-                >
-                  Тренажёр духовного общения
-                </motion.div>
                 <h2 className="text-4xl sm:text-5xl font-serif text-fg tracking-tight leading-tight">
-                  Готовы ли вы к <br/>
-                  <span className="text-accent italic">сложным вопросам?</span>
+                  Выберите <span className="text-accent italic">собеседника</span>
                 </h2>
                 <p className="text-base text-muted font-medium leading-relaxed max-w-lg mx-auto">
-                  Выберите режим и попрактикуйтесь в ведении диалога о вере, смысле жизни и Боге.
+                  Практикуйтесь в общении с разными людьми, каждый из которых имеет свой характер и вопросы.
                 </p>
               </div>
 
-              <div className="space-y-16">
-                <section>
-                  <div className="flex items-center gap-4 mb-8">
-                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] whitespace-nowrap">
-                      Свободный диалог
-                    </h3>
-                    <div className="flex-1 h-[1px] bg-border" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {SCENARIOS.filter(s => s.mode === 'chat').map((scenario) => (
-                      <motion.button
-                        key={scenario.id}
-                        whileHover={{ y: -4 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => startScenario(scenario)}
-                        className="group sber-card text-left flex flex-col h-full"
-                      >
-                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-accent transition-colors leading-tight tracking-tight">
-                          {scenario.title}
-                        </h3>
-                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
-                          {scenario.description}
-                        </p>
-                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
-                          <div className="w-12 h-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-all border border-accent/10">
-                            {ScenarioIcons[scenario.icon as string]}
-                          </div>
-                          <div className="text-accent font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
-                            Начать <ChevronRight className="w-3 h-3 inline" />
-                          </div>
-                        </div>
-                      </motion.button>
-                    ))}
-                  </div>
-                </section>
-
-                <section>
-                  <div className="flex items-center gap-4 mb-8">
-                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] whitespace-nowrap">
-                      Работа с критикой
-                    </h3>
-                    <div className="flex-1 h-[1px] bg-border" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {SCENARIOS.filter(s => s.mode === 'criticism').map((scenario) => (
-                      <motion.button
-                        key={scenario.id}
-                        whileHover={{ y: -4 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => startScenario(scenario)}
-                        className="group sber-card text-left flex flex-col h-full"
-                      >
-                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-rose-500 transition-colors leading-tight tracking-tight">
-                          {scenario.title}
-                        </h3>
-                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
-                          {scenario.description}
-                        </p>
-                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
-                          <div className="w-12 h-12 bg-rose-500/5 text-rose-500 rounded-2xl flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all border border-rose-500/10">
-                            {ScenarioIcons[scenario.icon as string]}
-                          </div>
-                          <div className="text-rose-500 font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
-                            Начать <ChevronRight className="w-3 h-3 inline" />
-                          </div>
-                        </div>
-                      </motion.button>
-                    ))}
-                  </div>
-                </section>
+              <div className="flex items-center justify-center gap-2 mb-12 overflow-x-auto no-scrollbar pb-2">
+                {[
+                  { id: 'all', label: 'Все' },
+                  { id: 'faith', label: 'О вере' },
+                  { id: 'life', label: 'О жизни' },
+                  { id: 'crisis', label: 'Кризис' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setFilter(tab.id as any)}
+                    className={cn(
+                      "px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
+                      filter === tab.id ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-bg border border-border text-muted hover:text-fg"
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
-              <div className="flex flex-col items-center gap-4 pt-12 pb-8 opacity-50">
-                <div className="flex items-center gap-2 px-3 py-1 bg-accent/5 border border-accent/10 rounded-full">
-                  <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
-                  <span className="text-[9px] font-bold text-accent uppercase tracking-[0.2em]">PWA Ready</span>
-                </div>
-                <p className="text-[10px] text-muted font-medium">Версия 1.2.0 • Работает офлайн</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {SCENARIOS.filter(s => filter === 'all' || s.category === filter).map((scenario) => (
+                  <motion.button
+                    key={scenario.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ y: -8 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => startScenario(scenario)}
+                    className="group relative flex flex-col h-full bg-card border border-border rounded-[2.5rem] overflow-hidden transition-all hover:border-accent/30 hover:shadow-2xl hover:shadow-accent/5"
+                  >
+                    <div className="aspect-[4/3] relative overflow-hidden">
+                      <img 
+                        src={scenario.backgroundUrl} 
+                        alt={scenario.title}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+                      
+                      <div className="absolute top-4 left-4 flex gap-2">
+                        <div className={cn(
+                          "px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest backdrop-blur-md border",
+                          scenario.difficulty === 'easy' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                          scenario.difficulty === 'medium' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                          "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                        )}>
+                          {scenario.difficulty === 'easy' ? 'Легко' : scenario.difficulty === 'medium' ? 'Средне' : 'Сложно'}
+                        </div>
+                        <div className="px-3 py-1 bg-white/10 text-white rounded-full text-[8px] font-bold uppercase tracking-widest backdrop-blur-md border border-white/20">
+                          {scenario.mode === 'chat' ? 'Диалог' : 'Критика'}
+                        </div>
+                      </div>
+
+                      <div className="absolute -bottom-6 left-6">
+                        <div className="w-16 h-16 rounded-2xl bg-accent text-white flex items-center justify-center shadow-xl border-4 border-card">
+                          {ScenarioIcons[scenario.icon as string]}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-8 pt-10 flex flex-col flex-grow">
+                      <h3 className="text-2xl font-serif text-fg mb-3 group-hover:text-accent transition-colors leading-tight tracking-tight">
+                        {scenario.title}
+                      </h3>
+                      <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80 mb-8">
+                        {scenario.description}
+                      </p>
+                      
+                      <div className="flex items-center justify-between mt-auto pt-6 border-t border-border/50">
+                        <div className="flex -space-x-2">
+                          {[1, 2, 3].map(i => (
+                            <div key={i} className="w-6 h-6 rounded-full border-2 border-card bg-accent/10 flex items-center justify-center text-[8px] font-bold text-accent">
+                              {i}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="text-accent font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 group-hover:translate-x-1 transition-transform">
+                          Начать <ArrowRight className="w-3 h-3" />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.button>
+                ))}
               </div>
             </motion.div>
           ) : feedback ? (
@@ -1987,11 +2137,11 @@ function AppContent() {
                 {feedback.metrics && (
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {[
-                      { label: 'Библейская точность', val: feedback.metrics.theologicalAccuracy },
-                      { label: 'Логика', val: feedback.metrics.logic },
-                      { label: 'Писание', val: feedback.metrics.scriptureUsage },
-                      { label: 'Эмпатия', val: feedback.metrics.empathy },
-                      { label: 'Скорость', val: feedback.metrics.speed, suffix: 'с' },
+                      { label: 'Библейская точность', val: feedback.metrics?.theologicalAccuracy || 0 },
+                      { label: 'Логика', val: feedback.metrics?.logic || 0 },
+                      { label: 'Писание', val: feedback.metrics?.scriptureUsage || 0 },
+                      { label: 'Эмпатия', val: feedback.metrics?.empathy || 0 },
+                      { label: 'Скорость', val: feedback.metrics?.speed || 0, suffix: 'с' },
                     ].map((m, i) => (
                       <motion.div 
                         key={i} 
@@ -2100,36 +2250,24 @@ function AppContent() {
 
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button 
+                    onClick={() => setShowReview(true)}
+                    className="sber-button-outline flex-1 flex items-center justify-center gap-2"
+                  >
+                    <History className="w-4 h-4" />
+                    Перечитать диалог
+                  </button>
+                  <button 
+                    onClick={handleShare}
+                    className="sber-button flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Поделиться
+                  </button>
+                  <button 
                     onClick={reset}
-                    className="sber-button flex-1"
+                    className="sber-button-outline flex-1"
                   >
-                    Новая тренировка
-                  </button>
-                  <button 
-                    onClick={() => {
-                      if (!isSubscribed) {
-                        setShowSubscription(true);
-                        return;
-                      }
-                      const text = `Результат тренировки в "Вера +1":\nБалл: ${feedback.score}/10\n\nРезюме: ${feedback.summary}\n\nСильные стороны:\n${feedback.strengths.join('\n')}\n\nЗоны роста:\n${feedback.improvements.join('\n')}`;
-                      navigator.clipboard.writeText(text);
-                      addNotification("Результат скопирован! Теперь вы можете отправить его наставнику.", 'success');
-                    }}
-                    className={cn(
-                      "flex-1 px-8 font-bold rounded-xl transition-all uppercase tracking-[0.1em] text-[10px] py-4 flex items-center justify-center gap-2",
-                      isSubscribed 
-                        ? "bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white" 
-                        : "bg-bg border border-border text-muted hover:border-accent hover:text-accent"
-                    )}
-                  >
-                    {isSubscribed ? <Send className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                    Поделиться с наставником
-                  </button>
-                  <button 
-                    onClick={() => setFeedback(null)}
-                    className="px-8 bg-bg border border-border text-muted font-bold rounded-xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.1em] text-[10px] py-4"
-                  >
-                    Диалог
+                    Новый диалог
                   </button>
                 </div>
               </div>
@@ -2363,12 +2501,13 @@ function AppContent() {
                           handleSend();
                         }
                       }}
-                      placeholder="Напишите ваш ответ..."
-                      className="flex-1 bg-bg border border-border p-4 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium resize-none h-[64px] placeholder:text-muted/30"
+                      placeholder={isDialogueEnded ? "Диалог завершен" : "Напишите ваш ответ..."}
+                      disabled={isLoading || isAnalyzing || isDialogueEnded}
+                      className="flex-1 bg-bg border border-border p-4 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium resize-none h-[64px] placeholder:text-muted/30 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <button 
                       onClick={() => handleSend()}
-                      disabled={!input.trim() || isLoading}
+                      disabled={!input.trim() || isLoading || isAnalyzing || isDialogueEnded}
                       className="w-16 h-16 bg-accent text-white rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 hover:bg-brand-secondary transition-all active:scale-95 disabled:opacity-50"
                     >
                       <Send className="w-6 h-6" />
@@ -2391,7 +2530,6 @@ function AppContent() {
       </>
     )}
   </main>
-      </div>
       {/* Feedback Modal */}
       <AnimatePresence>
         {showFeedbackForm && (
@@ -2484,7 +2622,7 @@ function AppContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-bg overflow-y-auto"
+            className="fixed inset-0 z-[100] bg-bg app-scroll"
           >
             <div className="max-w-5xl mx-auto p-6 sm:p-12">
               <div className="flex items-center justify-between mb-16">
@@ -2505,8 +2643,45 @@ function AppContent() {
                 </button>
               </div>
 
+              <div className="mb-12 space-y-8">
+                <div className="relative">
+                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
+                  <input 
+                    type="text"
+                    placeholder="Поиск по статьям..."
+                    value={librarySearch}
+                    onChange={(e) => setLibrarySearch(e.target.value)}
+                    className="w-full bg-card border border-border rounded-2xl py-5 pl-16 pr-8 text-fg placeholder:text-muted focus:border-accent focus:ring-1 focus:ring-accent transition-all outline-none shadow-sm"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  {['Все', 'Теория', 'Практика', 'История', 'Философия', 'Теология'].map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setLibraryCategory(cat)}
+                      className={cn(
+                        "px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                        libraryCategory === cat 
+                          ? "bg-accent text-white shadow-lg shadow-accent/20" 
+                          : "bg-card border border-border text-muted hover:text-fg"
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {LIBRARY_ARTICLES.map((article, idx) => {
+                  {LIBRARY_ARTICLES
+                    .filter(a => {
+                      const matchesSearch = a.title.toLowerCase().includes(librarySearch.toLowerCase()) || 
+                                          a.description.toLowerCase().includes(librarySearch.toLowerCase());
+                      const matchesCategory = libraryCategory === 'Все' || a.category === libraryCategory;
+                      return matchesSearch && matchesCategory;
+                    })
+                    .map((article, idx) => {
                     const isPurchased = userProfile?.purchasedArticles?.includes(article.id);
                     const canRead = !article.isPremium || isPurchased || isSubscribed;
 
@@ -2660,7 +2835,7 @@ function AppContent() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute right-0 top-0 bottom-0 w-[280px] bg-card border-l border-border p-6 shadow-2xl flex flex-col"
+              className="absolute right-0 top-0 bottom-0 w-[280px] bg-card border-l border-border p-6 shadow-2xl flex flex-col app-scroll"
             >
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-lg font-serif text-fg tracking-tight">Меню</h3>
@@ -2708,6 +2883,19 @@ function AppContent() {
                   <MessageSquare className="w-5 h-5" />
                   Отзывы
                 </button>
+
+                {deferredPrompt && (
+                  <button 
+                    onClick={() => {
+                      handleInstallClick();
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-accent/10 text-accent hover:bg-accent/20 transition-all font-bold uppercase tracking-widest text-[10px] border border-accent/20"
+                  >
+                    <Zap className="w-5 h-5" />
+                    Установить приложение
+                  </button>
+                )}
 
                 {!selectedScenario ? (
                   <button 
@@ -2985,7 +3173,70 @@ function AppContent() {
         )}
       </AnimatePresence>
       
-      {/* Notifications */}
+      {/* Review Modal */}
+      <AnimatePresence>
+        {showReview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-bg/80 backdrop-blur-xl flex items-center justify-center p-4 sm:p-8"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-card border border-border w-full max-w-4xl h-[80vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden"
+            >
+              <div className="p-8 border-b border-border flex items-center justify-between bg-card/50 backdrop-blur-md sticky top-0 z-10">
+                <div>
+                  <h3 className="text-2xl font-serif text-fg">История диалога</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-1">
+                    {selectedScenario?.title}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowReview(false)}
+                  className="w-12 h-12 bg-bg border border-border rounded-2xl flex items-center justify-center hover:bg-accent/5 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar">
+                {messages.map((msg, i) => (
+                  <div 
+                    key={i} 
+                    className={cn(
+                      "flex flex-col max-w-[85%]",
+                      msg.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
+                    )}
+                  >
+                    <div className={cn(
+                      "px-6 py-4 rounded-2xl text-sm font-medium leading-relaxed shadow-sm",
+                      msg.role === 'user' 
+                        ? "bg-accent text-white rounded-tr-none" 
+                        : "bg-bg border border-border text-fg rounded-tl-none"
+                    )}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="p-8 border-t border-border bg-card/50">
+                <button 
+                  onClick={() => setShowReview(false)}
+                  className="sber-button w-full"
+                >
+                  Вернуться к анализу
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="fixed bottom-8 right-8 z-[200] flex flex-col gap-4 pointer-events-none">
         <AnimatePresence>
           {notifications.map(n => (
@@ -3017,55 +3268,71 @@ function AppContent() {
       </div>
         {/* Mobile Bottom Navigation */}
         {user && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border px-6 py-3 pb-safe flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-[110] bg-card/80 backdrop-blur-2xl border-t border-border/50 px-8 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.1)] rounded-t-[2.5rem]">
             <button 
-              onClick={reset}
+              onClick={() => {
+                reset();
+                setShowLibrary(false);
+                setShowStats(false);
+              }}
               className={cn(
-                "flex flex-col items-center gap-1 transition-all",
-                !selectedScenario && !showLibrary && !showStats ? "text-accent scale-110" : "text-muted"
+                "flex flex-col items-center gap-1.5 transition-all relative",
+                !selectedScenario && !showLibrary && !showStats ? "text-accent" : "text-muted"
               )}
             >
-              <Home className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Главная</span>
+              <Home className={cn("w-6 h-6 transition-transform", !selectedScenario && !showLibrary && !showStats ? "scale-110" : "")} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Главная</span>
+              {!selectedScenario && !showLibrary && !showStats && (
+                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
+              )}
             </button>
             
             <button 
               onClick={() => {
                 reset();
                 setShowLibrary(true);
+                setShowStats(false);
               }}
               className={cn(
-                "flex flex-col items-center gap-1 transition-all",
-                showLibrary ? "text-accent scale-110" : "text-muted"
+                "flex flex-col items-center gap-1.5 transition-all relative",
+                showLibrary ? "text-accent" : "text-muted"
               )}
             >
-              <BookOpen className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Знания</span>
+              <BookOpen className={cn("w-6 h-6 transition-transform", showLibrary ? "scale-110" : "")} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Знания</span>
+              {showLibrary && (
+                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
+              )}
             </button>
 
             <button 
               onClick={() => {
                 reset();
                 setShowStats(true);
+                setShowLibrary(false);
               }}
               className={cn(
-                "flex flex-col items-center gap-1 transition-all",
-                showStats ? "text-accent scale-110" : "text-muted"
+                "flex flex-col items-center gap-1.5 transition-all relative",
+                showStats ? "text-accent" : "text-muted"
               )}
             >
-              <Trophy className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Путь</span>
+              <Trophy className={cn("w-6 h-6 transition-transform", showStats ? "scale-110" : "")} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Путь</span>
+              {showStats && (
+                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
+              )}
             </button>
 
             <button 
               onClick={() => setShowMobileMenu(true)}
-              className="flex flex-col items-center gap-1 text-muted"
+              className="flex flex-col items-center gap-1.5 text-muted relative"
             >
               <Menu className="w-6 h-6" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Меню</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest">Меню</span>
             </button>
           </div>
         )}
+      </div>
     </div>
   );
 }

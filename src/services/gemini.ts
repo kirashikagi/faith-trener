@@ -246,19 +246,37 @@ export async function getFeedback(
     }
     
     try {
-      return JSON.parse(text) as Feedback;
+      // Try to find the JSON object in the response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        // Ensure all required fields exist with fallbacks
+        return {
+          score: typeof parsed.score === 'number' ? parsed.score : 5,
+          strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ["Хорошее начало диалога"],
+          improvements: Array.isArray(parsed.improvements) ? parsed.improvements : ["Продолжайте практиковаться"],
+          summary: typeof parsed.summary === 'string' ? parsed.summary : "Анализ завершен.",
+          metrics: {
+            theologicalAccuracy: parsed.metrics?.theologicalAccuracy || 5,
+            logic: parsed.metrics?.logic || 5,
+            scriptureUsage: parsed.metrics?.scriptureUsage || 5,
+            empathy: parsed.metrics?.empathy || 5,
+            speed: parsed.metrics?.speed || 15
+          }
+        } as Feedback;
+      }
+      throw new Error("Не удалось найти JSON в ответе модели.");
     } catch (parseError) {
       console.error("JSON Parse Error in getFeedback. Raw text:", text);
-      const start = text.indexOf('{');
-      const end = text.lastIndexOf('}');
-      if (start !== -1 && end !== -1) {
-        try {
-          return JSON.parse(text.substring(start, end + 1)) as Feedback;
-        } catch (e2) {
-          console.error("Second attempt at parsing feedback failed:", e2);
-        }
-      }
-      throw new Error(`Ошибка разбора JSON ответа модели при анализе: ${text.substring(0, 50)}...`);
+      // Return a safe fallback instead of throwing if possible, 
+      // or throw a cleaner error
+      return {
+        score: 5,
+        strengths: ["Диалог завершен"],
+        improvements: ["Не удалось провести детальный анализ"],
+        summary: "Извините, произошла ошибка при разборе ответа ИИ. Попробуйте еще раз.",
+        metrics: { theologicalAccuracy: 5, logic: 5, scriptureUsage: 5, empathy: 5, speed: 0 }
+      } as Feedback;
     }
   } catch (e: any) {
     console.error("Error getting feedback:", e);
