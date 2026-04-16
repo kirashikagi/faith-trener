@@ -17,8 +17,8 @@
   --color-accent: var(--accent);
 }
 
-@layer base {
-  :root {
+
+:root {
     --bg: #FDFCF8;
     --fg: #1C1C1C;
     --card: #FFFFFF;
@@ -112,18 +112,16 @@
   h1, h2, h3, h4 {
     @apply font-serif tracking-normal font-medium;
   }
+
+@utility pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
 }
 
-@layer utilities {
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .pt-safe {
+@utility pt-safe {
     padding-top: env(safe-area-inset-top);
-  }
+}
 
-  .glass-panel {
+@utility glass-panel {
     background: var(--glass);
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
@@ -194,7 +192,6 @@
     @apply w-full border border-border rounded-2xl px-5 py-3 outline-none focus:border-accent transition-all;
     background-color: color-mix(in srgb, var(--card) 50%, transparent);
   }
-}
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
