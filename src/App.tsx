@@ -171,6 +171,7 @@ function AppContent() {
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [activeTab, setActiveTab] = useState<'home' | 'library' | 'stats' | 'settings'>('home');
 
   const handleGoogleLogin = async () => {
@@ -720,6 +721,8 @@ function AppContent() {
       </div>
     </div>
   );
+
+  const buySubscription = () => {
     if (!user || !userProfile) {
       setAuthMode('login');
       addNotification("Пожалуйста, войдите в систему, чтобы оформить подписку", 'error');
@@ -1218,7 +1221,6 @@ function AppContent() {
     setMessages([]);
     setFeedback(null);
     setOptions([]);
-    setShowStats(false);
     setShowAdmin(false);
     setShowFeedbackForm(false);
     setIsDialogueEnded(false);
@@ -2429,6 +2431,7 @@ function AppContent() {
       </>
     )}
   </main>
+      </div>
       {/* Feedback Modal */}
       <AnimatePresence>
         {showFeedbackForm && (
@@ -2558,7 +2561,7 @@ function AppContent() {
                 
                 <button 
                   onClick={() => {
-                    setShowLibrary(true);
+                    setActiveTab('library');
                     setShowMobileMenu(false);
                   }}
                   className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"

@@ -112,7 +112,9 @@
   h1, h2, h3, h4 {
     @apply font-serif tracking-normal font-medium;
   }
+}
 
+@layer utilities {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -120,43 +122,78 @@
   .pt-safe {
     padding-top: env(safe-area-inset-top);
   }
-}
 
-.glass-panel {
-  background: var(--glass);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid var(--glass-border);
-}
+  .glass-panel {
+    background: var(--glass);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--glass-border);
+  }
 
-.dossier-card {
-  @apply bg-card/60 backdrop-blur-md border border-border rounded-3xl p-6 transition-all duration-500;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
-}
+  .dossier-card {
+    background-color: color-mix(in srgb, var(--card) 60%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    transition: all 0.5s;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  }
 
-.dossier-card:hover {
-  @apply -translate-y-1 bg-card/80;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
-}
+  .dossier-card:hover {
+    transform: translateY(-4px);
+    background-color: color-mix(in srgb, var(--card) 80%, transparent);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+  }
 
-.bottom-nav {
-  @apply fixed bottom-0 left-0 right-0 h-20 glass-panel border-t border-border flex items-center justify-around px-4 pb-safe z-50;
-}
+  .sber-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 2.5rem;
+    box-shadow: 0 40px 100px -20px rgba(0,0,0,0.1);
+  }
 
-.nav-item {
-  @apply flex flex-col items-center justify-center space-y-1 text-muted transition-colors duration-300;
-}
+  .sber-button {
+    background-color: var(--accent);
+    color: white;
+    font-weight: bold;
+    border-radius: 1rem;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 10px;
+    padding: 1.25rem 2rem;
+  }
 
-.nav-item.active {
-  @apply text-accent;
-}
+  .sber-button:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
 
-.minimal-button {
-  @apply px-6 py-3 rounded-2xl bg-accent text-white font-medium transition-all active:scale-95 disabled:opacity-50;
-}
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 h-20 border-t border-border flex items-center justify-around px-4 z-50;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--glass);
+    backdrop-filter: blur(24px) saturate(180%);
+  }
 
-.minimal-input {
-  @apply w-full bg-card/50 border border-border rounded-2xl px-5 py-3 outline-none focus:border-accent transition-all;
+  .nav-item {
+    @apply flex flex-col items-center justify-center space-y-1 text-muted transition-colors duration-300;
+  }
+
+  .nav-item.active {
+    @apply text-accent;
+  }
+
+  .minimal-button {
+    @apply px-6 py-3 rounded-2xl bg-accent text-white font-medium transition-all active:scale-95 disabled:opacity-50;
+  }
+
+  .minimal-input {
+    @apply w-full border border-border rounded-2xl px-5 py-3 outline-none focus:border-accent transition-all;
+    background-color: color-mix(in srgb, var(--card) 50%, transparent);
+  }
 }
 
 /* Custom Scrollbar */
