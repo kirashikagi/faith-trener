@@ -12,8 +12,6 @@ export interface Scenario {
   mode: Mode;
   avatarUrl?: string;
   backgroundUrl?: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  category: 'faith' | 'life' | 'crisis';
 }
 
 export interface Message {
@@ -99,7 +97,6 @@ export interface LibraryArticle {
   category: string;
   description: string;
   content: string;
-  imageUrl?: string;
   isPremium: boolean;
   price?: number; // One-time price in RUB
 }

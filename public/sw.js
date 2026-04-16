@@ -1,57 +1,80 @@
-const CACHE_NAME = 'vera-v45';
-const ASSETS = [
+const CACHE_NAME = 'vera-v34';
+const ESSENTIAL_ASSETS = [
   '/',
+  '/?utm_source=pwa_install',
   '/index.html',
-  '/manifest.json',
-  '/logo.png'
+  '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
+  console.log('PWA: SW Install event');
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('PWA: Caching assets');
-      return cache.addAll(ASSETS);
+      // Cache only small essential files first
+      return cache.addAll(ESSENTIAL_ASSETS).then(() => {
+        console.log('PWA: Essential assets cached');
+        // Try to cache logo in background, don't block install if it fails or takes too long
+        cache.add('/logo.png').catch(err => console.warn('PWA: Background logo cache failed', err));
+      });
     })
   );
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('PWA: SW Activated');
+  console.log('PWA: SW Activate event');
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(
-      keys.map((key) => {
-        if (key !== CACHE_NAME) {
-          console.log('PWA: Deleting old cache', key);
-          return caches.delete(key);
-        }
-      })
-    ))
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('PWA: Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
   return self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) return;
   if (event.request.method !== 'GET') return;
 
-  // Stale-while-revalidate strategy
+  // For navigation, try network first, fallback to cache
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match('/').then(response => {
+          return response || caches.match('/index.html');
+        });
+      })
+    );
+    return;
+  }
+
+  // For other assets, try cache first, then network
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const cacheCopy = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, cacheCopy);
-          });
+    caches.match(event.request).then((response) => {
+      if (response) {
+        return response;
+      }
+      return fetch(event.request).then(networkResponse => {
+        // Don't cache API calls or external resources unless necessary
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+          return networkResponse;
         }
+        
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseToCache);
+        });
+        
         return networkResponse;
       }).catch(() => {
-        // If network fails, we already have the cachedResponse
+        // If fetch fails and no cache, just return the error
+        return null;
       });
-
-      return cachedResponse || fetchPromise;
     })
   );
 });

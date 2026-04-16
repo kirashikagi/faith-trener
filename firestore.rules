@@ -50,12 +50,7 @@ service cloud.firestore {
       return isAuthenticated() && 
         ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
          (request.auth.token.email == "arunavsharmanaba@gmail.com") ||
-         (request.auth.token.email == "admin@vera.plus") ||
-         (request.auth.token.email_verified == true && request.auth.token.email == "arunavsharmanaba@gmail.com"));
-    }
-
-    match /_connection_test/{docId} {
-      allow read: if true;
+         (request.auth.token.email == "admin@vera.plus"));
     }
 
     function isValidEmail(email) {

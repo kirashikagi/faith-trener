@@ -52,8 +52,9 @@ import {
   MessageCircle,
   Flame,
   Lightbulb,
-  Search,
-  Share2,
+  UserMinus,
+  Microscope,
+  Briefcase,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -96,22 +97,26 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const AchievementIcons: Record<string, React.ReactNode> = {
-  Flag: <Compass className="w-5 h-5 stroke-[1.5]" />,
-  Sun: <Sparkles className="w-5 h-5 stroke-[1.5]" />,
-  Shield: <ShieldCheck className="w-5 h-5 stroke-[1.5]" />,
-  Heart: <Heart className="w-5 h-5 stroke-[1.5]" />,
-  Zap: <Zap className="w-5 h-5 stroke-[1.5]" />,
-  Smile: <Smile className="w-5 h-5 stroke-[1.5]" />,
+  Flag: <Flag className="w-6 h-6" />,
+  Sun: <Sun className="w-6 h-6" />,
+  Shield: <Shield className="w-6 h-6" />,
+  Heart: <Heart className="w-6 h-6" />,
+  Zap: <Zap className="w-6 h-6" />,
+  Smile: <Smile className="w-6 h-6" />,
 };
 
 const ScenarioIcons: Record<string, React.ReactNode> = {
-  Brain: <Brain className="w-5 h-5 stroke-[1.5]" />,
-  HeartOff: <HeartOff className="w-5 h-5 stroke-[1.5]" />,
-  Compass: <Compass className="w-5 h-5 stroke-[1.5]" />,
-  ShieldAlert: <ShieldAlert className="w-5 h-5 stroke-[1.5]" />,
-  Zap: <Zap className="w-5 h-5 stroke-[1.5]" />,
-  UserX: <UserX className="w-5 h-5 stroke-[1.5]" />,
-  MessageSquareX: <MessageSquareX className="w-5 h-5 stroke-[1.5]" />,
+  Brain: <Brain className="w-6 h-6" />,
+  HeartOff: <HeartOff className="w-6 h-6" />,
+  Compass: <Compass className="w-6 h-6" />,
+  ShieldAlert: <ShieldAlert className="w-6 h-6" />,
+  Zap: <Zap className="w-6 h-6" />,
+  UserX: <UserX className="w-6 h-6" />,
+  MessageSquareX: <MessageSquareX className="w-6 h-6" />,
+  UserMinus: <UserMinus className="w-6 h-6" />,
+  Microscope: <Microscope className="w-6 h-6" />,
+  Briefcase: <Briefcase className="w-6 h-6" />,
+  Sparkles: <Sparkles className="w-6 h-6" />,
 };
 
 export default function App() {
@@ -161,74 +166,44 @@ function AppContent() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [systemStats, setSystemStats] = useState<{ users: number; feedback: number }>({ users: 0, feedback: 0 });
   const [adminTab, setAdminTab] = useState<'feedback' | 'system'>('feedback');
-  const [librarySearch, setLibrarySearch] = useState('');
-  const [libraryCategory, setLibraryCategory] = useState('Все');
+  const [showLibrary, setShowLibrary] = useState(false);
   const [viewingSession, setViewingSession] = useState<SessionRecord | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<LibraryArticle | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [isAppLoading, setIsAppLoading] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+  const [paymentConfirmation, setPaymentConfirmation] = useState<{
+    type: 'article' | 'subscription';
+    id?: string;
+    title: string;
+    price: string | number;
+  } | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [options, setOptions] = useState<ResponseOption[]>([]);
+  const [showStats, setShowStats] = useState(false);
+  const [isDialogueEnded, setIsDialogueEnded] = useState(false);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'library' | 'stats' | 'settings'>('home');
-
-  const handleGoogleLogin = async () => {
-    setAuthError('');
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      setAuthError('Ошибка входа через Google: ' + error.message);
-    }
-  };
-
-  const playClickSound = () => {
-    try {
-      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
-
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(150, context.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(40, context.currentTime + 0.1);
-
-      gainNode.gain.setValueAtTime(0.1, context.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
-
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.1);
-    } catch (e) {
-      // Ignore audio errors
-    }
-    
-    // Also try native haptics if available
-    if ('vibrate' in navigator) {
-      navigator.vibrate(10);
-    }
-  };
+  const [isStandalone, setIsStandalone] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    // Detect standalone mode
-    const checkStandalone = () => {
-      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
-                              (window.navigator as any).standalone === true || 
-                              document.referrer.includes('android-app://');
-      setIsStandalone(isStandaloneMode);
-    };
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
+      setIsStandalone(true);
+    }
+  }, []);
 
-    checkStandalone();
-    
-    // Simulate initial app loading for splash screen
-    const timer = setTimeout(() => {
-      setIsAppLoading(false);
-    }, 3000);
-
-    // PWA Install Prompt Logic
+  useEffect(() => {
     const handler = (e: any) => {
       console.log('PWA: beforeinstallprompt event fired');
       e.preventDefault();
@@ -249,33 +224,10 @@ function AppContent() {
     window.addEventListener('appinstalled', installedHandler);
 
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', installedHandler);
     };
   }, [isStandalone]);
-
-  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
-  const [filter, setFilter] = useState<'all' | 'faith' | 'life' | 'crisis'>('all');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
-  const [paymentConfirmation, setPaymentConfirmation] = useState<{
-    type: 'article' | 'subscription';
-    id?: string;
-    title: string;
-    price: string | number;
-  } | null>(null);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [options, setOptions] = useState<ResponseOption[]>([]);
-  const [showReview, setShowReview] = useState(false);
-  const [isDialogueEnded, setIsDialogueEnded] = useState(false);
-  const [sessions, setSessions] = useState<SessionRecord[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
-  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -388,19 +340,21 @@ function AppContent() {
     // Test connection to Firestore
     const testConnection = async () => {
       try {
-        await getDocFromServer(doc(db, '_connection_test', 'ping'));
+        // Try to get a document, but don't fail the whole app if it takes a bit
+        const testDoc = doc(db, '_connection_test', 'ping');
+        await getDocFromServer(testDoc);
         console.log("Firestore connection verified.");
       } catch (error: any) {
-        if (error.message?.includes('the client is offline')) {
-          console.error("Firestore is offline. Check your configuration.");
-          addNotification("Ошибка подключения к базе данных. Проверьте настройки Firebase.", 'error');
+        console.warn("Initial connection test failed, but we enabled compatibility mode:", error.message);
+        if (error.message?.includes('the client is offline') || error.message?.includes('failed-precondition')) {
+          addNotification("Загрузка может быть медленной. Мы включили режим совместимости для работы без VPN. Если ошибка сохранится, попробуйте VPN.", 'info');
         }
       }
     };
     testConnection();
 
     window.scrollTo(0, 0);
-  }, [user, selectedScenario, showAdmin]);
+  }, [user, selectedScenario, showStats, showLibrary, showAdmin]);
 
   useEffect(() => {
     let profileUnsubscribe: (() => void) | null = null;
@@ -585,144 +539,7 @@ function AppContent() {
     }
   };
 
-  const renderLibrary = () => (
-    <div className="space-y-12">
-      <div className="flex items-center justify-center gap-2 overflow-x-auto no-scrollbar pb-2">
-        {['Все', 'Теория', 'Практика', 'История', 'Философия', 'Теология'].map(cat => (
-          <button
-            key={cat}
-            onClick={() => setLibraryCategory(cat)}
-            className={cn(
-              "px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-              libraryCategory === cat ? "bg-accent text-white" : "bg-card/50 text-muted"
-            )}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {LIBRARY_ARTICLES
-          .filter(a => libraryCategory === 'Все' || a.category === libraryCategory)
-          .map((article) => {
-            const isPurchased = userProfile?.purchasedArticles?.includes(article.id) || isSubscribed;
-            return (
-              <motion.button
-                key={article.id}
-                onClick={() => setSelectedArticle(article)}
-                className="dossier-card text-left flex gap-6 group"
-              >
-                <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0">
-                  <img src={article.imageUrl} className="w-full h-full object-cover" alt={article.title} referrerPolicy="no-referrer" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-accent">{article.category}</span>
-                    {!isPurchased && <Lock className="w-3 h-3 text-muted" />}
-                  </div>
-                  <h4 className="text-lg font-serif mb-2 truncate">{article.title}</h4>
-                  <p className="text-xs text-muted line-clamp-2 italic">{article.description}</p>
-                </div>
-              </motion.button>
-            );
-          })}
-      </div>
-    </div>
-  );
-
-  const renderStats = () => (
-    <div className="space-y-12">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Сессий', val: sessions.length, icon: <History /> },
-          { label: 'Средний балл', val: stats.averageScore, icon: <Star /> },
-          { label: 'Дней подряд', val: userProfile?.streak || 0, icon: <Flame /> },
-          { label: 'Достижений', val: stats.achievements.filter(a => a.unlocked).length, icon: <Trophy /> },
-        ].map((s, i) => (
-          <div key={i} className="glass-panel p-6 rounded-3xl text-center">
-            <div className="text-accent mb-3 flex justify-center opacity-50">{s.icon}</div>
-            <div className="text-2xl font-bold mb-1">{s.val}</div>
-            <div className="text-[8px] font-bold uppercase tracking-widest text-muted">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="space-y-6">
-        <h3 className="text-xl font-serif">История диалогов</h3>
-        <div className="space-y-4">
-          {sessions.map((session) => (
-            <button
-              key={session.id}
-              onClick={() => setViewingSession(session)}
-              className="w-full dossier-card flex items-center justify-between"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
-                  {ScenarioIcons[SCENARIOS.find(s => s.id === session.scenarioId)?.icon || 'MessageCircle']}
-                </div>
-                <div className="text-left">
-                  <div className="font-medium">{SCENARIOS.find(s => s.id === session.scenarioId)?.title}</div>
-                  <div className="text-[10px] text-muted uppercase tracking-widest">
-                    {new Date(session.createdAt.seconds * 1000).toLocaleDateString()}
-                  </div>
-                </div>
-              </div>
-              <div className="text-xl font-bold text-accent">{session.score}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderProfile = () => (
-    <div className="max-w-2xl mx-auto space-y-12">
-      <div className="text-center">
-        <div className="w-24 h-24 rounded-full bg-accent/10 mx-auto mb-6 flex items-center justify-center text-accent border border-accent/20">
-          <User className="w-12 h-12" />
-        </div>
-        <h3 className="text-2xl font-serif mb-1">{userProfile?.displayName}</h3>
-        <p className="text-muted text-sm">{userProfile?.email}</p>
-      </div>
-
-      <div className="space-y-4">
-        <button 
-          onClick={() => setShowSubscription(true)}
-          className="w-full dossier-card flex items-center justify-between group"
-        >
-          <div className="flex items-center gap-4">
-            <Crown className="w-5 h-5 text-yellow-500" />
-            <span className="font-medium">Управление подпиской</span>
-          </div>
-          <ChevronRight className="w-5 h-5 text-muted group-hover:translate-x-1 transition-transform" />
-        </button>
-
-        <button 
-          onClick={() => setShowFeedbackForm(true)}
-          className="w-full dossier-card flex items-center justify-between group"
-        >
-          <div className="flex items-center gap-4">
-            <MessageCircle className="w-5 h-5 text-accent" />
-            <span className="font-medium">Связаться с нами</span>
-          </div>
-          <ChevronRight className="w-5 h-5 text-muted group-hover:translate-x-1 transition-transform" />
-        </button>
-
-        <button 
-          onClick={handleLogout}
-          className="w-full dossier-card flex items-center justify-between group border-red-500/10"
-        >
-          <div className="flex items-center gap-4 text-red-500">
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Выйти из аккаунта</span>
-          </div>
-        </button>
-      </div>
-    </div>
-  );
-
-  const buySubscription = () => {
+  const buySubscription = async () => {
     if (!user || !userProfile) {
       setAuthMode('login');
       addNotification("Пожалуйста, войдите в систему, чтобы оформить подписку", 'error');
@@ -1120,14 +937,13 @@ function AppContent() {
     try {
       const result = await getFeedback(messages, apiKey);
       
-      if (!result) {
-        throw new Error("Анализ диалога не удался. Пожалуйста, попробуйте еще раз.");
+      if (!result || (result.score === 0 && result.summary === "Ошибка при анализе диалога.")) {
+        throw new Error("Анализ диалога не удался. Проверьте API ключ.");
       }
 
       // Only unlock full feedback if subscribed
       const feedbackWithLock: Feedback = { ...result, isUnlocked: isSubscribed };
       setFeedback(feedbackWithLock);
-      setIsDialogueEnded(true); // Ensure it's marked as ended
 
       // Save to Firestore
       if (user && selectedScenario) {
@@ -1136,16 +952,13 @@ function AppContent() {
             uid: user.uid,
             scenarioId: selectedScenario.id,
             score: result.score,
-            summary: result.summary,
-            strengths: result.strengths,
-            improvements: result.improvements,
-            metrics: result.metrics,
+            detailedAnalysis: result.summary,
             isUnlocked: isSubscribed,
             createdAt: Timestamp.now(),
-            messages: messages
+            messages: messages // Save full correspondence
           });
         } catch (err) {
-          console.error("Firestore save error:", err);
+          handleFirestoreError(err, OperationType.WRITE, 'sessions');
         }
       }
 
@@ -1186,108 +999,19 @@ function AppContent() {
     }
   };
 
-  const handleShare = async () => {
-    if (!feedback) return;
-
-    const shareText = `Результат тренировки в "Вера +1":\nСценарий: ${selectedScenario?.title}\nБалл: ${feedback.score}/10\n\nРезюме: ${feedback.summary}\n\nСильные стороны:\n${feedback.strengths.map((s, i) => `${i+1}. ${s}`).join('\n')}\n\nЗоны роста:\n${feedback.improvements.map((s, i) => `${i+1}. ${s}`).join('\n')}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Мой результат в Вера +1',
-          text: shareText,
-          url: window.location.origin
-        });
-        addNotification("Результат успешно отправлен!", 'success');
-      } catch (err) {
-        // Fallback to clipboard
-        copyToClipboard(shareText);
-      }
-    } else {
-      copyToClipboard(shareText);
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      addNotification("Результат скопирован в буфер обмена!", 'success');
-    }).catch(() => {
-      addNotification("Не удалось скопировать. Попробуйте вручную.", 'error');
-    });
-  };
-
   const reset = () => {
     setSelectedScenario(null);
     setMessages([]);
     setFeedback(null);
     setOptions([]);
+    setShowStats(false);
     setShowAdmin(false);
     setShowFeedbackForm(false);
     setIsDialogueEnded(false);
   };
 
   return (
-    <div 
-      className={cn(
-        "fixed inset-0 bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-hidden flex flex-col", 
-        theme,
-        isStandalone && "pt-safe-top pb-safe-bottom"
-      )}
-      onClick={(e) => {
-        const target = e.target as HTMLElement;
-        if (target.closest('button') || target.closest('a')) {
-          playClickSound();
-        }
-      }}
-    >
-      <AnimatePresence>
-        {isAppLoading && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1000] bg-bg flex flex-col items-center justify-center p-6"
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              className="relative"
-            >
-              <div className="w-32 h-32 bg-accent/10 rounded-[2.5rem] flex items-center justify-center border border-accent/20 shadow-2xl shadow-accent/10 overflow-hidden">
-                <img 
-                  src="/logo.png" 
-                  alt="Logo" 
-                  className="w-20 h-20 object-contain" 
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<div class="text-accent"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></div>');
-                  }}
-                />
-              </div>
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="absolute -inset-4 bg-accent/5 rounded-[3rem] -z-10 blur-2xl"
-              />
-            </motion.div>
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="mt-12 text-center"
-            >
-              <h1 className="text-3xl font-serif text-fg tracking-tight mb-3">Вера +1</h1>
-              <div className="flex items-center gap-2 justify-center">
-                <div className="w-1 h-1 bg-accent rounded-full animate-bounce" />
-                <div className="w-1 h-1 bg-accent rounded-full animate-bounce [animation-delay:0.2s]" />
-                <div className="w-1 h-1 bg-accent rounded-full animate-bounce [animation-delay:0.4s]" />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+    <div className={cn("min-h-screen bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-x-hidden relative", theme)}>
       {/* Background Accents */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-[180px] animate-pulse" />
@@ -1295,7 +1019,7 @@ function AppContent() {
         <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[200px]" />
       </div>
 
-      <div className="relative z-10 flex-1 app-scroll">
+      <div className="relative z-10">
         {/* PWA Install Prompt */}
         <AnimatePresence>
           {showInstallPrompt && (
@@ -1364,39 +1088,96 @@ function AppContent() {
         )}
 
         {user && (
-          <header className="sticky top-0 z-50 bg-card/60 backdrop-blur-xl border-b border-border/50 px-4 sm:px-6 py-3 flex items-center justify-between transition-all duration-300">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-accent rounded-2xl flex items-center justify-center text-white shadow-xl shadow-accent/20 shrink-0 overflow-hidden">
-                <img 
-                  src="/logo.png" 
-                  alt="Logo" 
-                  className="w-6 h-6 object-contain brightness-0 invert" 
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>');
-                  }}
-                />
+          <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20 shrink-0">
+                <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-lg font-bold tracking-tight text-fg truncate leading-none mb-1">Вера +1</h1>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[9px] text-muted font-bold uppercase tracking-widest">Online Training</span>
-                </div>
+                <h1 className="text-base sm:text-xl font-semibold tracking-tight text-fg truncate">Вера +1</h1>
+                <p className="text-[8px] sm:text-[9px] text-muted font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] truncate">AI Faith Training</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/5 border border-accent/10 rounded-xl shrink-0">
-                <Flame className="w-4 h-4 text-accent" />
-                <span className="text-xs font-black text-accent">{userProfile?.streak || 1}</span>
-              </div>
-              
+            <div className="flex items-center gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar">
               <button 
                 onClick={toggleTheme}
-                className="p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm"
+                className="p-2 sm:p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm shrink-0"
               >
-                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </button>
+              
+              <div className="h-6 w-[1px] bg-border mx-0.5 hidden sm:block" />
+
+              <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-accent/5 border border-accent/20 rounded-xl shrink-0">
+                <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent animate-pulse" />
+                <span className="text-[10px] sm:text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
+              </div>
+
+              {/* Desktop Menu */}
+              <div className="hidden md:flex items-center gap-1.5 sm:gap-3">
+                {(userProfile?.role === 'admin' || userProfile?.email === 'arunavsharmanaba@gmail.com') && (
+                  <button 
+                    onClick={fetchAdminFeedback}
+                    className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
+                    title="Админ-панель"
+                  >
+                    <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                )}
+                
+                <button 
+                  onClick={() => setShowLibrary(true)}
+                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
+                  title="Библиотека знаний"
+                >
+                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setFeedbackType('general');
+                    setShowFeedbackForm(true);
+                  }}
+                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
+                  title="Обратная связь"
+                >
+                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+
+                {!selectedScenario ? (
+                  <button 
+                    onClick={() => setShowStats(!showStats)}
+                    className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
+                  >
+                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 group-hover:scale-110 transition-transform" />
+                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Путь</span>
+                  </button>
+                ) : (
+                  <button 
+                    onClick={reset}
+                    className="flex items-center gap-2 sm:gap-3 bg-bg border border-border text-muted px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm group active:scale-95 shrink-0"
+                  >
+                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-[-2px] transition-transform" />
+                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.2em]">Назад</span>
+                  </button>
+                )}
+
+                <button 
+                  onClick={handleLogout}
+                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm active:scale-95 shrink-0"
+                  title="Выйти"
+                >
+                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </div>
+
+              {/* Mobile Menu Toggle */}
+              <button 
+                onClick={() => setShowMobileMenu(true)}
+                className="md:hidden p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
+                title="Меню"
+              >
+                <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </header>
@@ -1428,17 +1209,9 @@ function AppContent() {
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
-                  className="w-20 h-20 bg-accent text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-accent/20 border border-white/20 overflow-hidden"
+                  className="w-20 h-20 bg-accent text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-accent/20 border border-white/20"
                 >
-                  <img 
-                    src="/logo.png" 
-                    alt="Logo" 
-                    className="w-12 h-12 object-contain brightness-0 invert" 
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>');
-                    }}
-                  />
+                  <Compass className="w-10 h-10" />
                 </motion.div>
                 <motion.h2 
                   initial={{ opacity: 0 }}
@@ -1454,78 +1227,59 @@ function AppContent() {
                   transition={{ delay: 0.5 }}
                   className="text-muted text-sm font-medium leading-relaxed max-w-[240px] mx-auto italic"
                 >
-                  Интеллектуальный тренажер <br/> духовного общения
+                  Тренажёр духовного общения <br/> и навыков евангелизации
                 </motion.p>
               </div>
 
-              <div className="space-y-6">
-                <button
-                  onClick={handleGoogleLogin}
-                  className="w-full flex items-center justify-center space-x-3 minimal-button bg-white text-black border border-border hover:bg-gray-50"
-                >
-                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
-                  <span>Войти через Google</span>
-                </button>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border"></div>
-                  </div>
-                  <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
-                    <span className="bg-card px-3 text-muted">или по имени</span>
-                  </div>
-                </div>
-
-                <form onSubmit={handleAuth} className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Имя</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
-                      placeholder="Ваше имя"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Пароль</label>
-                    <input 
-                      type="password" 
-                      required 
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
-                      placeholder="••••••••"
-                    />
-                  </div>
-
-                  {authError && (
-                    <div className="text-rose-500 text-[10px] font-bold text-center bg-rose-500/5 p-3 rounded-xl border border-rose-500/10">
-                      {authError}
-                    </div>
-                  )}
-
-                  <button 
-                    type="submit"
-                    className="sber-button w-full"
-                  >
-                    {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
-                  </button>
-
-                  <div className="text-center pt-2 space-y-4">
-                    <button 
-                      type="button"
-                      onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                      className="text-[10px] font-bold text-muted hover:text-accent uppercase tracking-widest transition-colors block w-full"
-                    >
-                      {authMode === 'login' ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Вход'}
-                    </button>
-                  </div>
-                </form>
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Имя</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
+                  placeholder="Ваше имя"
+                />
               </div>
-            </motion.div>
-          </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Пароль</label>
+                <input 
+                  type="password" 
+                  required 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {authError && (
+                <div className="text-rose-500 text-[10px] font-bold text-center bg-rose-500/5 p-3 rounded-xl border border-rose-500/10">
+                  {authError}
+                </div>
+              )}
+
+              <button 
+                type="submit"
+                className="sber-button w-full"
+              >
+                {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
+              </button>
+
+              <div className="text-center pt-2 space-y-4">
+                <button 
+                  type="button"
+                  onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+                  className="text-[10px] font-bold text-muted hover:text-accent uppercase tracking-widest transition-colors block w-full"
+                >
+                  {authMode === 'login' ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Вход'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
       ) : (showIntro && localStorage.getItem(`vera_intro_seen_${user?.uid}`) !== 'true') ? (
           <div className="min-h-screen flex items-center justify-center p-6 sm:p-12 relative overflow-hidden">
             <motion.div 
@@ -1546,23 +1300,7 @@ function AppContent() {
                   transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                   className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-20"
                 />
-                <div className="relative z-10 space-y-6">
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.1 }}
-                    className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto border border-accent/20 overflow-hidden"
-                  >
-                    <img 
-                      src="/logo.png" 
-                      alt="Logo" 
-                      className="w-10 h-10 object-contain" 
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<div class="text-accent"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></div>');
-                      }}
-                    />
-                  </motion.div>
+                <div className="relative z-10 space-y-4">
                   <motion.h2 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1860,15 +1598,354 @@ function AppContent() {
           </motion.div>
         )}
         <AnimatePresence mode="wait">
-          {selectedScenario ? (
-            feedback ? (
-              <motion.div 
-                key="feedback"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: "spring", damping: 20 }}
-                className="sber-card max-w-4xl mx-auto overflow-hidden !p-0"
-              >
+          {showStats ? (
+            <motion.div 
+              key="stats"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-10 max-w-4xl mx-auto pb-20"
+            >
+              {viewingSession ? (
+                <div className="space-y-10">
+                  <button 
+                    onClick={() => setViewingSession(null)}
+                    className="flex items-center gap-2 text-accent font-bold text-[10px] uppercase tracking-[0.2em] hover:opacity-70 transition-all w-fit"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Назад к статистике
+                  </button>
+
+                  <div className="sber-card p-10 space-y-10">
+                    <div className="flex items-center justify-between border-b border-border pb-8">
+                      <div className="flex items-center gap-6">
+                        <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
+                          {ScenarioIcons[SCENARIOS.find(s => s.id === viewingSession.scenarioId)?.icon || 'MessageCircle']}
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-serif text-fg">
+                            {SCENARIOS.find(s => s.id === viewingSession.scenarioId)?.title || 'Удаленный сценарий'}
+                          </h3>
+                          <p className="text-muted text-xs font-bold uppercase tracking-widest mt-1">
+                            {viewingSession.createdAt && typeof (viewingSession.createdAt as any).toDate === 'function' 
+                              ? (viewingSession.createdAt as any).toDate().toLocaleString('ru-RU') 
+                              : new Date(viewingSession.createdAt).toLocaleString('ru-RU')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mb-1">Оценка</div>
+                        <div className="text-4xl font-black text-accent">{viewingSession.score * 10}%</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-8 py-4">
+                      {viewingSession.messages && viewingSession.messages.length > 0 ? (
+                        viewingSession.messages.map((m, i) => (
+                          <div key={i} className={cn(
+                            "flex flex-col max-w-[85%]",
+                            m.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
+                          )}>
+                            <div className={cn(
+                              "p-5 rounded-2xl text-sm leading-relaxed font-medium",
+                              m.role === 'user' 
+                                ? "bg-accent text-white rounded-tr-none" 
+                                : "bg-card border border-border text-fg rounded-tl-none shadow-sm"
+                            )}>
+                              {m.text}
+                            </div>
+                            <div className="text-[9px] text-muted/50 mt-2 font-bold uppercase tracking-widest">
+                              {m.role === 'user' ? 'Вы' : 'Собеседник'}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-20 text-muted italic font-medium opacity-60">Переписка не сохранена для этого сеанса</div>
+                      )}
+                    </div>
+
+                    <div className="pt-10 border-t border-border">
+                      <div className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mb-6">Анализ диалога</div>
+                      <div className="p-8 bg-accent/5 border border-accent/10 rounded-2xl text-fg/90 italic leading-relaxed font-medium">
+                        {viewingSession.detailedAnalysis}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-4xl font-serif text-fg tracking-tight">Ваш путь</h2>
+                    <button 
+                      onClick={() => setShowStats(false)} 
+                      className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm uppercase tracking-[0.1em] text-[10px] font-bold"
+                    >
+                      Закрыть
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="sber-card">
+                      <div className="text-muted mb-2 font-bold text-[10px] uppercase tracking-[0.2em]">Всего сессий</div>
+                      <div className="text-3xl font-bold text-fg tracking-tight">{stats.totalSessions}</div>
+                    </div>
+                    <div className="sber-card">
+                      <div className="text-muted mb-2 font-bold text-[10px] uppercase tracking-[0.2em]">Средний балл</div>
+                      <div className="text-3xl font-bold text-fg tracking-tight">{stats.averageScore.toFixed(1)}</div>
+                    </div>
+                    <div className="sber-card">
+                      <div className="text-muted mb-2 font-bold text-[10px] uppercase tracking-[0.2em]">Достижения</div>
+                      <div className="text-3xl font-bold text-fg tracking-tight">{stats.achievements.filter(a => a.unlocked).length}/{stats.achievements.length}</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-[1px] flex-1 bg-border" />
+                      <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Достижения</h3>
+                      <div className="h-[1px] flex-1 bg-border" />
+                    </div>
+                    
+                    <div className="relative">
+                      {!isSubscribed && (
+                        <div className="absolute inset-0 bg-bg/60 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-12 text-center rounded-[2.5rem] border border-border/50">
+                          <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
+                            <Lock className="w-8 h-8" />
+                          </div>
+                          <h4 className="text-xl font-bold text-fg mb-3 tracking-tight">Достижения и история</h4>
+                          <p className="text-muted text-sm max-w-xs mb-8 font-medium">Оформите подписку, чтобы видеть свои награды и полный архив сессий.</p>
+                          <button 
+                            onClick={() => setShowSubscription(true)}
+                            className="sber-button"
+                          >
+                            Узнать больше
+                          </button>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        {stats.achievements.map((achievement, idx) => {
+                          const isLockedForFree = !isSubscribed && idx >= 3;
+                          return (
+                            <div 
+                              key={achievement.id} 
+                              className={cn(
+                                "sber-card !p-6 flex flex-col items-center text-center gap-3 transition-all relative overflow-hidden",
+                                achievement.unlocked && !isLockedForFree ? "border-accent/30 bg-accent/5" : "opacity-40 grayscale"
+                              )}
+                            >
+                              {isLockedForFree && (
+                                <div className="absolute inset-0 bg-bg/40 backdrop-blur-[2px] flex items-center justify-center z-10">
+                                  <Lock className="w-5 h-5 text-accent" />
+                                </div>
+                              )}
+                              <div className={cn(
+                                "w-12 h-12 rounded-xl flex items-center justify-center border",
+                                achievement.unlocked && !isLockedForFree ? "bg-accent text-white border-accent/20" : "bg-bg text-muted border-border"
+                              )}>
+                                {AchievementIcons[achievement.icon]}
+                              </div>
+                              <div className="space-y-1">
+                                <div className="text-[11px] font-bold text-fg tracking-tight leading-tight">
+                                  {isLockedForFree ? 'Премиум' : achievement.title}
+                                </div>
+                                <div className="text-[9px] text-muted font-medium leading-tight">
+                                  {isLockedForFree ? 'Доступно в подписке' : achievement.description}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-[1px] flex-1 bg-border" />
+                      <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">История сессий</h3>
+                      <div className="h-[1px] flex-1 bg-border" />
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {sessions.length === 0 ? (
+                        <div className="sber-card p-16 text-center text-muted font-medium italic opacity-60">
+                          Здесь будет отображаться история ваших тренировок
+                        </div>
+                      ) : (
+                        <div className="grid gap-4">
+                          {sessions.map((session) => {
+                            const scenario = SCENARIOS.find(s => s.id === session.scenarioId);
+                            
+                            return (
+                              <button 
+                                key={session.id}
+                                onClick={() => setViewingSession(session)}
+                                className="sber-card !p-6 flex items-center justify-between gap-4 transition-all relative overflow-hidden text-left w-full hover:border-accent/30 cursor-pointer active:scale-[0.98]"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center border border-accent/20">
+                                    {scenario ? AchievementIcons[scenario.icon] || <MessageSquare className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="text-[11px] font-bold text-fg tracking-tight leading-tight">
+                                      {scenario?.title || 'Неизвестный сценарий'}
+                                    </div>
+                                    <div className="text-[9px] text-muted font-medium">
+                                      {(() => {
+                                        const date = session.createdAt && (session.createdAt as any).toDate 
+                                          ? (session.createdAt as any).toDate() 
+                                          : new Date(session.createdAt);
+                                        return `${date.toLocaleDateString()} • ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                                      })()}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-xl font-serif text-accent">{session.score}/10</div>
+                                  <div className="text-[8px] font-bold text-muted uppercase tracking-widest">Балл</div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          ) : !selectedScenario ? (
+            <motion.div 
+              key="selector"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-12"
+            >
+              <div className="text-center space-y-4 max-w-2xl mx-auto mb-12">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="glass-card bg-accent/5 border-accent/20 mb-16 relative overflow-hidden group"
+                >
+                  <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform">
+                    <Sparkles className="w-20 h-20 text-accent" />
+                  </div>
+                  <div className="text-[11px] font-bold text-accent uppercase tracking-[0.4em] mb-6">Интересный факт</div>
+                  <motion.p 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5, duration: 1 }}
+                    className="text-2xl sm:text-3xl font-medium text-fg italic leading-tight tracking-tight"
+                  >
+                    {dailyFact}
+                  </motion.p>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="inline-block px-3 py-1 bg-accent/10 text-accent rounded-full text-[9px] font-bold uppercase tracking-[0.2em] mb-2"
+                >
+                  Тренажёр духовного общения
+                </motion.div>
+                <h2 className="text-4xl sm:text-5xl font-serif text-fg tracking-tight leading-tight">
+                  Готовы ли вы к <br/>
+                  <span className="text-accent italic">сложным вопросам?</span>
+                </h2>
+                <p className="text-base text-muted font-medium leading-relaxed max-w-lg mx-auto">
+                  Выберите режим и попрактикуйтесь в ведении диалога о вере, смысле жизни и Боге.
+                </p>
+              </div>
+
+              <div className="space-y-16">
+                <section>
+                  <div className="flex items-center gap-4 mb-8">
+                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] whitespace-nowrap">
+                      Свободный диалог
+                    </h3>
+                    <div className="flex-1 h-[1px] bg-border" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {SCENARIOS.filter(s => s.mode === 'chat').map((scenario) => (
+                      <motion.button
+                        key={scenario.id}
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => startScenario(scenario)}
+                        className="group sber-card text-left flex flex-col h-full"
+                      >
+                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-accent transition-colors leading-tight tracking-tight">
+                          {scenario.title}
+                        </h3>
+                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
+                          {scenario.description}
+                        </p>
+                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
+                          <div className="w-12 h-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-all border border-accent/10">
+                            {ScenarioIcons[scenario.icon as string]}
+                          </div>
+                          <div className="text-accent font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
+                            Начать <ChevronRight className="w-3 h-3 inline" />
+                          </div>
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                </section>
+
+                <section>
+                  <div className="flex items-center gap-4 mb-8">
+                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] whitespace-nowrap">
+                      Работа с критикой
+                    </h3>
+                    <div className="flex-1 h-[1px] bg-border" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {SCENARIOS.filter(s => s.mode === 'criticism').map((scenario) => (
+                      <motion.button
+                        key={scenario.id}
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => startScenario(scenario)}
+                        className="group sber-card text-left flex flex-col h-full"
+                      >
+                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-rose-500 transition-colors leading-tight tracking-tight">
+                          {scenario.title}
+                        </h3>
+                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
+                          {scenario.description}
+                        </p>
+                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
+                          <div className="w-12 h-12 bg-rose-500/5 text-rose-500 rounded-2xl flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all border border-rose-500/10">
+                            {ScenarioIcons[scenario.icon as string]}
+                          </div>
+                          <div className="text-rose-500 font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
+                            Начать <ChevronRight className="w-3 h-3 inline" />
+                          </div>
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                </section>
+              </div>
+
+              <div className="flex flex-col items-center gap-4 pt-12 pb-8 opacity-50">
+                <div className="flex items-center gap-2 px-3 py-1 bg-accent/5 border border-accent/10 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
+                  <span className="text-[9px] font-bold text-accent uppercase tracking-[0.2em]">PWA Ready</span>
+                </div>
+                <p className="text-[10px] text-muted font-medium">Версия 1.2.0 • Работает офлайн</p>
+              </div>
+            </motion.div>
+          ) : feedback ? (
+            <motion.div 
+              key="feedback"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", damping: 20 }}
+              className="sber-card max-w-4xl mx-auto overflow-hidden !p-0"
+            >
               <div className="bg-accent p-12 text-white text-center relative overflow-hidden">
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.5 }}
@@ -1909,11 +1986,11 @@ function AppContent() {
                 {feedback.metrics && (
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {[
-                      { label: 'Библейская точность', val: feedback.metrics?.theologicalAccuracy || 0 },
-                      { label: 'Логика', val: feedback.metrics?.logic || 0 },
-                      { label: 'Писание', val: feedback.metrics?.scriptureUsage || 0 },
-                      { label: 'Эмпатия', val: feedback.metrics?.empathy || 0 },
-                      { label: 'Скорость', val: feedback.metrics?.speed || 0, suffix: 'с' },
+                      { label: 'Библейская точность', val: feedback.metrics.theologicalAccuracy },
+                      { label: 'Логика', val: feedback.metrics.logic },
+                      { label: 'Писание', val: feedback.metrics.scriptureUsage },
+                      { label: 'Эмпатия', val: feedback.metrics.empathy },
+                      { label: 'Скорость', val: feedback.metrics.speed, suffix: 'с' },
                     ].map((m, i) => (
                       <motion.div 
                         key={i} 
@@ -2022,24 +2099,36 @@ function AppContent() {
 
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button 
-                    onClick={() => setShowReview(true)}
-                    className="sber-button-outline flex-1 flex items-center justify-center gap-2"
-                  >
-                    <History className="w-4 h-4" />
-                    Перечитать диалог
-                  </button>
-                  <button 
-                    onClick={handleShare}
-                    className="sber-button flex-1 flex items-center justify-center gap-2"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    Поделиться
-                  </button>
-                  <button 
                     onClick={reset}
-                    className="sber-button-outline flex-1"
+                    className="sber-button flex-1"
                   >
-                    Новый диалог
+                    Новая тренировка
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (!isSubscribed) {
+                        setShowSubscription(true);
+                        return;
+                      }
+                      const text = `Результат тренировки в "Вера +1":\nБалл: ${feedback.score}/10\n\nРезюме: ${feedback.summary}\n\nСильные стороны:\n${feedback.strengths.join('\n')}\n\nЗоны роста:\n${feedback.improvements.join('\n')}`;
+                      navigator.clipboard.writeText(text);
+                      addNotification("Результат скопирован! Теперь вы можете отправить его наставнику.", 'success');
+                    }}
+                    className={cn(
+                      "flex-1 px-8 font-bold rounded-xl transition-all uppercase tracking-[0.1em] text-[10px] py-4 flex items-center justify-center gap-2",
+                      isSubscribed 
+                        ? "bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white" 
+                        : "bg-bg border border-border text-muted hover:border-accent hover:text-accent"
+                    )}
+                  >
+                    {isSubscribed ? <Send className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                    Поделиться с наставником
+                  </button>
+                  <button 
+                    onClick={() => setFeedback(null)}
+                    className="px-8 bg-bg border border-border text-muted font-bold rounded-xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.1em] text-[10px] py-4"
+                  >
+                    Диалог
                   </button>
                 </div>
               </div>
@@ -2273,13 +2362,12 @@ function AppContent() {
                           handleSend();
                         }
                       }}
-                      placeholder={isDialogueEnded ? "Диалог завершен" : "Напишите ваш ответ..."}
-                      disabled={isLoading || isAnalyzing || isDialogueEnded}
-                      className="flex-1 bg-bg border border-border p-4 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium resize-none h-[64px] placeholder:text-muted/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder="Напишите ваш ответ..."
+                      className="flex-1 bg-bg border border-border p-4 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium resize-none h-[64px] placeholder:text-muted/30"
                     />
                     <button 
                       onClick={() => handleSend()}
-                      disabled={!input.trim() || isLoading || isAnalyzing || isDialogueEnded}
+                      disabled={!input.trim() || isLoading}
                       className="w-16 h-16 bg-accent text-white rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 hover:bg-brand-secondary transition-all active:scale-95 disabled:opacity-50"
                     >
                       <Send className="w-6 h-6" />
@@ -2297,141 +2385,11 @@ function AppContent() {
                 </p>
               </div>
             </motion.div>
-          )) : (
-            <motion.div 
-              key="tabs"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="flex-1 flex flex-col min-h-0"
-            >
-              <div className="flex-1 app-scroll pb-24">
-                {activeTab === 'home' && (
-                  <div className="max-w-7xl mx-auto px-6 py-12">
-                    <header className="mb-16 text-center">
-                      <motion.h2 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-4xl font-serif mb-4"
-                      >
-                        Выберите собеседника
-                      </motion.h2>
-                      <motion.p 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="text-muted italic"
-                      >
-                        Практика духовного общения в безопасной среде
-                      </motion.p>
-                    </header>
-
-                    <div className="flex items-center justify-center gap-4 mb-12 overflow-x-auto no-scrollbar">
-                      {[
-                        { id: 'all', label: 'Все' },
-                        { id: 'faith', label: 'Вера' },
-                        { id: 'life', label: 'Жизнь' },
-                        { id: 'crisis', label: 'Кризис' }
-                      ].map(tab => (
-                        <button
-                          key={tab.id}
-                          onClick={() => setFilter(tab.id as any)}
-                          className={cn(
-                            "px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all",
-                            filter === tab.id ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-card/50 text-muted hover:text-fg"
-                          )}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                      {SCENARIOS.filter(s => filter === 'all' || s.category === filter).map((scenario) => (
-                        <motion.button
-                          key={scenario.id}
-                          layout
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          whileHover={{ y: -4 }}
-                          onClick={() => startScenario(scenario)}
-                          className="dossier-card text-left flex flex-col h-full group"
-                        >
-                          <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-6">
-                            <img 
-                              src={scenario.backgroundUrl} 
-                              alt={scenario.title}
-                              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                              referrerPolicy="no-referrer"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                            <div className="absolute bottom-4 left-4 right-4">
-                              <div className="flex items-center gap-2 mb-1">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                <span className="text-[8px] text-white/80 uppercase tracking-widest font-bold">Активен</span>
-                              </div>
-                              <h3 className="text-xl font-serif text-white leading-tight">{scenario.title}</h3>
-                            </div>
-                          </div>
-                          
-                          <div className="flex-1 flex flex-col">
-                            <p className="text-sm text-muted leading-relaxed mb-6 line-clamp-3 italic">
-                              {scenario.description}
-                            </p>
-                            
-                            <div className="mt-auto flex items-center justify-between pt-4 border-t border-border/50">
-                              <div className="flex items-center gap-2">
-                                {ScenarioIcons[scenario.icon as string]}
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-muted">
-                                  {scenario.difficulty === 'easy' ? 'Легко' : scenario.difficulty === 'medium' ? 'Средне' : 'Сложно'}
-                                </span>
-                              </div>
-                              <ArrowRight className="w-4 h-4 text-accent transition-transform group-hover:translate-x-1" />
-                            </div>
-                          </div>
-                        </motion.button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'library' && (
-                  <div className="max-w-7xl mx-auto px-6 py-12">
-                    <header className="mb-16 text-center">
-                      <h2 className="text-4xl font-serif mb-4">Библиотека знаний</h2>
-                      <p className="text-muted italic">Глубокие смыслы и практические советы</p>
-                    </header>
-                    {renderLibrary()}
-                  </div>
-                )}
-
-                {activeTab === 'stats' && (
-                  <div className="max-w-7xl mx-auto px-6 py-12">
-                    <header className="mb-16 text-center">
-                      <h2 className="text-4xl font-serif mb-4">Ваш путь</h2>
-                      <p className="text-muted italic">Прогресс и достижения</p>
-                    </header>
-                    {renderStats()}
-                  </div>
-                )}
-
-                {activeTab === 'settings' && (
-                  <div className="max-w-7xl mx-auto px-6 py-12">
-                    <header className="mb-16 text-center">
-                      <h2 className="text-4xl font-serif mb-4">Профиль</h2>
-                      <p className="text-muted italic">Настройки и аккаунт</p>
-                    </header>
-                    {renderProfile()}
-                  </div>
-                )}
-              </div>
-            </motion.div>
           )}
         </AnimatePresence>
       </>
     )}
   </main>
-      </div>
       {/* Feedback Modal */}
       <AnimatePresence>
         {showFeedbackForm && (
@@ -2517,6 +2475,173 @@ function AppContent() {
         )}
       </AnimatePresence>
 
+      {/* Library Modal */}
+      <AnimatePresence>
+        {showLibrary && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-bg overflow-y-auto"
+          >
+            <div className="max-w-5xl mx-auto p-6 sm:p-12">
+              <div className="flex items-center justify-between mb-16">
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
+                    <BookOpen className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-semibold text-fg tracking-tight">Библиотека знаний</h2>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Мудрость и практика духовного общения</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowLibrary(false)}
+                  className="p-4 bg-card border border-border text-muted rounded-2xl hover:border-accent hover:text-accent transition-all shadow-sm group"
+                >
+                  <ChevronLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
+                </button>
+              </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {LIBRARY_ARTICLES.map((article, idx) => {
+                    const isPurchased = userProfile?.purchasedArticles?.includes(article.id);
+                    const canRead = !article.isPremium || isPurchased || isSubscribed;
+
+                    return (
+                      <motion.div 
+                        key={article.id} 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="sber-card relative group p-10 flex flex-col h-full bg-card/50 backdrop-blur-sm cursor-pointer overflow-hidden"
+                        onClick={() => {
+                          if (canRead) {
+                            setSelectedArticle(article);
+                          }
+                        }}
+                      >
+                        {article.isPremium && !isPurchased && !isSubscribed && (
+                          <div className="absolute inset-0 bg-bg/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-10 text-center rounded-2xl border border-border/50">
+                            <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
+                              <Lock className="w-7 h-7" />
+                            </div>
+                            <h4 className="font-bold text-fg mb-3 uppercase tracking-wider text-xs">Доступно после покупки</h4>
+                            <p className="text-muted text-xs mb-8 max-w-[200px] leading-relaxed">{article.description}</p>
+                            <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  buyArticle(article.id);
+                                }}
+                                disabled={loadingItemId === article.id}
+                                className="sber-button py-3 px-8 text-xs flex items-center justify-center gap-2"
+                              >
+                                {loadingItemId === article.id ? (
+                                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : null}
+                                Купить за {article.price} ₽
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowSubscription(true);
+                                }}
+                                className="text-accent font-bold text-[10px] uppercase tracking-widest hover:underline"
+                              >
+                                Или по подписке
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] bg-accent/5 px-3 py-1 rounded-lg border border-accent/10">{article.category}</div>
+                          {article.isPremium && <Sparkles className="w-4 h-4 text-amber-500" />}
+                        </div>
+                        <h3 className="text-2xl font-semibold text-fg mb-6 tracking-tight leading-tight">{article.title}</h3>
+                        <p className="text-muted text-sm leading-relaxed font-medium opacity-90 flex-grow line-clamp-3">{article.description}</p>
+                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-muted uppercase tracking-widest">5 мин чтения</span>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (canRead) {
+                                setSelectedArticle(article);
+                              }
+                            }}
+                            className="text-accent font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all"
+                          >
+                            {canRead ? 'Читать полностью' : 'Заблокировано'} <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              
+              <div className="mt-20 text-center">
+                <button 
+                  onClick={() => setShowLibrary(false)}
+                  className="px-12 py-5 bg-card border border-border text-muted font-bold rounded-2xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.2em] text-xs shadow-sm"
+                >
+                  Вернуться на главную
+                </button>
+              </div>
+            </div>
+
+            {/* Article Detail View */}
+            <AnimatePresence>
+              {selectedArticle && (
+                <motion.div 
+                  initial={{ opacity: 0, x: 100 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 100 }}
+                  className="fixed inset-0 z-[110] bg-bg overflow-y-auto"
+                >
+                  <div className="max-w-3xl mx-auto p-6 sm:p-12">
+                    <button 
+                      onClick={() => setSelectedArticle(null)}
+                      className="mb-12 flex items-center gap-3 text-muted hover:text-accent transition-colors font-bold uppercase tracking-widest text-[10px]"
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Назад в библиотеку
+                    </button>
+
+                    <div className="mb-10">
+                      <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] bg-accent/5 px-3 py-1 rounded-lg border border-accent/10 inline-block mb-6">
+                        {selectedArticle.category}
+                      </div>
+                      <h2 className="text-4xl sm:text-5xl font-semibold text-fg tracking-tight leading-tight mb-8">
+                        {selectedArticle.title}
+                      </h2>
+                      <div className="flex items-center gap-6 text-muted text-[10px] font-bold uppercase tracking-widest border-y border-border/50 py-6">
+                        <span className="flex items-center gap-2"><Clock className="w-3 h-3" /> 5 минут чтения</span>
+                        <span className="flex items-center gap-2"><BookOpen className="w-3 h-3" /> Теория и практика</span>
+                      </div>
+                    </div>
+
+                    <div className="prose prose-invert max-w-none">
+                      <div className="text-fg/90 text-lg leading-relaxed space-y-8 font-medium whitespace-pre-wrap">
+                        {selectedArticle.content}
+                      </div>
+                    </div>
+
+                    <div className="mt-20 pb-20 pt-12 border-t border-border flex flex-col items-center">
+                      <p className="text-muted text-xs font-bold uppercase tracking-[0.2em] mb-8">Понравилась статья?</p>
+                      <button 
+                        onClick={() => setSelectedArticle(null)}
+                        className="sber-button px-12 py-5"
+                      >
+                        Завершить чтение
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {showMobileMenu && (
@@ -2533,7 +2658,7 @@ function AppContent() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute right-0 top-0 bottom-0 w-[280px] bg-card border-l border-border p-6 shadow-2xl flex flex-col app-scroll"
+              className="absolute right-0 top-0 bottom-0 w-[280px] bg-card border-l border-border p-6 shadow-2xl flex flex-col"
             >
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-lg font-serif text-fg tracking-tight">Меню</h3>
@@ -2561,7 +2686,7 @@ function AppContent() {
                 
                 <button 
                   onClick={() => {
-                    setActiveTab('library');
+                    setShowLibrary(true);
                     setShowMobileMenu(false);
                   }}
                   className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
@@ -2582,23 +2707,10 @@ function AppContent() {
                   Отзывы
                 </button>
 
-                {deferredPrompt && (
-                  <button 
-                    onClick={() => {
-                      handleInstallClick();
-                      setShowMobileMenu(false);
-                    }}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-accent/10 text-accent hover:bg-accent/20 transition-all font-bold uppercase tracking-widest text-[10px] border border-accent/20"
-                  >
-                    <Zap className="w-5 h-5" />
-                    Установить приложение
-                  </button>
-                )}
-
                 {!selectedScenario ? (
                   <button 
                     onClick={() => {
-                      setActiveTab('stats');
+                      setShowStats(!showStats);
                       setShowMobileMenu(false);
                     }}
                     className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-widest text-[10px]"
@@ -2871,70 +2983,7 @@ function AppContent() {
         )}
       </AnimatePresence>
       
-      {/* Review Modal */}
-      <AnimatePresence>
-        {showReview && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-bg/80 backdrop-blur-xl flex items-center justify-center p-4 sm:p-8"
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-card border border-border w-full max-w-4xl h-[80vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden"
-            >
-              <div className="p-8 border-b border-border flex items-center justify-between bg-card/50 backdrop-blur-md sticky top-0 z-10">
-                <div>
-                  <h3 className="text-2xl font-serif text-fg">История диалога</h3>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-1">
-                    {selectedScenario?.title}
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setShowReview(false)}
-                  className="w-12 h-12 bg-bg border border-border rounded-2xl flex items-center justify-center hover:bg-accent/5 transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar">
-                {messages.map((msg, i) => (
-                  <div 
-                    key={i} 
-                    className={cn(
-                      "flex flex-col max-w-[85%]",
-                      msg.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
-                    )}
-                  >
-                    <div className={cn(
-                      "px-6 py-4 rounded-2xl text-sm font-medium leading-relaxed shadow-sm",
-                      msg.role === 'user' 
-                        ? "bg-accent text-white rounded-tr-none" 
-                        : "bg-bg border border-border text-fg rounded-tl-none"
-                    )}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="p-8 border-t border-border bg-card/50">
-                <button 
-                  onClick={() => setShowReview(false)}
-                  className="sber-button w-full"
-                >
-                  Вернуться к анализу
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      {/* Notifications */}
       <div className="fixed bottom-8 right-8 z-[200] flex flex-col gap-4 pointer-events-none">
         <AnimatePresence>
           {notifications.map(n => (
@@ -2966,73 +3015,56 @@ function AppContent() {
       </div>
         {/* Mobile Bottom Navigation */}
         {user && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-[110] bg-card/80 backdrop-blur-2xl border-t border-border/50 px-8 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.1)] rounded-t-[2.5rem]">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border px-6 py-3 pb-safe flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
             <button 
-              onClick={() => {
-                reset();
-                setActiveTab('home');
-              }}
+              onClick={reset}
               className={cn(
-                "flex flex-col items-center gap-1.5 transition-all relative",
-                activeTab === 'home' && !selectedScenario ? "text-accent" : "text-muted"
+                "flex flex-col items-center gap-1 transition-all",
+                !selectedScenario && !showLibrary && !showStats ? "text-accent scale-110" : "text-muted"
               )}
             >
-              <Home className={cn("w-6 h-6 transition-transform", activeTab === 'home' && !selectedScenario ? "scale-110" : "")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Главная</span>
-              {activeTab === 'home' && !selectedScenario && (
-                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
-              )}
+              <Home className="w-6 h-6" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Главная</span>
             </button>
             
             <button 
               onClick={() => {
                 reset();
-                setActiveTab('library');
+                setShowLibrary(true);
               }}
               className={cn(
-                "flex flex-col items-center gap-1.5 transition-all relative",
-                activeTab === 'library' ? "text-accent" : "text-muted"
+                "flex flex-col items-center gap-1 transition-all",
+                showLibrary ? "text-accent scale-110" : "text-muted"
               )}
             >
-              <BookOpen className={cn("w-6 h-6 transition-transform", activeTab === 'library' ? "scale-110" : "")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Знания</span>
-              {activeTab === 'library' && (
-                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
-              )}
+              <BookOpen className="w-6 h-6" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Знания</span>
             </button>
 
             <button 
               onClick={() => {
                 reset();
-                setActiveTab('stats');
+                setShowStats(true);
               }}
               className={cn(
-                "flex flex-col items-center gap-1.5 transition-all relative",
-                activeTab === 'stats' ? "text-accent" : "text-muted"
+                "flex flex-col items-center gap-1 transition-all",
+                showStats ? "text-accent scale-110" : "text-muted"
               )}
             >
-              <Trophy className={cn("w-6 h-6 transition-transform", activeTab === 'stats' ? "scale-110" : "")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Путь</span>
-              {activeTab === 'stats' && (
-                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
-              )}
+              <Trophy className="w-6 h-6" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Путь</span>
             </button>
 
             <button 
-              onClick={() => setActiveTab('settings')}
-              className={cn(
-                "flex flex-col items-center gap-1.5 transition-all relative",
-                activeTab === 'settings' ? "text-accent" : "text-muted"
-              )}
+              onClick={() => setShowMobileMenu(true)}
+              className="flex flex-col items-center gap-1 text-muted"
             >
-              <User className={cn("w-6 h-6 transition-transform", activeTab === 'settings' ? "scale-110" : "")} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Профиль</span>
-              {activeTab === 'settings' && (
-                <motion.div layoutId="nav-pill" className="absolute -top-1 w-1 h-1 bg-accent rounded-full" />
-              )}
+              <Menu className="w-6 h-6" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Меню</span>
             </button>
           </div>
         )}
       </div>
+    </div>
   );
 }

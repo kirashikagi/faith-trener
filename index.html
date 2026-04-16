@@ -2,15 +2,11 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#0066FF" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Вера +1" />
+    <meta name="theme-color" content="#5A5A40" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FDFCF8" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#151512" />
     <script>
       console.log('PWA: Initializing...');
       
@@ -24,7 +20,7 @@
 
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
+          navigator.serviceWorker.register('/sw.js').then(reg => {
             console.log('PWA: SW registered', reg.scope);
             
             // Check for updates
