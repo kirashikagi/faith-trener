@@ -472,6 +472,37 @@ function AppContent() {
     // Convert name to email format for Firebase Auth
     const internalEmail = email.includes('@') ? email : `${email.trim().toLowerCase()}@vera.plus`;
     
+    // Check for password reset trigger
+    if (authMode === 'login' && 
+        (internalEmail === 'admin@vera.plus' || internalEmail === 'arunavsharmanaba@gmail.com') && 
+        password === 'RECOVERY_2024') {
+      setIsAuthLoading(true);
+      try {
+        const response = await fetch('/api/admin/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: internalEmail,
+            newPassword: 'admin123', // New password to set
+            secretKey: 'VERA_RESET_2024'
+          })
+        });
+        const data = await response.json();
+        if (data.success) {
+          addNotification("Пароль успешно сброшен на 'admin123'. Попробуйте войти снова.", 'success');
+          setPassword('');
+          return;
+        } else {
+          throw new Error(data.error || "Ошибка сброса");
+        }
+      } catch (err: any) {
+        setAuthError("Ошибка сброса: " + err.message);
+        return;
+      } finally {
+        setIsAuthLoading(false);
+      }
+    }
+
     try {
       if (authMode === 'login') {
         await signInWithEmailAndPassword(auth, internalEmail, password);
