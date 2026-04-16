@@ -65,6 +65,10 @@ async function getDb() {
   }
 }
 
+async function ensureAdminInitialized() {
+  await getDb();
+}
+
 // Ping endpoint
 app.get("/api/ping", (req, res) => {
   res.json({ status: "ok", env: Object.keys(process.env).filter(k => !k.includes('KEY') && !k.includes('SECRET')) });
@@ -249,7 +253,7 @@ app.post("/api/admin/reset-password", async (req, res) => {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    await loadDependencies();
+    await ensureAdminInitialized();
     const user = await admin.auth().getUserByEmail(email);
     await admin.auth().updateUser(user.uid, { password: newPassword });
 
