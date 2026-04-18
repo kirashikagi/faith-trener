@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -22,23 +22,6 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-// Diagnostic: Log all defined routes
-app.get("/api/routes-list", (req, res) => {
-  const routes = [];
-  app._router.stack.forEach((middleware) => {
-    if (middleware.route) {
-      routes.push(`${Object.keys(middleware.route.methods).join(',').toUpperCase()} ${middleware.route.path}`);
-    } else if (middleware.name === 'router') {
-      middleware.handle.stack.forEach((handler) => {
-        if (handler.route) {
-          routes.push(`${Object.keys(handler.route.methods).join(',').toUpperCase()} ${handler.route.path}`);
-        }
-      });
-    }
-  });
-  res.json({ routes });
-});
-
 // Lazy load heavy dependencies to avoid top-level crashes
 let admin: any;
 let getFirestore: any;
@@ -52,9 +35,6 @@ async function loadDependencies() {
   if (!YooCheckout) {
     const yookassa = await import('yookassa');
     YooCheckout = yookassa.YooCheckout || yookassa.default?.YooCheckout || yookassa.default;
-    if (!YooCheckout) {
-      console.error("Failed to find YooCheckout in yookassa package:", yookassa);
-    }
   }
 }
 
@@ -97,23 +77,9 @@ async function getDb() {
   }
 }
 
+// Payment configuration status
 app.get("/api/status", (req, res) => {
-  res.json({ status: "ok", time: new Date().toISOString(), env: !!process.env.YOOKASSA_SHOP_ID });
-});
-
-// Ping endpoint
-app.get("/api/payments/test-config", async (req, res) => {
-  const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
-  const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
-  
-  res.json({
-    shopIdPresent: !!shopId,
-    secretKeyPresent: !!secretKey,
-    shopIdLength: shopId.length,
-    secretKeyPrefix: secretKey ? secretKey.substring(0, 5) + '...' : 'none',
-    nodeVersion: process.version,
-    envKeys: Object.keys(process.env).filter(k => k.startsWith('YOOKASSA'))
-  });
+  res.json({ status: "ok", time: new Date().toISOString() });
 });
 
 // YooKassa
@@ -128,7 +94,6 @@ async function getCheckout() {
   if (shopId && secretKey) {
     try {
       _checkout = new YooCheckout({ shopId, secretKey });
-      console.log("YooKassa checkout initialized.");
     } catch (e) {
       console.error("Failed to initialize YooKassa checkout instance:", e);
     }
@@ -136,55 +101,17 @@ async function getCheckout() {
   return _checkout;
 }
 
-// Payment configuration status
-app.get("/api/payments/status", async (req, res) => {
-  const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
-  const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
-  const geminiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-  
-  res.json({
-    yookassa: {
-      configured: !!(shopId && secretKey),
-      shopIdPresent: !!shopId,
-      secretKeyPresent: !!secretKey,
-      shopIdLength: shopId.length
-    },
-    gemini: {
-      configured: !!geminiKey,
-      keyLength: geminiKey.length
-    },
-    node_env: process.env.NODE_ENV,
-    timestamp: new Date().toISOString()
-  });
-});
-
 app.post("/api/payments/create", async (req, res) => {
   try {
     const { amount, description, metadata, return_url } = req.body;
-    console.log("Payment creation request received:", { amount, description, metadata, return_url });
-    
     if (!amount || isNaN(Number(amount))) {
       return res.status(400).json({ error: "Некорректная сумма платежа" });
     }
 
     const checkout = await getCheckout();
-    
-    if (!checkout) {
-      const shopId = (process.env.YOOKASSA_SHOP_ID || '').trim();
-      const secretKey = (process.env.YOOKASSA_SECRET_KEY || '').trim();
-      let missing = [];
-      if (!shopId) missing.push("YOOKASSA_SHOP_ID");
-      if (!secretKey) missing.push("YOOKASSA_SECRET_KEY");
-      
-      console.error("YooKassa not configured: missing", missing);
-      return res.status(500).json({ 
-        error: `ЮKassa не настроена. Отсутствуют ключи: ${missing.join(', ')}. Добавьте их в раздел Secrets.` 
-      });
-    }
+    if (!checkout) return res.status(500).json({ error: "ЮKassa не настроена." });
 
     const value = Number(amount).toFixed(2);
-    console.log(`Creating YooKassa payment for amount: ${value} RUB, description: ${description}`);
-    
     const payment = await checkout.createPayment({
       amount: { value, currency: 'RUB' },
       payment_method_data: { type: 'bank_card' },
@@ -194,19 +121,13 @@ app.post("/api/payments/create", async (req, res) => {
       capture: true
     });
     
-    console.log("YooKassa payment created successfully. ID:", payment.id);
-    
     if (payment.confirmation && payment.confirmation.confirmation_url) {
       res.json({ confirmation_url: payment.confirmation.confirmation_url });
     } else {
-      console.error("Payment created but no confirmation URL found. Response:", JSON.stringify(payment));
-      res.status(500).json({ error: "ЮKassa не вернула ссылку для подтверждения платежа." });
+      res.status(500).json({ error: "ЮKassa не вернула ссылку." });
     }
   } catch (error: any) {
-    console.error("YooKassa Payment Error:", error);
-    res.status(500).json({ 
-      error: error.message || "Произошла непредвиденная ошибка при создании платежа" 
-    });
+    res.status(500).json({ error: error.message || "Ошибка при создании платежа" });
   }
 });
 
@@ -227,7 +148,6 @@ app.post("/api/payments/webhook", async (req, res) => {
     }
     res.sendStatus(200);
   } catch (error) {
-    console.error("Webhook error:", error);
     res.sendStatus(200);
   }
 });
@@ -237,27 +157,23 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
     const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-    
     if (!apiKey) return res.status(500).json({ error: "API key missing." });
 
-    const ai = new GoogleGenAI({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelInstance = genAI.getGenerativeModel({ 
+      model: model || "gemini-1.5-flash",
+      systemInstruction: systemInstruction 
+    });
+
     const formattedHistory = (history || []).map((m: any) => ({
-      role: m.role,
+      role: m.role === 'user' ? 'user' : 'model',
       parts: [{ text: m.text }]
     }));
 
-    if (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
-      formattedHistory.unshift({ role: 'user', parts: [{ text: 'Начнем.' }] });
-    }
-
-    const chat = ai.chats.create({
-      model: model || "gemini-3-flash-preview",
-      config: { systemInstruction },
-      history: formattedHistory
-    });
-
-    const response = await chat.sendMessage({ message });
-    res.json({ text: response.text });
+    const chat = modelInstance.startChat({ history: formattedHistory });
+    const result = await chat.sendMessage(message);
+    const response = await result.response;
+    res.json({ text: response.text() });
   } catch (error: any) {
     console.error("Chat error:", error);
     res.status(500).json({ error: error.message });
@@ -268,59 +184,159 @@ app.post("/api/generate", async (req, res) => {
   try {
     const { prompt, config, apiKey: clientApiKey } = req.body;
     const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-    
     if (!apiKey) return res.status(500).json({ error: "API key missing." });
 
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-flash-latest",
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    const generationConfig = {
+      responseMimeType: config?.responseMimeType === "application/json" ? "application/json" : "text/plain",
+      temperature: config?.temperature || 0.7,
+      topP: config?.topP || 0.95,
+      topK: config?.topK || 40,
+    };
+
+    const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: { 
-        responseMimeType: config?.responseMimeType || "text/plain",
-        temperature: config?.temperature || 0.7,
-        topP: config?.topP || 0.95,
-        topK: config?.topK || 40
-      }
+      generationConfig
     });
 
-    if (!response.text) {
-      throw new Error("Model returned an empty response.");
-    }
-
-    res.json({ text: response.text });
+    const response = await result.response;
+    res.json({ text: response.text() });
   } catch (error: any) {
     console.error("Generate error:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Server-side profile proxy to bypass VPN blocks in Russia
+// Firestore Proxy Endpoints (to bypass VPN blocks in Russia)
 app.get("/api/users/:uid", async (req, res) => {
   try {
     const db = await getDb();
-    const docRef = db.collection('users').doc(req.params.uid);
-    const doc = await docRef.get();
-    
-    if (!doc.exists) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    
+    const doc = await db.collection('users').doc(req.params.uid).get();
+    if (!doc.exists) return res.status(404).json({ error: "Пользователь не найден" });
     res.json(doc.data());
   } catch (error: any) {
-    console.error("Profile proxy error:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Catch-all for /api/* to help debug 404/405
-app.all("/api/*", (req, res) => {
-  console.log(`[404/405] Request for ${req.method} ${req.url} was not handled by any route.`);
-  res.status(404).json({ error: `Эндпоинт ${req.method} ${req.url} не найден на этом сервере.` });
+app.post("/api/users/:uid", async (req, res) => {
+  try {
+    const db = await getDb();
+    await db.collection('users').doc(req.params.uid).set(req.body, { merge: true });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.use((err: any, req: any, res: any, next: any) => {
-  console.error("Global error:", err);
-  res.status(500).json({ error: "Internal server error" });
+app.patch("/api/users/:uid", async (req, res) => {
+  try {
+    const db = await getDb();
+    await db.collection('users').doc(req.params.uid).update(req.body);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/stats", async (req, res) => {
+  try {
+    const db = await getDb();
+    const usersSnapshot = await db.collection('users').get();
+    const feedbackSnapshot = await db.collection('feedback').get();
+    const sessionsSnapshot = await db.collection('sessions').get();
+    
+    res.json({
+      users: usersSnapshot.size,
+      feedback: feedbackSnapshot.size,
+      sessions: sessionsSnapshot.size
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/feedback", async (req, res) => {
+  try {
+    const db = await getDb();
+    const snapshot = await db.collection('feedback')
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get();
+    
+    const docs = snapshot.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate().toISOString() : doc.data().createdAt
+    }));
+    res.json(docs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/sessions", async (req, res) => {
+  try {
+    const data = req.body;
+    if (!data.uid) return res.status(400).json({ error: "uid is required" });
+    const db = await getDb();
+    const result = await db.collection('sessions').add({
+      ...data,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    res.json({ id: result.id });
+  } catch (error: any) {
+    console.error("Save session error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/sessions", async (req, res) => {
+  try {
+    const { uid } = req.query;
+    if (!uid) return res.status(400).json({ error: "uid is required" });
+    const db = await getDb();
+    const snapshot = await db.collection('sessions')
+      .where('uid', '==', uid)
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
+    
+    const docs = snapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt
+      };
+    });
+    res.json(docs);
+  } catch (error: any) {
+    console.error("Get sessions error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/feedback", async (req, res) => {
+  try {
+    const data = req.body;
+    if (!data.uid) return res.status(400).json({ error: "uid is required" });
+    const db = await getDb();
+    const result = await db.collection('feedback').add({
+      ...data,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    res.json({ id: result.id });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Catch-all
+app.all("/api/*", (req, res) => {
+  res.status(404).json({ error: `Эндпоинт ${req.method} ${req.url} не найден.` });
 });
 
 export default app;

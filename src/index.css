@@ -1,14 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Cormorant Garamond", serif;
   
-  /* Refined Pastel Theme */
-  --color-brand-primary: #5A5A40; /* Muted Olive/Sage */
-  --color-brand-secondary: #4A4A30;
+  /* Neo-Brutalism Palette */
+  --color-brand-primary: #000000;
+  --color-brand-secondary: #222222;
   
   --color-bg: var(--bg);
   --color-fg: var(--fg);
@@ -21,25 +21,25 @@
 
 @layer base {
   :root {
-    --bg: #FDFCF8; /* Warm off-white/cream */
-    --fg: #1C1C1C;
+    --bg: #FDF9F0; /* Warm paper color */
+    --fg: #000000;
     --card: #FFFFFF;
-    --border: #F0EDE4;
-    --muted: #8E8E8E;
-    --accent: #5A5A40; /* Sophisticated Sage */
-    --glass: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(90, 90, 64, 0.08);
+    --border: #000000;
+    --muted: #4A4A4A;
+    --accent: #FFD21E; /* Pop Yellow */
+    --glass: rgba(255, 255, 255, 0.9);
+    --glass-border: #000000;
   }
 
   .dark {
-    --bg: #151512;
-    --fg: #F5F5F0;
-    --card: #1C1C18;
-    --border: #2D2D28;
-    --muted: #9A9A90;
-    --accent: #8A8A70;
-    --glass: rgba(28, 28, 24, 0.8);
-    --glass-border: rgba(255, 255, 255, 0.05);
+    --bg: #121212;
+    --fg: #FFFFFF;
+    --card: #1E1E1E;
+    --border: #FFFFFF;
+    --muted: #A0A0A0;
+    --accent: #FFD21E;
+    --glass: rgba(30, 30, 30, 0.9);
+    --glass-border: #FFFFFF;
   }
 
   body {
@@ -50,7 +50,7 @@
   }
   
   h1, h2, h3, h4 {
-    @apply font-serif tracking-normal font-medium;
+    @apply font-sans tracking-tight font-black uppercase;
   }
 
   .pb-safe {
@@ -58,36 +58,60 @@
   }
 }
 
-.glass-panel {
-  background: var(--glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 32px rgba(90, 90, 64, 0.03);
+.brutal-border {
+  border-width: 4px;
+  border-color: #000000;
+}
+.dark .brutal-border {
+  border-color: #FFFFFF;
+}
+
+.brutal-shadow {
+  box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+}
+.dark .brutal-shadow {
+  box-shadow: 6px 6px 0px 0px rgba(255,255,255,1);
+}
+
+.brutal-shadow-sm {
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+}
+.dark .brutal-shadow-sm {
+  box-shadow: 4px 4px 0px 0px rgba(255,255,255,1);
 }
 
 .sber-card {
-  @apply bg-card border border-border rounded-[2.5rem] p-6 sm:p-10 transition-all duration-500;
-  box-shadow: 0 4px 30px rgba(90, 90, 64, 0.02);
+  @apply bg-card rounded-xl p-6 sm:p-10 transition-all mb-6;
+  border-width: 4px;
+  border-color: #000000;
+  box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+}
+.dark .sber-card {
+  border-color: #FFFFFF;
+  box-shadow: 6px 6px 0px 0px rgba(255,255,255,1);
 }
 
 .sber-card:hover {
-  @apply border-accent/20 -translate-y-1;
-  box-shadow: 0 20px 40px rgba(90, 90, 64, 0.05);
+  @apply -translate-x-[2px] -translate-y-[2px] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)];
 }
 
-.glass-card {
-  @apply bg-card/40 backdrop-blur-2xl border border-border/40 rounded-[3rem] p-12 shadow-2xl;
+.sber-card:active {
+  @apply translate-x-[2px] translate-y-[2px] shadow-none transition-none;
 }
 
 .sber-button {
-  @apply bg-accent text-white px-10 py-5 rounded-[1.5rem] font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none tracking-[0.1em] text-[13px];
-  box-shadow: 0 10px 25px rgba(90, 90, 64, 0.12);
+  @apply bg-accent text-black rounded-xl px-10 py-5 font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50 disabled:pointer-events-none tracking-widest text-[13px];
+  border-width: 4px;
+  border-color: #000000;
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+}
+.dark .sber-button {
+  border-color: #FFFFFF;
+  box-shadow: 4px 4px 0px 0px rgba(255,255,255,1);
 }
 
 .sber-button:hover {
-  @apply bg-brand-secondary -translate-y-0.5;
-  box-shadow: 0 15px 35px rgba(90, 90, 64, 0.2);
+  @apply -translate-x-[1px] -translate-y-[1px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)];
 }
 
 /* Custom Scrollbar */
