@@ -1847,12 +1847,12 @@ function AppContent() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="sber-card bg-emerald-100 dark:bg-emerald-900/30 border-black dark:border-white mb-16 relative overflow-hidden group"
+                  className="sber-card bg-emerald-100 dark:bg-emerald-900/40 border-black dark:border-white mb-16 relative overflow-hidden group"
                 >
                   <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform">
                     <Sparkles className="w-20 h-20 text-black dark:text-white" />
                   </div>
-                  <div className="text-xs font-black text-black dark:text-emerald-400 uppercase tracking-widest mb-6">Интересный факт ✨</div>
+                  <div className="text-xs font-black text-black/60 dark:text-emerald-400 uppercase tracking-widest mb-6">Интересный факт ✨</div>
                   <motion.p 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -1882,11 +1882,11 @@ function AppContent() {
               <div className="space-y-20">
                 <section>
                   <div className="flex items-center gap-6 mb-12">
-                     <div className="w-12 h-12 brutal-border brutal-shadow-sm bg-accent flex items-center justify-center font-black">01</div>
+                     <div className="w-12 h-12 brutal-border brutal-shadow-sm bg-accent flex items-center justify-center font-black text-black">01</div>
                     <h3 className="text-2xl font-black text-fg uppercase tracking-tighter">
                       Свободный диалог
                     </h3>
-                    <div className="flex-1 h-1 bg-black" />
+                    <div className="flex-1 h-1 bg-black dark:bg-white" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8">
                     {SCENARIOS.filter(s => s.mode === 'chat').map((scenario) => (
@@ -1895,9 +1895,9 @@ function AppContent() {
                         onClick={() => startScenario(scenario)}
                         className="group sber-card text-left flex flex-col h-full !p-0 overflow-hidden"
                       >
-                        <div className="bg-emerald-100 dark:bg-emerald-900/30 p-8 border-b-4 border-black dark:border-white">
+                        <div className="bg-emerald-100 dark:bg-emerald-900/40 p-8 border-b-4 border-black dark:border-white">
                            <div className="flex items-center justify-between mb-6">
-                              <div className="w-16 h-16 bg-white dark:bg-zinc-800 brutal-border brutal-shadow-sm flex items-center justify-center text-fg">
+                              <div className="w-16 h-16 bg-card brutal-border brutal-shadow-sm flex items-center justify-center text-fg">
                                 {ScenarioIcons[scenario.icon as string]}
                               </div>
                               <div className="text-[10px] font-black uppercase tracking-widest bg-black dark:bg-white text-white dark:text-black px-3 py-1 rounded-lg">ЧАТ</div>
@@ -1906,17 +1906,17 @@ function AppContent() {
                             {scenario.title}
                           </h3>
                         </div>
-                        <div className="p-8 flex-grow flex flex-col justify-between bg-white dark:bg-zinc-900">
-                          <p className="text-black dark:text-fg text-sm font-black leading-tight uppercase opacity-70 mb-8">
+                        <div className="p-8 flex-grow flex flex-col justify-between bg-card">
+                          <p className="text-fg text-sm font-black leading-tight uppercase opacity-70 mb-8">
                             {scenario.description}
                           </p>
                           <div className="flex items-center justify-between">
                             <div className="flex -space-x-2">
                                {[1,2,3].map(i => (
-                                 <div key={i} className="w-8 h-8 rounded-full brutal-border bg-white dark:bg-zinc-800 flex items-center justify-center text-[8px] font-black text-fg">U{i}</div>
+                                 <div key={i} className="w-8 h-8 rounded-full brutal-border bg-card flex items-center justify-center text-[8px] font-black text-fg">U{i}</div>
                                ))}
                             </div>
-                            <div className="text-black dark:text-fg font-black text-xs uppercase tracking-widest group-hover:translate-x-1 transition-transform flex items-center gap-2">
+                            <div className="text-fg font-black text-xs uppercase tracking-widest group-hover:translate-x-1 transition-transform flex items-center gap-2">
                               Начать <ArrowRight className="w-4 h-4" />
                             </div>
                           </div>
@@ -1928,11 +1928,11 @@ function AppContent() {
 
                 <section>
                   <div className="flex items-center gap-6 mb-12">
-                    <div className="w-12 h-12 brutal-border brutal-shadow-sm bg-rose-400 flex items-center justify-center font-black">02</div>
+                    <div className="w-12 h-12 brutal-border brutal-shadow-sm bg-rose-400 flex items-center justify-center font-black text-black">02</div>
                     <h3 className="text-2xl font-black text-fg uppercase tracking-tighter">
                       Работа с критикой
                     </h3>
-                    <div className="flex-1 h-1 bg-black" />
+                    <div className="flex-1 h-1 bg-black dark:bg-white" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8">
                     {SCENARIOS.filter(s => s.mode === 'criticism').map((scenario) => (
@@ -1941,9 +1941,9 @@ function AppContent() {
                         onClick={() => startScenario(scenario)}
                         className="group sber-card text-left flex flex-col h-full !p-0 overflow-hidden"
                       >
-                        <div className="bg-rose-100 dark:bg-rose-900/30 p-8 border-b-4 border-black dark:border-white">
+                        <div className="bg-rose-100 dark:bg-rose-900/40 p-8 border-b-4 border-black dark:border-white">
                            <div className="flex items-center justify-between mb-6">
-                              <div className="w-16 h-16 bg-white dark:bg-zinc-800 brutal-border brutal-shadow-sm flex items-center justify-center text-fg">
+                              <div className="w-16 h-16 bg-card brutal-border brutal-shadow-sm flex items-center justify-center text-fg">
                                 {ScenarioIcons[scenario.icon as string]}
                               </div>
                               <div className="text-[10px] font-black uppercase tracking-widest bg-black dark:bg-white text-white dark:text-black px-3 py-1 rounded-lg">КРИТИКА</div>
@@ -1952,8 +1952,8 @@ function AppContent() {
                             {scenario.title}
                           </h3>
                         </div>
-                        <div className="p-8 flex-grow flex flex-col justify-between bg-white dark:bg-zinc-900">
-                          <p className="text-black dark:text-fg text-sm font-black leading-tight uppercase opacity-70 mb-8">
+                        <div className="p-8 flex-grow flex flex-col justify-between bg-card">
+                          <p className="text-fg text-sm font-black leading-tight uppercase opacity-70 mb-8">
                             {scenario.description}
                           </p>
                           <div className="flex items-center justify-between">

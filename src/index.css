@@ -99,6 +99,10 @@
   @apply translate-x-[2px] translate-y-[2px] shadow-none transition-none;
 }
 
+.glass-card {
+  @apply bg-glass backdrop-blur-md rounded-[2rem] p-8 sm:p-12 border-4 border-black dark:border-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)];
+}
+
 .sber-button {
   @apply bg-accent text-black rounded-xl px-10 py-5 font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50 disabled:pointer-events-none tracking-widest text-[13px];
   border-width: 4px;
