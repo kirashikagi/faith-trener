@@ -399,90 +399,96 @@ function AppContent() {
   }, [user, selectedScenario, showStats, showLibrary, showAdmin]);
 
   useEffect(() => {
+    let profileUnsubscribe: (() => void) | null = null;
+
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         setIsProfileLoading(true);
+        
+        // Use onSnapshot for real-time profile updates
+        profileUnsubscribe = onSnapshot(doc(db, 'users', firebaseUser.uid), async (docSnap) => {
+          if (docSnap.exists()) {
+            const profile = docSnap.data() as UserProfile;
+            
+            // Streak logic
+            const now = Date.now();
+            const lastVisit = profile.lastVisit || 0;
+            const oneDay = 24 * 60 * 60 * 1000;
+            const isSameDay = new Date(now).toDateString() === new Date(lastVisit).toDateString();
+            const isNextDay = new Date(now - oneDay).toDateString() === new Date(lastVisit).toDateString();
 
-        const loadProfile = async () => {
-          try {
-            const response = await fetch(`/api/users/${firebaseUser.uid}`);
-            if (response.ok) {
-              const profile = await response.json() as UserProfile;
-              
-              // Streak logic (client-side calculation, then server-side update)
-              const now = Date.now();
-              const lastVisit = profile.lastVisit || 0;
-              const oneDay = 24 * 60 * 60 * 1000;
-              const isSameDay = new Date(now).toDateString() === new Date(lastVisit).toDateString();
-              const isNextDay = new Date(now - oneDay).toDateString() === new Date(lastVisit).toDateString();
-
-              if (!isSameDay) {
-                let newStreak = profile.streak || 1;
-                if (isNextDay) {
-                  newStreak += 1;
-                } else {
-                  newStreak = 1;
-                }
-                
-                await fetch(`/api/users/${firebaseUser.uid}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ streak: newStreak, lastVisit: now })
-                });
-                
-                profile.streak = newStreak;
-                profile.lastVisit = now;
+            if (!isSameDay) {
+              let newStreak = profile.streak || 1;
+              if (isNextDay) {
+                newStreak += 1;
+              } else {
+                newStreak = 1;
               }
-
-              setUserProfile(profile);
-              setIsProfileLoading(false);
-
-              if (profile.achievements) {
-                setStats(prev => ({ ...prev, achievements: profile.achievements || ACHIEVEMENTS }));
-              }
-              
-              const seen = profile.hasSeenWelcome === true || localStorage.getItem(`vera_intro_seen_${firebaseUser.uid}`) === 'true';
-              setShowIntro(!seen && !hasManuallyClosedIntro.current);
-            } else if (response.status === 404) {
-              // Create profile if it doesn't exist
-              const newProfile: UserProfile = {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email || '',
-                role: (firebaseUser.email === 'arunavsharmanaba@gmail.com' || firebaseUser.email === 'admin@vera.plus') ? 'admin' : 'user',
-                createdAt: Date.now(),
-                displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-                hasSeenWelcome: false,
-                streak: 1,
-                lastVisit: Date.now()
-              };
-              
-              await fetch(`/api/users/${firebaseUser.uid}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(newProfile)
+              await updateDoc(doc(db, 'users', firebaseUser.uid), {
+                streak: newStreak,
+                lastVisit: now
               });
-              
-              setUserProfile(newProfile);
-              setIsProfileLoading(false);
-              setShowIntro(true);
+              // onSnapshot will trigger again with updated data
             }
-          } catch (error) {
-            console.error("Error loading profile via proxy:", error);
-            setIsProfileLoading(false);
-          }
-        };
 
-        loadProfile();
+            setUserProfile(profile);
+            setIsProfileLoading(false);
+            
+            // Sync achievements from profile to local stats if they exist
+            if (profile.achievements) {
+              setStats(prev => ({
+                ...prev,
+                achievements: profile.achievements || ACHIEVEMENTS
+              }));
+            }
+            
+            // Only show intro if it hasn't been seen AND we haven't manually closed it in this session
+            const seen = profile.hasSeenWelcome === true || localStorage.getItem(`vera_intro_seen_${firebaseUser.uid}`) === 'true';
+            if (!seen && !hasManuallyClosedIntro.current) {
+              setShowIntro(true);
+            } else {
+              setShowIntro(false);
+            }
+          } else {
+            // Create profile if it doesn't exist
+            const newProfile: UserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              role: (firebaseUser.email === 'arunavsharmanaba@gmail.com' || firebaseUser.email === 'admin@vera.plus') ? 'admin' : 'user',
+              createdAt: Timestamp.now() as any,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              hasSeenWelcome: false,
+              streak: 1,
+              lastVisit: Date.now()
+            };
+            try {
+              await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+            } catch (error) {
+              handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUser.uid}`);
+            }
+            setIsProfileLoading(false);
+            // onSnapshot will pick this up
+          }
+        }, (error) => {
+          console.error("Error listening to user profile:", error);
+        });
       } else {
         setUser(null);
         setUserProfile(null);
         setIsProfileLoading(false);
+        if (profileUnsubscribe) {
+          profileUnsubscribe();
+          profileUnsubscribe = null;
+        }
       }
       setIsAuthLoading(false);
     });
 
-    return () => authUnsubscribe();
+    return () => {
+      authUnsubscribe();
+      if (profileUnsubscribe) profileUnsubscribe();
+    };
   }, []);
 
   const handleCloseIntro = async () => {
@@ -491,14 +497,12 @@ function AppContent() {
     if (user) {
       localStorage.setItem(`vera_intro_seen_${user.uid}`, 'true');
       try {
-        await fetch(`/api/users/${user.uid}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ hasSeenWelcome: true })
+        await updateDoc(doc(db, 'users', user.uid), {
+          hasSeenWelcome: true
         });
         setUserProfile(prev => prev ? { ...prev, hasSeenWelcome: true } : null);
       } catch (e) {
-        console.error("Error closing intro via proxy:", e);
+        handleFirestoreError(e, OperationType.UPDATE, `users/${user.uid}`);
       }
     }
   };
@@ -527,22 +531,18 @@ function AppContent() {
           uid: newUser.uid,
           email: newUser.email || '',
           role: isAdminEmail ? 'admin' : 'user',
-          createdAt: Date.now(),
+          createdAt: Timestamp.now() as any,
           displayName: email, // Store the original name
           hasSeenWelcome: false,
           streak: 1,
           lastVisit: Date.now()
         };
-        
         try {
-          await fetch(`/api/users/${newUser.uid}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newProfile)
-          });
+          await setDoc(doc(db, 'users', newUser.uid), newProfile);
           setUserProfile(newProfile);
+          // Let onSnapshot handle setShowIntro(true)
         } catch (e) {
-          console.error("Auth profile creation error:", e);
+          handleFirestoreError(e, 'create', `users/${newUser.uid}`);
         }
       }
     } catch (error: any) {
@@ -572,26 +572,19 @@ function AppContent() {
   const submitFeedback = async () => {
     if (!feedbackMessage.trim() || !user) return;
     try {
-      const response = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: user.uid,
-          email: user.email,
-          message: feedbackMessage,
-          type: feedbackType
-        })
+      await addDoc(collection(db, 'feedback'), {
+        uid: user.uid,
+        email: user.email,
+        message: feedbackMessage,
+        type: feedbackType,
+        createdAt: Timestamp.now()
       });
-
-      if (!response.ok) throw new Error("Ошибка при отправке отзыва через прокси.");
-
       setFeedbackMessage('');
       setFeedbackType('general');
       setShowFeedbackForm(false);
       addNotification("Спасибо за отзыв! Мы обязательно его прочтем.", 'success');
-    } catch (error: any) {
-      console.error("Feedback error:", error);
-      addNotification("Не удалось отправить отзыв: " + error.message, 'error');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'feedback');
     }
   };
 
@@ -655,22 +648,26 @@ function AppContent() {
     setShowAdmin(true);
     setAdminTab('feedback');
     try {
-      const response = await fetch("/api/admin/feedback");
-      if (!response.ok) throw new Error("Не удалось загрузить отзывы через прокси.");
-      const feedback = await response.json() as FeedbackSubmission[];
+      const q = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const feedback = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FeedbackSubmission[];
       setAdminFeedback(feedback);
       
-      const statsRes = await fetch("/api/admin/stats");
-      if (statsRes.ok) {
-        const stats = await statsRes.json();
+      // Fetch system stats
+      try {
+        const usersSnapshot = await getDocs(collection(db, 'users'));
         setSystemStats({
-          users: stats.users,
-          feedback: stats.feedback
+          users: usersSnapshot.size,
+          feedback: querySnapshot.size
         });
+      } catch (statsError) {
+        console.error("Error fetching system stats:", statsError);
       }
-    } catch (error: any) {
-      console.error("Admin fetch error:", error);
-      addNotification("Ошибка админ-панели: " + error.message, 'error');
+    } catch (error) {
+      console.error("Error fetching admin feedback:", error);
     }
   };
 
@@ -680,21 +677,23 @@ function AppContent() {
       return;
     }
 
-    const fetchSessions = async () => {
-      try {
-        const response = await fetch(`/api/sessions?uid=${user.uid}`);
-        if (!response.ok) throw new Error("Не удалось загрузить историю сессий.");
-        const data = await response.json();
-        setSessions(data);
-      } catch (err: any) {
-        console.error("Fetch sessions error:", err);
-        addNotification("Ошибка загрузки истории: " + err.message, 'error');
-      }
-    };
+    const q = query(
+      collection(db, 'sessions'),
+      where('uid', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
 
-    fetchSessions();
-    const interval = setInterval(fetchSessions, 30000); // Polling as fallback for no real-time
-    return () => clearInterval(interval);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as SessionRecord[];
+      setSessions(docs);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'sessions');
+    });
+
+    return () => unsubscribe();
   }, [user]);
 
   // Stats & Achievements State
@@ -752,13 +751,11 @@ function AppContent() {
       
       if (user) {
         try {
-          await fetch(`/api/users/${user.uid}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ achievements: updatedAchievements })
+          await updateDoc(doc(db, 'users', user.uid), {
+            achievements: updatedAchievements
           });
         } catch (e) {
-          console.error("Error saving achievement via proxy:", e);
+          console.error("Error saving achievement:", e);
         }
       }
       
@@ -1004,33 +1001,20 @@ function AppContent() {
       const feedbackWithLock: Feedback = { ...result, isUnlocked: isSubscribed };
       setFeedback(feedbackWithLock);
 
-      // Save to Firestore via Proxy
+      // Save to Firestore
       if (user && selectedScenario) {
         try {
-          const response = await fetch("/api/sessions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              uid: user.uid,
-              scenarioId: selectedScenario.id,
-              score: result.score,
-              detailedAnalysis: result.summary,
-              isUnlocked: isSubscribed,
-              messages: messages
-            })
+          await addDoc(collection(db, 'sessions'), {
+            uid: user.uid,
+            scenarioId: selectedScenario.id,
+            score: result.score,
+            detailedAnalysis: result.summary,
+            isUnlocked: isSubscribed,
+            createdAt: Timestamp.now(),
+            messages: messages // Save full correspondence
           });
-
-          if (!response.ok) throw new Error("Ошибка при сохранении сессии через сервер.");
-          
-          // Refresh sessions list
-          const sessionsRes = await fetch(`/api/sessions?uid=${user.uid}`);
-          if (sessionsRes.ok) {
-            const data = await sessionsRes.json();
-            setSessions(data);
-          }
-        } catch (err: any) {
-          console.error("Save session error:", err);
-          addNotification("Результат показан, но не удалось сохранить его в историю: " + err.message, 'warning');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, 'sessions');
         }
       }
 
@@ -1160,37 +1144,37 @@ function AppContent() {
         )}
 
         {user && (
-          <header className="sticky top-0 z-50 bg-bg dark:bg-zinc-900 border-b-4 border-black dark:border-white px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-300">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-accent brutal-border brutal-shadow-sm flex items-center justify-center text-black shrink-0">
-                <MessageCircle className="w-6 h-6" />
+          <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20 shrink-0">
+                <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-xl font-black tracking-tighter text-fg truncate leading-none mb-1">Вера +1</h1>
-                <p className="text-[10px] text-muted font-black uppercase tracking-widest truncate">AI FAITH LAB</p>
+                <h1 className="text-base sm:text-xl font-semibold tracking-tight text-fg truncate">Вера +1</h1>
+                <p className="text-[8px] sm:text-[9px] text-muted font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] truncate">AI Faith Training</p>
               </div>
             </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-3">
                 <button 
                   onClick={toggleTheme}
-                  className="p-3 bg-white dark:bg-zinc-800 brutal-border brutal-shadow-sm hover:bg-accent transition-all text-black dark:text-fg"
+                  className="p-2 sm:p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm shrink-0"
                 >
-                  {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                  {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
                 </button>
                 
-                <div className="w-px h-8 bg-black dark:bg-white mx-1" />
+                <div className="h-6 w-[1px] bg-border mx-0.5" />
 
-                <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 brutal-border brutal-shadow-sm">
-                  <Flame className="w-5 h-5 text-rose-500" />
-                  <span className="text-sm font-black text-black dark:text-fg">{userProfile?.streak || 1}</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-accent/5 border border-accent/20 rounded-xl shrink-0">
+                  <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent animate-pulse" />
+                  <span className="text-[10px] sm:text-xs font-bold text-accent">{userProfile?.streak || 1}</span>
                 </div>
 
                 <button 
                   onClick={() => setShowMobileMenu(true)}
-                  className="p-3 bg-black dark:bg-white text-white dark:text-black brutal-border hover:bg-accent hover:text-black transition-all"
+                  className="p-2 sm:p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm active:scale-95 shrink-0"
                   title="Меню"
                 >
-                  <Menu className="w-5 h-5" />
+                  <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
           </header>
@@ -1215,14 +1199,14 @@ function AppContent() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              className="max-w-md w-full mx-auto sber-card relative z-10 !bg-accent"
+              className="max-w-md w-full mx-auto sber-card relative z-10"
             >
               <div className="text-center mb-12 space-y-4">
                 <motion.div 
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
-                  className="w-20 h-20 bg-white dark:bg-zinc-800 text-fg rounded-xl flex items-center justify-center mx-auto mb-8 brutal-border brutal-shadow-sm"
+                  className="w-20 h-20 bg-accent text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-accent/20 border border-white/20"
                 >
                   <Compass className="w-10 h-10" />
                 </motion.div>
@@ -1230,7 +1214,7 @@ function AppContent() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.4 }}
-                  className="text-5xl font-black text-black tracking-tighter uppercase"
+                  className="text-5xl font-serif text-fg tracking-tight"
                 >
                   Вера +1
                 </motion.h2>
@@ -1238,32 +1222,32 @@ function AppContent() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.5 }}
-                  className="text-black/70 text-xs font-black leading-relaxed max-w-[240px] mx-auto uppercase tracking-widest"
+                  className="text-muted text-sm font-medium leading-relaxed max-w-[240px] mx-auto italic"
                 >
-                  Тренажёр духовного общения
+                  Тренажёр духовного общения <br/> и навыков евангелизации
                 </motion.p>
               </div>
 
-            <form onSubmit={handleAuth} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-xs font-black text-black/60 uppercase tracking-widest ml-1">Имя</label>
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Имя</label>
                 <input 
                   type="text" 
                   required 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white dark:bg-white/95 brutal-border p-4 rounded-xl outline-none focus:ring-4 focus:ring-black/5 transition-all text-black font-black placeholder:text-black/20"
+                  className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
                   placeholder="Ваше имя"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-black/60 uppercase tracking-widest ml-1">Пароль</label>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Пароль</label>
                 <input 
                   type="password" 
                   required 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white dark:bg-white/95 brutal-border p-4 rounded-xl outline-none focus:ring-4 focus:ring-black/5 transition-all text-black font-black placeholder:text-black/20"
+                  className="w-full bg-bg border border-border p-3.5 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium placeholder:text-muted/30"
                   placeholder="••••••••"
                 />
               </div>
@@ -1314,19 +1298,19 @@ function AppContent() {
               animate={{ opacity: 1, y: 0 }}
               className="sber-card max-w-4xl mx-auto overflow-hidden !p-0 relative z-10 m-4 sm:m-0"
             >
-              <div className="bg-emerald-100 p-8 sm:p-16 text-center relative border-b-4 border-black overflow-hidden">
+              <div className="bg-accent/5 p-8 sm:p-16 text-center relative border-b border-border overflow-hidden">
                 <motion.div 
                   initial={{ x: "-100%" }}
                   animate={{ x: "100%" }}
                   transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                  className="absolute top-0 left-0 w-full h-2 bg-black opacity-10"
+                  className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-20"
                 />
                 <div className="relative z-10 space-y-4">
                   <motion.h2 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="text-4xl sm:text-7xl font-black text-black tracking-tighter uppercase"
+                    className="text-3xl sm:text-5xl font-serif text-accent tracking-normal"
                   >
                     {PHILOSOPHY.title}
                   </motion.h2>
@@ -1334,23 +1318,23 @@ function AppContent() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4 }}
-                    className="text-black text-xs font-black uppercase tracking-[0.4em]"
+                    className="text-accent/60 text-[11px] font-bold uppercase tracking-[0.4em]"
                   >
-                    Искусство духовного общения ✨
+                    Искусство духовного общения
                   </motion.p>
                 </div>
               </div>
-            <div className="p-6 sm:p-20 space-y-12 sm:space-y-20 bg-white">
+            <div className="p-6 sm:p-20 space-y-12 sm:space-y-20">
               <div className="max-w-3xl mx-auto space-y-8 sm:space-y-12">
                 <motion.p 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="text-2xl sm:text-5xl text-black leading-none font-black uppercase tracking-tighter text-center"
+                  className="text-2xl sm:text-5xl text-fg leading-snug font-serif italic tracking-normal text-center"
                 >
-                  «Слово ваше да будет всегда с благодатию, приправлено солью...»
+                  «Слово ваше да будет всегда с благодатию, приправлено солью, чтобы вы знали, как отвечать каждому» (Кол. 4:6)
                 </motion.p>
-                <div className="text-xl text-black text-center leading-tight max-w-2xl mx-auto font-black uppercase tracking-tighter opacity-70">
+                <div className="text-xl text-muted/90 text-center leading-relaxed max-w-2xl mx-auto font-medium">
                   {PHILOSOPHY.content}
                 </div>
               </div>
@@ -1423,16 +1407,16 @@ function AppContent() {
           </motion.div>
         </div>
       ) : showAdmin ? (
-          <div className="space-y-12 max-w-4xl mx-auto p-4 sm:p-0">
+          <div className="space-y-10 max-w-4xl mx-auto">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-5xl font-black text-fg tracking-tighter uppercase leading-none">Админ</h2>
-                <div className="flex gap-4 mt-8">
+                <h2 className="text-4xl font-serif text-fg tracking-tight">Панель администратора</h2>
+                <div className="flex gap-2 mt-4">
                   <button 
                     onClick={() => setAdminTab('feedback')}
                     className={cn(
-                      "px-6 py-3 brutal-border text-[10px] font-black uppercase tracking-widest transition-all",
-                      adminTab === 'feedback' ? "bg-accent text-black brutal-shadow-sm" : "bg-white text-black brutal-shadow-sm hover:translate-x-1"
+                      "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                      adminTab === 'feedback' ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-bg border border-border text-muted hover:text-fg"
                     )}
                   >
                     Отзывы
@@ -1440,8 +1424,8 @@ function AppContent() {
                   <button 
                     onClick={() => setAdminTab('system')}
                     className={cn(
-                      "px-6 py-3 brutal-border text-[10px] font-black uppercase tracking-widest transition-all",
-                      adminTab === 'system' ? "bg-accent text-black brutal-shadow-sm" : "bg-white text-black brutal-shadow-sm hover:translate-x-1"
+                      "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                      adminTab === 'system' ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-bg border border-border text-muted hover:text-fg"
                     )}
                   >
                     Система
@@ -1450,7 +1434,7 @@ function AppContent() {
               </div>
               <button 
                 onClick={() => setShowAdmin(false)} 
-                className="sber-button !px-6 !py-3 !text-[10px]"
+                className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all shadow-sm uppercase tracking-[0.1em] text-[10px] font-bold"
               >
                 Закрыть
               </button>
@@ -1847,17 +1831,17 @@ function AppContent() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="sber-card bg-emerald-100 dark:bg-emerald-900/40 border-black dark:border-white mb-16 relative overflow-hidden group"
+                  className="glass-card bg-accent/5 border-accent/20 mb-16 relative overflow-hidden group"
                 >
                   <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform">
-                    <Sparkles className="w-20 h-20 text-black dark:text-white" />
+                    <Sparkles className="w-20 h-20 text-accent" />
                   </div>
-                  <div className="text-xs font-black text-black/60 dark:text-emerald-400 uppercase tracking-widest mb-6">Интересный факт ✨</div>
+                  <div className="text-[11px] font-bold text-accent uppercase tracking-[0.4em] mb-6">Интересный факт</div>
                   <motion.p 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5, duration: 1 }}
-                    className="text-2xl sm:text-3xl font-black text-black dark:text-fg leading-tight tracking-tight uppercase"
+                    className="text-2xl sm:text-3xl font-medium text-fg italic leading-tight tracking-tight"
                   >
                     {dailyFact}
                   </motion.p>
@@ -1866,59 +1850,48 @@ function AppContent() {
                 <motion.div
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="inline-block px-4 py-2 bg-black text-white rounded-xl text-xs font-black uppercase tracking-widest mb-4 brutal-shadow-sm"
+                  className="inline-block px-3 py-1 bg-accent/10 text-accent rounded-full text-[9px] font-bold uppercase tracking-[0.2em] mb-2"
                 >
                   Тренажёр духовного общения
                 </motion.div>
-                <h2 className="text-5xl sm:text-7xl font-black text-fg tracking-tighter leading-none mb-6">
-                  ГОВОРИ <span className="text-accent underline decoration-4 underline-offset-8">О ВЕРЕ</span><br/>
-                  СМЕЛО И МУДРО
+                <h2 className="text-4xl sm:text-5xl font-serif text-fg tracking-tight leading-tight">
+                  Готовы ли вы к <br/>
+                  <span className="text-accent italic">сложным вопросам?</span>
                 </h2>
-                <p className="text-xl text-muted font-black leading-tight max-w-lg mx-auto uppercase tracking-tight">
-                  Выбери персонажа и попрактикуйся в диалоге.
+                <p className="text-base text-muted font-medium leading-relaxed max-w-lg mx-auto">
+                  Выберите режим и попрактикуйтесь в ведении диалога о вере, смысле жизни и Боге.
                 </p>
               </div>
 
-              <div className="space-y-20">
+              <div className="space-y-16">
                 <section>
-                  <div className="flex items-center gap-6 mb-12">
-                     <div className="w-12 h-12 brutal-border brutal-shadow-sm bg-accent flex items-center justify-center font-black text-black">01</div>
-                    <h3 className="text-2xl font-black text-fg uppercase tracking-tighter">
+                  <div className="flex items-center gap-4 mb-8">
+                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] whitespace-nowrap">
                       Свободный диалог
                     </h3>
-                    <div className="flex-1 h-1 bg-black dark:bg-white" />
+                    <div className="flex-1 h-[1px] bg-border" />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {SCENARIOS.filter(s => s.mode === 'chat').map((scenario) => (
                       <motion.button
                         key={scenario.id}
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => startScenario(scenario)}
-                        className="group sber-card text-left flex flex-col h-full !p-0 overflow-hidden"
+                        className="group sber-card text-left flex flex-col h-full"
                       >
-                        <div className="bg-emerald-100 dark:bg-emerald-900/40 p-8 border-b-4 border-black dark:border-white">
-                           <div className="flex items-center justify-between mb-6">
-                              <div className="w-16 h-16 bg-card brutal-border brutal-shadow-sm flex items-center justify-center text-fg">
-                                {ScenarioIcons[scenario.icon as string]}
-                              </div>
-                              <div className="text-[10px] font-black uppercase tracking-widest bg-black dark:bg-white text-white dark:text-black px-3 py-1 rounded-lg">ЧАТ</div>
-                           </div>
-                           <h3 className="text-3xl font-black text-black dark:text-fg mb-2 uppercase tracking-tighter">
-                            {scenario.title}
-                          </h3>
-                        </div>
-                        <div className="p-8 flex-grow flex flex-col justify-between bg-card">
-                          <p className="text-fg text-sm font-black leading-tight uppercase opacity-70 mb-8">
-                            {scenario.description}
-                          </p>
-                          <div className="flex items-center justify-between">
-                            <div className="flex -space-x-2">
-                               {[1,2,3].map(i => (
-                                 <div key={i} className="w-8 h-8 rounded-full brutal-border bg-card flex items-center justify-center text-[8px] font-black text-fg">U{i}</div>
-                               ))}
-                            </div>
-                            <div className="text-fg font-black text-xs uppercase tracking-widest group-hover:translate-x-1 transition-transform flex items-center gap-2">
-                              Начать <ArrowRight className="w-4 h-4" />
-                            </div>
+                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-accent transition-colors leading-tight tracking-tight">
+                          {scenario.title}
+                        </h3>
+                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
+                          {scenario.description}
+                        </p>
+                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
+                          <div className="w-12 h-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-all border border-accent/10">
+                            {ScenarioIcons[scenario.icon as string]}
+                          </div>
+                          <div className="text-accent font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
+                            Начать <ChevronRight className="w-3 h-3 inline" />
                           </div>
                         </div>
                       </motion.button>
@@ -1927,42 +1900,33 @@ function AppContent() {
                 </section>
 
                 <section>
-                  <div className="flex items-center gap-6 mb-12">
-                    <div className="w-12 h-12 brutal-border brutal-shadow-sm bg-rose-400 flex items-center justify-center font-black text-black">02</div>
-                    <h3 className="text-2xl font-black text-fg uppercase tracking-tighter">
+                  <div className="flex items-center gap-4 mb-8">
+                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] whitespace-nowrap">
                       Работа с критикой
                     </h3>
-                    <div className="flex-1 h-1 bg-black dark:bg-white" />
+                    <div className="flex-1 h-[1px] bg-border" />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {SCENARIOS.filter(s => s.mode === 'criticism').map((scenario) => (
                       <motion.button
                         key={scenario.id}
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => startScenario(scenario)}
-                        className="group sber-card text-left flex flex-col h-full !p-0 overflow-hidden"
+                        className="group sber-card text-left flex flex-col h-full"
                       >
-                        <div className="bg-rose-100 dark:bg-rose-900/40 p-8 border-b-4 border-black dark:border-white">
-                           <div className="flex items-center justify-between mb-6">
-                              <div className="w-16 h-16 bg-card brutal-border brutal-shadow-sm flex items-center justify-center text-fg">
-                                {ScenarioIcons[scenario.icon as string]}
-                              </div>
-                              <div className="text-[10px] font-black uppercase tracking-widest bg-black dark:bg-white text-white dark:text-black px-3 py-1 rounded-lg">КРИТИКА</div>
-                           </div>
-                           <h3 className="text-3xl font-black text-black dark:text-fg mb-2 uppercase tracking-tighter">
-                            {scenario.title}
-                          </h3>
-                        </div>
-                        <div className="p-8 flex-grow flex flex-col justify-between bg-card">
-                          <p className="text-fg text-sm font-black leading-tight uppercase opacity-70 mb-8">
-                            {scenario.description}
-                          </p>
-                          <div className="flex items-center justify-between">
-                             <div className="flex -space-x-2 text-[10px] font-black text-rose-500 uppercase tracking-widest">
-                                ОПАСНОСТЬ!
-                             </div>
-                            <div className="text-rose-500 font-black text-xs uppercase tracking-widest group-hover:translate-x-1 transition-transform flex items-center gap-2">
-                              Начать <ArrowRight className="w-4 h-4" />
-                            </div>
+                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-rose-500 transition-colors leading-tight tracking-tight">
+                          {scenario.title}
+                        </h3>
+                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
+                          {scenario.description}
+                        </p>
+                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
+                          <div className="w-12 h-12 bg-rose-500/5 text-rose-500 rounded-2xl flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all border border-rose-500/10">
+                            {ScenarioIcons[scenario.icon as string]}
+                          </div>
+                          <div className="text-rose-500 font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
+                            Начать <ChevronRight className="w-3 h-3 inline" />
                           </div>
                         </div>
                       </motion.button>
@@ -2027,26 +1991,23 @@ function AppContent() {
                 {feedback.metrics && (
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {[
-                      { label: 'Истина', val: feedback.metrics.theologicalAccuracy, emoji: '📖' },
-                      { label: 'Логика', val: feedback.metrics.logic, emoji: '🧠' },
-                      { label: 'Писание', val: feedback.metrics.scriptureUsage, emoji: '🕊️' },
-                      { label: 'Эмпатия', val: feedback.metrics.empathy, emoji: '💖' },
-                      { label: 'Скорость', val: feedback.metrics.speed, suffix: 'с', emoji: '⚡' },
+                      { label: 'Библейская точность', val: feedback.metrics.theologicalAccuracy },
+                      { label: 'Логика', val: feedback.metrics.logic },
+                      { label: 'Писание', val: feedback.metrics.scriptureUsage },
+                      { label: 'Эмпатия', val: feedback.metrics.empathy },
+                      { label: 'Скорость', val: feedback.metrics.speed, suffix: 'с' },
                     ].map((m, i) => (
                       <motion.div 
                         key={i} 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5 + i * 0.1 }}
-                        className="sber-card !p-6 flex flex-col items-center gap-2"
+                        className="bg-bg border border-border p-5 rounded-2xl text-center"
                       >
-                         <div className="text-3xl mb-2">{m.emoji}</div>
-                        <div className="text-2xl font-black text-black tracking-tighter">
-                          {m.val}{m.suffix}
-                        </div>
-                        <div className="text-[10px] font-black uppercase text-muted tracking-widest text-center">
+                        <div className="text-muted text-[9px] font-bold uppercase tracking-[0.2em] mb-2">
                           {m.label}
                         </div>
+                        <div className="text-xl font-bold text-fg tracking-tight">{m.val}{m.suffix}</div>
                       </motion.div>
                     ))}
                   </div>
@@ -2259,21 +2220,17 @@ function AppContent() {
                   >
                     <div className="flex items-end gap-3 w-full">
                       <div className={cn(
-                        "p-6 rounded-xl text-sm font-black uppercase tracking-tight relative brutal-border brutal-shadow-sm",
+                        "p-5 rounded-2xl text-sm leading-relaxed font-medium relative group",
                         m.role === 'user' 
-                          ? "bg-accent text-black rounded-tr-none" 
-                          : "bg-white dark:bg-zinc-800 text-fg rounded-tl-none"
+                          ? "bg-accent text-white rounded-tr-none" 
+                          : "bg-card border border-border text-fg rounded-tl-none shadow-sm"
                       )}>
-                        <div>
+                        <div className={cn(
+                          "prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-inherit prose-p:text-inherit prose-headings:text-inherit",
+                          m.role === 'user' ? "text-white" : "text-fg dark:prose-invert"
+                        )}>
                           {renderMessageText(m.text)}
                         </div>
-                         {/* Bubble tail */}
-                         <div className={cn(
-                          "absolute top-0 w-4 h-4 brutal-border rotate-45 z-[-1]",
-                          m.role === 'user' 
-                            ? "-right-1.5 bg-accent" 
-                            : "-left-1.5 bg-white dark:bg-zinc-800"
-                        )} />
                       </div>
                     </div>
                     <span className="text-[9px] font-bold text-muted mt-2 uppercase tracking-[0.2em] px-2">
@@ -2358,35 +2315,37 @@ function AppContent() {
                       <BarChart3 className="w-3.5 h-3.5 text-accent" />
                       Выберите вариант ответа:
                     </div>
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-1 gap-3">
                       {options.map((opt, i) => (
                         <button
                           key={i}
                           onClick={() => handleOptionSelect(opt)}
-                          className="group sber-card !p-6 text-left"
+                          className="group sber-card !p-5 text-left hover:border-accent/50 transition-all"
                         >
-                          <div className="text-sm text-black mb-4 font-black uppercase tracking-tight leading-tight group-hover:text-accent transition-colors">{opt.text}</div>
-                          <div className="flex items-center justify-between gap-6 border-t border-black/10 pt-4">
-                            <div className="text-[10px] text-muted font-black uppercase tracking-widest opacity-60">
+                          <div className="text-sm text-fg mb-2 font-medium leading-relaxed group-hover:text-accent transition-colors">{opt.text}</div>
+                          <div className="flex items-center justify-between">
+                            <div className="text-[10px] text-muted font-medium italic group-hover:text-fg transition-colors opacity-60">
                               {opt.explanation}
                             </div>
-                            <div className="flex gap-4 shrink-0">
-                               <div className="flex items-center gap-1">
-                                  <span className="text-[8px] font-black uppercase">📖</span>
+                            <div className="flex gap-3">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex gap-2">
+                                  <div className="text-[8px] text-muted uppercase w-12">Точность</div>
                                   <div className="flex gap-0.5">
-                                    {[...Array(5)].map((_, idx) => (
-                                      <div key={idx} className={cn("w-2 h-2 brutal-border", idx < opt.metrics.theologicalAccuracy / 2 ? "bg-accent" : "bg-white")} />
+                                    {[...Array(10)].map((_, idx) => (
+                                      <div key={idx} className={cn("w-1 h-2 rounded-full", idx < opt.metrics.theologicalAccuracy ? "bg-accent" : "bg-border")} />
                                     ))}
                                   </div>
-                               </div>
-                               <div className="flex items-center gap-1">
-                                  <span className="text-[8px] font-black uppercase">🧠</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <div className="text-[8px] text-muted uppercase w-12">Логика</div>
                                   <div className="flex gap-0.5">
-                                    {[...Array(5)].map((_, idx) => (
-                                      <div key={idx} className={cn("w-2 h-2 brutal-border", idx < opt.metrics.logic / 2 ? "bg-accent" : "bg-white")} />
+                                    {[...Array(10)].map((_, idx) => (
+                                      <div key={idx} className={cn("w-1 h-2 rounded-full", idx < opt.metrics.logic ? "bg-accent" : "bg-border")} />
                                     ))}
                                   </div>
-                               </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -2396,7 +2355,7 @@ function AppContent() {
                 )}
               </div>
 
-              <div className="p-8 bg-white border-t-4 border-black">
+              <div className="p-8 bg-card border-t border-border">
                 {selectedScenario.mode === 'chat' ? (
                   <div className="relative flex items-center gap-4">
                     <textarea
@@ -2409,24 +2368,24 @@ function AppContent() {
                         }
                       }}
                       placeholder="Напишите ваш ответ..."
-                      className="flex-1 bg-white brutal-border p-4 rounded-xl outline-none focus:ring-4 focus:ring-accent/20 transition-all text-black font-black uppercase tracking-tight resize-none h-[64px] placeholder:text-black/20"
+                      className="flex-1 bg-bg border border-border p-4 rounded-xl outline-none focus:border-accent transition-all text-fg font-medium resize-none h-[64px] placeholder:text-muted/30"
                     />
                     <button 
                       onClick={() => handleSend()}
                       disabled={!input.trim() || isLoading}
-                      className="sber-button !px-0 !py-0 w-16 h-16 flex items-center justify-center"
+                      className="w-16 h-16 bg-accent text-white rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 hover:bg-brand-secondary transition-all active:scale-95 disabled:opacity-50"
                     >
                       <Send className="w-6 h-6" />
                     </button>
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <p className="text-[10px] font-black uppercase text-muted tracking-widest">
+                    <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">
                       Выберите один из вариантов выше, чтобы продолжить
                     </p>
                   </div>
                 )}
-                <p className="text-[10px] text-muted text-center mt-4 font-black uppercase tracking-widest opacity-40">
+                <p className="text-[9px] text-muted text-center mt-4 font-bold uppercase tracking-[0.2em] opacity-40">
                   {selectedScenario.mode === 'chat' ? 'Shift + Enter для новой строки' : 'Анализируйте варианты перед выбором'}
                 </p>
               </div>
@@ -2451,40 +2410,39 @@ function AppContent() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="sber-card w-full max-w-xl relative overflow-hidden !p-10"
+              className="glass-card w-full max-w-xl relative overflow-hidden"
             >
               <div className="flex items-center justify-between mb-10">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-accent brutal-border brutal-shadow-sm flex items-center justify-center text-black">
+                  <div className="w-12 h-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
                     <MessageSquare className="w-6 h-6" />
                   </div>
-                  <h3 className="text-2xl font-black text-black tracking-tighter uppercase">Отзыв</h3>
+                  <h3 className="text-2xl font-semibold text-fg tracking-tight">Обратная связь</h3>
                 </div>
                 <button 
                   onClick={() => setShowFeedbackForm(false)}
-                  className="p-3 bg-white brutal-border brutal-shadow-sm hover:bg-accent transition-all text-black"
+                  className="p-3 text-muted hover:text-accent transition-colors"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
               <div className="space-y-8">
-                <div className="flex brutal-border p-1 bg-white">
+                <div className="flex p-1.5 bg-bg/50 border border-border rounded-2xl">
                   <button 
                     onClick={() => setFeedbackType('general')}
                     className={cn(
-                      "flex-1 py-3 px-4 font-black uppercase tracking-widest text-[10px] transition-all",
-                      feedbackType === 'general' ? "bg-accent text-black" : "text-black hover:bg-accent/10"
+                      "flex-1 py-3 px-4 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                      feedbackType === 'general' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-muted hover:text-fg"
                     )}
                   >
                     Общее
                   </button>
-                  <div className="w-1 bg-black" />
                   <button 
                     onClick={() => setFeedbackType('ai_feedback')}
                     className={cn(
-                      "flex-1 py-3 px-4 font-black uppercase tracking-widest text-[10px] transition-all",
-                      feedbackType === 'ai_feedback' ? "bg-accent text-black" : "text-black hover:bg-accent/10"
+                      "flex-1 py-3 px-4 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                      feedbackType === 'ai_feedback' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-muted hover:text-fg"
                     )}
                   >
                     Ошибки ИИ
@@ -2492,19 +2450,19 @@ function AppContent() {
                 </div>
 
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">Ваше сообщение</label>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] ml-1">Ваше сообщение</label>
                   <textarea 
                     value={feedbackMessage}
                     onChange={(e) => setFeedbackMessage(e.target.value)}
                     placeholder={feedbackType === 'general' ? "Что вам понравилось? Что можно улучшить?" : "Опишите ошибку или странное поведение ИИ..."}
-                    className="w-full h-48 p-6 bg-white brutal-border text-black placeholder:text-black/20 focus:ring-4 focus:ring-accent/10 outline-none transition-all resize-none text-sm font-black uppercase tracking-tight"
+                    className="w-full h-48 p-6 bg-bg/50 border border-border rounded-[1.5rem] text-fg placeholder:text-muted/50 focus:border-accent/50 focus:ring-4 focus:ring-accent/5 outline-none transition-all resize-none text-sm font-medium"
                   />
                 </div>
 
                 <div className="flex gap-4 pt-4">
                   <button 
                     onClick={() => setShowFeedbackForm(false)}
-                    className="flex-1 px-8 py-4 bg-white brutal-border brutal-shadow-sm text-black font-black uppercase tracking-widest text-[11px]"
+                    className="flex-1 px-8 py-4 bg-bg border border-border text-muted font-bold rounded-2xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.15em] text-[11px]"
                   >
                     Отмена
                   </button>
@@ -2629,7 +2587,7 @@ function AppContent() {
               <div className="mt-20 text-center">
                 <button 
                   onClick={() => setShowLibrary(false)}
-                  className="sber-button !px-12 !py-5"
+                  className="px-12 py-5 bg-card border border-border text-muted font-bold rounded-2xl hover:border-accent hover:text-accent transition-all uppercase tracking-[0.2em] text-xs shadow-sm"
                 >
                   Вернуться на главную
                 </button>
@@ -2705,32 +2663,32 @@ function AppContent() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute right-0 top-0 bottom-0 w-full max-w-[320px] bg-white border-l-4 border-black p-8 shadow-2xl flex flex-col"
+              className="absolute right-0 top-0 bottom-0 w-full max-w-[320px] bg-card border-l border-border p-8 shadow-2xl flex flex-col"
             >
               <div className="flex items-center justify-between mb-12">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-accent brutal-border brutal-shadow-sm flex items-center justify-center text-black">
+                  <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20">
                     <MessageSquare className="w-5 h-5" />
                   </div>
-                  <h3 className="text-xl font-black text-fg tracking-tighter uppercase">Вера +1</h3>
+                  <h3 className="text-xl font-serif text-fg tracking-tight">Вера +1</h3>
                 </div>
                 <button 
                   onClick={() => setShowMobileMenu(false)}
-                  className="p-3 bg-white brutal-border brutal-shadow-sm text-black"
+                  className="p-3 bg-bg border border-border text-muted rounded-xl hover:border-accent hover:text-accent transition-all"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="flex-1 space-y-4 overflow-y-auto no-scrollbar pr-2 -mr-2">
+              <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar pr-2 -mr-2">
                 <button 
                   onClick={() => {
                     reset();
                     setShowMobileMenu(false);
                   }}
                   className={cn(
-                    "w-full flex items-center gap-4 p-4 brutal-border transition-all font-black uppercase tracking-widest text-[10px]",
-                    !selectedScenario && !showLibrary && !showStats ? "bg-accent text-black brutal-shadow-sm" : "bg-white text-black brutal-shadow-sm hover:translate-x-1"
+                    "w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold uppercase tracking-[0.2em] text-[10px]",
+                    !selectedScenario && !showLibrary && !showStats ? "bg-accent text-white shadow-lg shadow-accent/20" : "hover:bg-accent/5 text-muted hover:text-accent"
                   )}
                 >
                   <Home className="w-5 h-5" />
@@ -2744,8 +2702,8 @@ function AppContent() {
                       setShowMobileMenu(false);
                     }}
                     className={cn(
-                      "w-full flex items-center gap-4 p-4 brutal-border transition-all font-black uppercase tracking-widest text-[10px]",
-                      showAdmin ? "bg-accent text-black brutal-shadow-sm" : "bg-white text-black brutal-shadow-sm hover:translate-x-1"
+                      "w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold uppercase tracking-[0.2em] text-[10px]",
+                      showAdmin ? "bg-accent text-white shadow-lg shadow-accent/20" : "hover:bg-accent/5 text-muted hover:text-accent"
                     )}
                   >
                     <ShieldCheck className="w-5 h-5" />
@@ -2760,8 +2718,8 @@ function AppContent() {
                     setShowMobileMenu(false);
                   }}
                   className={cn(
-                    "w-full flex items-center gap-4 p-4 brutal-border transition-all font-black uppercase tracking-widest text-[10px]",
-                    showLibrary ? "bg-accent text-black brutal-shadow-sm" : "bg-white text-black brutal-shadow-sm hover:translate-x-1"
+                    "w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold uppercase tracking-[0.2em] text-[10px]",
+                    showLibrary ? "bg-accent text-white shadow-lg shadow-accent/20" : "hover:bg-accent/5 text-muted hover:text-accent"
                   )}
                 >
                   <BookOpen className="w-5 h-5" />
@@ -2775,8 +2733,8 @@ function AppContent() {
                     setShowMobileMenu(false);
                   }}
                   className={cn(
-                    "w-full flex items-center gap-4 p-4 brutal-border transition-all font-black uppercase tracking-widest text-[10px]",
-                    showStats ? "bg-accent text-black brutal-shadow-sm" : "bg-white text-black brutal-shadow-sm hover:translate-x-1"
+                    "w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold uppercase tracking-[0.2em] text-[10px]",
+                    showStats ? "bg-accent text-white shadow-lg shadow-accent/20" : "hover:bg-accent/5 text-muted hover:text-accent"
                   )}
                 >
                   <Trophy className="w-5 h-5" />
