@@ -1160,7 +1160,7 @@ function AppContent() {
         )}
 
         {user && (
-          <header className="sticky top-0 z-50 bg-white border-b-4 border-black px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-300">
+          <header className="sticky top-0 z-50 bg-bg dark:bg-zinc-900 border-b-4 border-black dark:border-white px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-300">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-accent brutal-border brutal-shadow-sm flex items-center justify-center text-black shrink-0">
                 <MessageCircle className="w-6 h-6" />
@@ -1173,21 +1173,21 @@ function AppContent() {
               <div className="flex items-center gap-3">
                 <button 
                   onClick={toggleTheme}
-                  className="p-3 bg-white brutal-border brutal-shadow-sm hover:bg-accent transition-all text-black"
+                  className="p-3 bg-white dark:bg-zinc-800 brutal-border brutal-shadow-sm hover:bg-accent transition-all text-black dark:text-fg"
                 >
                   {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                 </button>
                 
-                <div className="w-px h-8 bg-black mx-1" />
+                <div className="w-px h-8 bg-black dark:bg-white mx-1" />
 
-                <div className="flex items-center gap-2 px-4 py-2 bg-white brutal-border brutal-shadow-sm">
+                <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 brutal-border brutal-shadow-sm">
                   <Flame className="w-5 h-5 text-rose-500" />
-                  <span className="text-sm font-black text-black">{userProfile?.streak || 1}</span>
+                  <span className="text-sm font-black text-black dark:text-fg">{userProfile?.streak || 1}</span>
                 </div>
 
                 <button 
                   onClick={() => setShowMobileMenu(true)}
-                  className="p-3 bg-black text-white brutal-border hover:bg-accent hover:text-black transition-all"
+                  className="p-3 bg-black dark:bg-white text-white dark:text-black brutal-border hover:bg-accent hover:text-black transition-all"
                   title="Меню"
                 >
                   <Menu className="w-5 h-5" />
@@ -1222,7 +1222,7 @@ function AppContent() {
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
-                  className="w-20 h-20 bg-white text-black rounded-xl flex items-center justify-center mx-auto mb-8 brutal-border brutal-shadow-sm"
+                  className="w-20 h-20 bg-white dark:bg-zinc-800 text-fg rounded-xl flex items-center justify-center mx-auto mb-8 brutal-border brutal-shadow-sm"
                 >
                   <Compass className="w-10 h-10" />
                 </motion.div>
@@ -1238,7 +1238,7 @@ function AppContent() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.5 }}
-                  className="text-black text-xs font-black leading-relaxed max-w-[240px] mx-auto uppercase tracking-widest"
+                  className="text-black/70 text-xs font-black leading-relaxed max-w-[240px] mx-auto uppercase tracking-widest"
                 >
                   Тренажёр духовного общения
                 </motion.p>
@@ -1246,24 +1246,24 @@ function AppContent() {
 
             <form onSubmit={handleAuth} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-xs font-black text-black uppercase tracking-widest ml-1">Имя</label>
+                <label className="text-xs font-black text-black/60 uppercase tracking-widest ml-1">Имя</label>
                 <input 
                   type="text" 
                   required 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white brutal-border p-4 rounded-xl outline-none focus:ring-4 focus:ring-black/5 transition-all text-black font-black placeholder:text-black/20"
+                  className="w-full bg-white dark:bg-white/95 brutal-border p-4 rounded-xl outline-none focus:ring-4 focus:ring-black/5 transition-all text-black font-black placeholder:text-black/20"
                   placeholder="Ваше имя"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-black text-black uppercase tracking-widest ml-1">Пароль</label>
+                <label className="text-xs font-black text-black/60 uppercase tracking-widest ml-1">Пароль</label>
                 <input 
                   type="password" 
                   required 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white brutal-border p-4 rounded-xl outline-none focus:ring-4 focus:ring-black/5 transition-all text-black font-black placeholder:text-black/20"
+                  className="w-full bg-white dark:bg-white/95 brutal-border p-4 rounded-xl outline-none focus:ring-4 focus:ring-black/5 transition-all text-black font-black placeholder:text-black/20"
                   placeholder="••••••••"
                 />
               </div>
@@ -1847,17 +1847,17 @@ function AppContent() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="sber-card bg-emerald-100 border-black mb-16 relative overflow-hidden group"
+                  className="sber-card bg-emerald-100 dark:bg-emerald-900/30 border-black dark:border-white mb-16 relative overflow-hidden group"
                 >
                   <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform">
-                    <Sparkles className="w-20 h-20 text-black" />
+                    <Sparkles className="w-20 h-20 text-black dark:text-white" />
                   </div>
-                  <div className="text-xs font-black text-black uppercase tracking-widest mb-6">Интересный факт ✨</div>
+                  <div className="text-xs font-black text-black dark:text-emerald-400 uppercase tracking-widest mb-6">Интересный факт ✨</div>
                   <motion.p 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5, duration: 1 }}
-                    className="text-2xl sm:text-3xl font-black text-black leading-tight tracking-tight uppercase"
+                    className="text-2xl sm:text-3xl font-black text-black dark:text-fg leading-tight tracking-tight uppercase"
                   >
                     {dailyFact}
                   </motion.p>
@@ -1872,7 +1872,7 @@ function AppContent() {
                 </motion.div>
                 <h2 className="text-5xl sm:text-7xl font-black text-fg tracking-tighter leading-none mb-6">
                   ГОВОРИ <span className="text-accent underline decoration-4 underline-offset-8">О ВЕРЕ</span><br/>
-                  СМУЛО И МУДРО
+                  СМЕЛО И МУДРО
                 </h2>
                 <p className="text-xl text-muted font-black leading-tight max-w-lg mx-auto uppercase tracking-tight">
                   Выбери персонажа и попрактикуйся в диалоге.
@@ -1895,28 +1895,28 @@ function AppContent() {
                         onClick={() => startScenario(scenario)}
                         className="group sber-card text-left flex flex-col h-full !p-0 overflow-hidden"
                       >
-                        <div className="bg-emerald-100 p-8 border-b-4 border-black">
+                        <div className="bg-emerald-100 dark:bg-emerald-900/30 p-8 border-b-4 border-black dark:border-white">
                            <div className="flex items-center justify-between mb-6">
-                              <div className="w-16 h-16 bg-white brutal-border brutal-shadow-sm flex items-center justify-center text-black">
+                              <div className="w-16 h-16 bg-white dark:bg-zinc-800 brutal-border brutal-shadow-sm flex items-center justify-center text-fg">
                                 {ScenarioIcons[scenario.icon as string]}
                               </div>
-                              <div className="text-[10px] font-black uppercase tracking-widest bg-black text-white px-3 py-1 rounded-lg">ЧАТ</div>
+                              <div className="text-[10px] font-black uppercase tracking-widest bg-black dark:bg-white text-white dark:text-black px-3 py-1 rounded-lg">ЧАТ</div>
                            </div>
-                           <h3 className="text-3xl font-black text-black mb-2 uppercase tracking-tighter">
+                           <h3 className="text-3xl font-black text-black dark:text-fg mb-2 uppercase tracking-tighter">
                             {scenario.title}
                           </h3>
                         </div>
-                        <div className="p-8 flex-grow flex flex-col justify-between bg-white">
-                          <p className="text-black text-sm font-black leading-tight uppercase opacity-70 mb-8">
+                        <div className="p-8 flex-grow flex flex-col justify-between bg-white dark:bg-zinc-900">
+                          <p className="text-black dark:text-fg text-sm font-black leading-tight uppercase opacity-70 mb-8">
                             {scenario.description}
                           </p>
                           <div className="flex items-center justify-between">
                             <div className="flex -space-x-2">
                                {[1,2,3].map(i => (
-                                 <div key={i} className="w-8 h-8 rounded-full brutal-border bg-white flex items-center justify-center text-[8px] font-black">U{i}</div>
+                                 <div key={i} className="w-8 h-8 rounded-full brutal-border bg-white dark:bg-zinc-800 flex items-center justify-center text-[8px] font-black text-fg">U{i}</div>
                                ))}
                             </div>
-                            <div className="text-black font-black text-xs uppercase tracking-widest group-hover:translate-x-1 transition-transform flex items-center gap-2">
+                            <div className="text-black dark:text-fg font-black text-xs uppercase tracking-widest group-hover:translate-x-1 transition-transform flex items-center gap-2">
                               Начать <ArrowRight className="w-4 h-4" />
                             </div>
                           </div>
@@ -1941,19 +1941,19 @@ function AppContent() {
                         onClick={() => startScenario(scenario)}
                         className="group sber-card text-left flex flex-col h-full !p-0 overflow-hidden"
                       >
-                        <div className="bg-rose-100 p-8 border-b-4 border-black">
+                        <div className="bg-rose-100 dark:bg-rose-900/30 p-8 border-b-4 border-black dark:border-white">
                            <div className="flex items-center justify-between mb-6">
-                              <div className="w-16 h-16 bg-white brutal-border brutal-shadow-sm flex items-center justify-center text-black">
+                              <div className="w-16 h-16 bg-white dark:bg-zinc-800 brutal-border brutal-shadow-sm flex items-center justify-center text-fg">
                                 {ScenarioIcons[scenario.icon as string]}
                               </div>
-                              <div className="text-[10px] font-black uppercase tracking-widest bg-black text-white px-3 py-1 rounded-lg">КРИТИКА</div>
+                              <div className="text-[10px] font-black uppercase tracking-widest bg-black dark:bg-white text-white dark:text-black px-3 py-1 rounded-lg">КРИТИКА</div>
                            </div>
-                           <h3 className="text-3xl font-black text-black mb-2 uppercase tracking-tighter">
+                           <h3 className="text-3xl font-black text-black dark:text-fg mb-2 uppercase tracking-tighter">
                             {scenario.title}
                           </h3>
                         </div>
-                        <div className="p-8 flex-grow flex flex-col justify-between bg-white">
-                          <p className="text-black text-sm font-black leading-tight uppercase opacity-70 mb-8">
+                        <div className="p-8 flex-grow flex flex-col justify-between bg-white dark:bg-zinc-900">
+                          <p className="text-black dark:text-fg text-sm font-black leading-tight uppercase opacity-70 mb-8">
                             {scenario.description}
                           </p>
                           <div className="flex items-center justify-between">
@@ -2262,7 +2262,7 @@ function AppContent() {
                         "p-6 rounded-xl text-sm font-black uppercase tracking-tight relative brutal-border brutal-shadow-sm",
                         m.role === 'user' 
                           ? "bg-accent text-black rounded-tr-none" 
-                          : "bg-white text-black rounded-tl-none"
+                          : "bg-white dark:bg-zinc-800 text-fg rounded-tl-none"
                       )}>
                         <div>
                           {renderMessageText(m.text)}
@@ -2272,7 +2272,7 @@ function AppContent() {
                           "absolute top-0 w-4 h-4 brutal-border rotate-45 z-[-1]",
                           m.role === 'user' 
                             ? "-right-1.5 bg-accent" 
-                            : "-left-1.5 bg-white"
+                            : "-left-1.5 bg-white dark:bg-zinc-800"
                         )} />
                       </div>
                     </div>
