@@ -1041,14 +1041,19 @@ function AppContent() {
           await addDoc(collection(db, 'sessions'), {
             uid: user.uid,
             scenarioId: selectedScenario.id,
-            score: result.score,
-            detailedAnalysis: result.summary,
+            score: result.score || 0,
+            detailedAnalysis: result.summary || "",
             isUnlocked: isSubscribed,
             createdAt: Timestamp.now(),
-            messages: messages // Save full correspondence
+            messages: messages.map(m => ({
+              role: m.role,
+              text: m.text,
+              timestamp: m.timestamp
+            }))
           });
         } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, 'sessions');
+          console.warn("Session save failed but continuing:", err);
+          addNotification("Диалог проанализирован, но не удалось сохранить его в историю.", 'info');
         }
       }
 

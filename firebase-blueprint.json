@@ -38,7 +38,8 @@
         "score": { "type": "number" },
         "detailedAnalysis": { "type": "string", "description": "Detailed AI feedback (locked behind paywall)" },
         "isUnlocked": { "type": "boolean", "description": "Whether the detailed analysis is paid for" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "messages": { "type": "array", "description": "Full correspondence between user and AI" }
       },
       "required": ["uid", "scenarioId", "score", "createdAt"]
     }

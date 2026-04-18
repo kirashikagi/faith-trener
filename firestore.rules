@@ -88,7 +88,7 @@ service cloud.firestore {
 
     function isValidSession(data) {
       return hasRequiredFields(['uid', 'scenarioId', 'score', 'createdAt']) &&
-             hasOnlyAllowedFields(['uid', 'scenarioId', 'score', 'detailedAnalysis', 'isUnlocked', 'createdAt']) &&
+             hasOnlyAllowedFields(['uid', 'scenarioId', 'score', 'detailedAnalysis', 'isUnlocked', 'createdAt', 'messages']) &&
              data.uid == request.auth.uid &&
              data.score is number && data.score >= 0 && data.score <= 100 &&
              data.createdAt is timestamp;
