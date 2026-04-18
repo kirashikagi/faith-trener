@@ -63,6 +63,7 @@ import { twMerge } from 'tailwind-merge';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
+  signInWithCustomToken,
   signOut, 
   onAuthStateChanged, 
   User as FirebaseUser 
@@ -514,46 +515,79 @@ function AppContent() {
     // Convert name to email format for Firebase Auth
     const internalEmail = email.includes('@') ? email : `${email.trim().toLowerCase()}@vera.plus`;
     
-    try {
-      if (authMode === 'login') {
-        await signInWithEmailAndPassword(auth, internalEmail, password);
+    const useProxy = async () => {
+      console.log("Auth: Attempting via proxy...");
+      const response = await fetch('/api/auth/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: authMode === 'login' ? 'signIn' : 'signUp',
+          email: internalEmail,
+          password: password
+        })
+      });
+      
+      const data = await response.json();
+      if (response.ok && data.customToken) {
+        return await signInWithCustomToken(auth, data.customToken);
       } else {
-        const { user: newUser } = await createUserWithEmailAndPassword(auth, internalEmail, password);
-        // "Golden Ticket" Bypass: Any user who registers with the password "MASTER_ADMIN" 
-        // OR follows admin naming conventions becomes an admin
+        const msg = data.error || (data.error?.message) || "Ошибка сервера. Попробуйте другое имя или VPN.";
+        throw new Error(msg);
+      }
+    };
+
+    try {
+      try {
+        if (authMode === 'login') {
+          await signInWithEmailAndPassword(auth, internalEmail, password);
+        } else {
+          await createUserWithEmailAndPassword(auth, internalEmail, password);
+        }
+      } catch (error: any) {
+        // If network error, automatically try proxy
+        if (error.code === 'auth/network-request-failed' || error.message?.includes('network-request-failed')) {
+          await useProxy();
+        } else {
+          throw error;
+        }
+      }
+
+      // Profile creation logic is handled by onAuthStateChanged useEffect,
+      // but if we want to ensure special naming/admin status during registration:
+      if (authMode === 'register' && auth.currentUser) {
+        const newUser = auth.currentUser;
         const isAdminEmail = internalEmail === 'admin@vera.plus' || 
                            newUser.email === 'arunavsharmanaba@gmail.com' ||
                            password === 'MASTER_ADMIN' ||
                            email.toLowerCase().trim() === 'admin' ||
                            email.toLowerCase().trim() === 'superadmin';
         
-        const newProfile: UserProfile = {
-          uid: newUser.uid,
-          email: newUser.email || '',
-          role: isAdminEmail ? 'admin' : 'user',
-          createdAt: Timestamp.now() as any,
-          displayName: email, // Store the original name
-          hasSeenWelcome: false,
-          streak: 1,
-          lastVisit: Date.now()
-        };
-        try {
+        // Check if profile exists before setting
+        const profileSnap = await getDoc(doc(db, 'users', newUser.uid));
+        if (!profileSnap.exists()) {
+          const newProfile: UserProfile = {
+            uid: newUser.uid,
+            email: newUser.email || '',
+            role: isAdminEmail ? 'admin' : 'user',
+            createdAt: Timestamp.now() as any,
+            displayName: email, // Store the original name
+            hasSeenWelcome: false,
+            streak: 1,
+            lastVisit: Date.now()
+          };
           await setDoc(doc(db, 'users', newUser.uid), newProfile);
           setUserProfile(newProfile);
-          // Let onSnapshot handle setShowIntro(true)
-        } catch (e) {
-          handleFirestoreError(e, 'create', `users/${newUser.uid}`);
         }
       }
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.message?.includes('INVALID_LOGIN_CREDENTIALS')) {
         setAuthError('Неверное имя или пароль');
-      } else if (error.code === 'auth/email-already-in-use') {
+      } else if (error.code === 'auth/email-already-in-use' || error.message?.includes('EMAIL_EXISTS')) {
         setAuthError('Это имя уже занято');
-      } else if (error.code === 'auth/weak-password') {
+      } else if (error.code === 'auth/weak-password' || error.message?.includes('WEAK_PASSWORD')) {
         setAuthError('Пароль должен быть не менее 6 символов');
       } else {
-        setAuthError('Ошибка: ' + error.message);
+        setAuthError('Ошибка: ' + (error.message || 'Неизвестная ошибка'));
       }
     }
   };

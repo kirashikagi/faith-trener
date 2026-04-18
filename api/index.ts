@@ -97,6 +97,55 @@ async function getDb() {
   }
 }
 
+// Auth Proxy to bypass network blocks in restricted regions (like Russia)
+app.post("/api/auth/proxy", async (req, res) => {
+  try {
+    const { action, email, password } = req.body;
+    const apiKey = process.env.VITE_FIREBASE_API_KEY || 'AIzaSyBr--JSzibS0CXR6B1WDKOngML5LYsn7_I';
+    await loadDependencies();
+
+    if (action === 'signIn') {
+      // 1. Verify credentials via Identity Toolkit REST API
+      const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, returnSecureToken: true })
+      });
+
+      const data: any = await response.json();
+      if (!response.ok) {
+        return res.status(response.status).json(data);
+      }
+
+      // 2. Credentials valid, generate a Custom Token via Admin SDK
+      // This token can be used by the client SDK even if identitytoolkit is blocked on the client
+      const customToken = await admin.auth().createCustomToken(data.localId);
+      res.json({ customToken, user: data });
+    } else if (action === 'signUp') {
+      try {
+        // Create user via Admin SDK
+        const userRecord = await admin.auth().createUser({
+          email,
+          password,
+          displayName: email.split('@')[0]
+        });
+        
+        const customToken = await admin.auth().createCustomToken(userRecord.uid);
+        res.json({ customToken, uid: userRecord.uid, email: userRecord.email });
+      } catch (e: any) {
+        console.error("signUp admin error:", e);
+        res.status(400).json({ error: e.message, code: e.code });
+      }
+    } else {
+      return res.status(400).json({ error: "Invalid auth action" });
+    }
+  } catch (error: any) {
+    console.error("Auth Proxy internal error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get("/api/status", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString(), env: !!process.env.YOOKASSA_SHOP_ID });
 });
