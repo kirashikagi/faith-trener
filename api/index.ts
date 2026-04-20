@@ -281,35 +281,48 @@ app.post("/api/payments/webhook", async (req, res) => {
   }
 });
 
-// Gemini
+// Gemini Chat
 app.post("/api/chat", async (req, res) => {
   try {
     const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
     const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
     
-    if (!apiKey) return res.status(500).json({ error: "API key missing." });
+    if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
 
     const ai = new GoogleGenAI({ apiKey });
-    const formattedHistory = (history || []).map((m: any) => ({
-      role: m.role,
+    
+    // Construct contents for multi-turn chat
+    const contents = (history || []).map((m: any) => ({
+      role: m.role === 'model' ? 'model' : 'user',
       parts: [{ text: m.text }]
     }));
-
-    if (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
-      formattedHistory.unshift({ role: 'user', parts: [{ text: 'Начнем.' }] });
+    
+    // Handle model-first history
+    if (contents.length > 0 && contents[0].role === 'model') {
+      contents.unshift({ role: 'user', parts: [{ text: 'Привет' }] });
     }
+    
+    contents.push({ role: 'user', parts: [{ text: message }] });
 
-    const chat = ai.chats.create({
+    const response = await ai.models.generateContent({
       model: model || "gemini-3-flash-preview",
-      config: { systemInstruction },
-      history: formattedHistory
+      contents,
+      config: {
+        systemInstruction,
+        temperature: 0.7,
+        topP: 0.95,
+        topK: 64
+      }
     });
 
-    const response = await chat.sendMessage({ message });
+    if (!response.text) {
+      throw new Error("AI returned an empty response.");
+    }
+
     res.json({ text: response.text });
   } catch (error: any) {
-    console.error("Chat error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("Chat API Error:", error);
+    res.status(500).json({ error: error.message || "Unknown AI error" });
   }
 });
 
@@ -318,11 +331,11 @@ app.post("/api/generate", async (req, res) => {
     const { prompt, config, apiKey: clientApiKey } = req.body;
     const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
     
-    if (!apiKey) return res.status(500).json({ error: "API key missing." });
+    if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-flash-latest",
+      model: "gemini-3-flash-preview",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { 
         responseMimeType: config?.responseMimeType || "text/plain",
@@ -338,8 +351,8 @@ app.post("/api/generate", async (req, res) => {
 
     res.json({ text: response.text });
   } catch (error: any) {
-    console.error("Generate error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("Generate API Error:", error);
+    res.status(500).json({ error: error.message || "Unknown AI error" });
   }
 });
 
