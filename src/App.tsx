@@ -14,6 +14,7 @@ import {
   RefreshCcw, 
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   MessageSquare,
   Star,
   CheckCircle2,
@@ -197,6 +198,7 @@ function AppContent() {
   const [isDialogueEnded, setIsDialogueEnded] = useState(false);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [expandedScenarioId, setExpandedScenarioId] = useState<string | null>(null);
   const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
@@ -1918,31 +1920,63 @@ function AppContent() {
                     </h3>
                     <div className="flex-1 h-[1px] bg-border" />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {SCENARIOS.filter(s => s.mode === 'chat').map((scenario) => (
-                      <motion.button
-                        key={scenario.id}
-                        whileHover={{ y: -4 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => startScenario(scenario)}
-                        className="group sber-card text-left flex flex-col h-full"
-                      >
-                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-accent transition-colors leading-tight tracking-tight">
-                          {scenario.title}
-                        </h3>
-                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
-                          {scenario.description}
-                        </p>
-                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
-                          <div className="w-12 h-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-all border border-accent/10">
-                            {ScenarioIcons[scenario.icon as string]}
-                          </div>
-                          <div className="text-accent font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
-                            Начать <ChevronRight className="w-3 h-3 inline" />
-                          </div>
+                  <div className="space-y-4">
+                    {SCENARIOS.filter(s => s.mode === 'chat').map((scenario) => {
+                      const isExpanded = expandedScenarioId === scenario.id;
+                      return (
+                        <div key={scenario.id} className="sber-card !p-0 overflow-hidden border-border/50 transition-all">
+                          <button
+                            onClick={() => setExpandedScenarioId(isExpanded ? null : scenario.id)}
+                            className="w-full flex items-center justify-between p-6 hover:bg-accent/5 transition-all text-left"
+                          >
+                            <div className="flex items-center gap-6">
+                              <div className={cn(
+                                "w-14 h-14 rounded-2xl flex items-center justify-center transition-all border",
+                                isExpanded ? "bg-accent text-white border-accent/20" : "bg-bg text-accent border-accent/10"
+                              )}>
+                                {ScenarioIcons[scenario.icon as string]}
+                              </div>
+                              <h3 className={cn(
+                                "text-2xl font-serif tracking-tight",
+                                isExpanded ? "text-accent" : "text-fg"
+                              )}>
+                                {scenario.title}
+                              </h3>
+                            </div>
+                            <div className={cn("transition-transform duration-300", isExpanded ? "rotate-180" : "")}>
+                              <ChevronDown className="w-6 h-6 text-muted" />
+                            </div>
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.3, ease: "easeInOut" }}
+                              >
+                                <div className="px-6 pb-8 pt-2 space-y-8">
+                                  <div className="pl-[80px]">
+                                    <p className="text-muted text-base leading-relaxed font-medium max-w-2xl italic">
+                                      {scenario.description}
+                                    </p>
+                                    <div className="mt-8 pt-8 border-t border-border flex items-center">
+                                      <button 
+                                        onClick={() => startScenario(scenario)}
+                                        className="sber-button py-4 px-12 text-[11px] flex items-center gap-3 group"
+                                      >
+                                        Начать диалог <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                      </motion.button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </section>
 
@@ -1953,31 +1987,63 @@ function AppContent() {
                     </h3>
                     <div className="flex-1 h-[1px] bg-border" />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {SCENARIOS.filter(s => s.mode === 'criticism').map((scenario) => (
-                      <motion.button
-                        key={scenario.id}
-                        whileHover={{ y: -4 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => startScenario(scenario)}
-                        className="group sber-card text-left flex flex-col h-full"
-                      >
-                        <h3 className="text-2xl font-serif text-fg mb-4 group-hover:text-rose-500 transition-colors leading-tight tracking-tight">
-                          {scenario.title}
-                        </h3>
-                        <p className="text-muted text-sm font-medium leading-relaxed flex-grow opacity-80">
-                          {scenario.description}
-                        </p>
-                        <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
-                          <div className="w-12 h-12 bg-rose-500/5 text-rose-500 rounded-2xl flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all border border-rose-500/10">
-                            {ScenarioIcons[scenario.icon as string]}
-                          </div>
-                          <div className="text-rose-500 font-bold text-[11px] uppercase tracking-[0.2em] group-hover:translate-x-1 transition-transform">
-                            Начать <ChevronRight className="w-3 h-3 inline" />
-                          </div>
+                  <div className="space-y-4">
+                    {SCENARIOS.filter(s => s.mode === 'criticism').map((scenario) => {
+                      const isExpanded = expandedScenarioId === scenario.id;
+                      return (
+                        <div key={scenario.id} className="sber-card !p-0 overflow-hidden border-border/50 transition-all">
+                          <button
+                            onClick={() => setExpandedScenarioId(isExpanded ? null : scenario.id)}
+                            className="w-full flex items-center justify-between p-6 hover:bg-rose-500/5 transition-all text-left"
+                          >
+                            <div className="flex items-center gap-6">
+                              <div className={cn(
+                                "w-14 h-14 rounded-2xl flex items-center justify-center transition-all border",
+                                isExpanded ? "bg-rose-500 text-white border-rose-500/20" : "bg-bg text-rose-500 border-rose-500/10"
+                              )}>
+                                {ScenarioIcons[scenario.icon as string]}
+                              </div>
+                              <h3 className={cn(
+                                "text-2xl font-serif tracking-tight",
+                                isExpanded ? "text-rose-500" : "text-fg"
+                              )}>
+                                {scenario.title}
+                              </h3>
+                            </div>
+                            <div className={cn("transition-transform duration-300", isExpanded ? "rotate-180" : "")}>
+                              <ChevronDown className="w-6 h-6 text-muted" />
+                            </div>
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.3, ease: "easeInOut" }}
+                              >
+                                <div className="px-6 pb-8 pt-2 space-y-8">
+                                  <div className="pl-[80px]">
+                                    <p className="text-muted text-base leading-relaxed font-medium max-w-2xl italic">
+                                      {scenario.description}
+                                    </p>
+                                    <div className="mt-8 pt-8 border-t border-border flex items-center">
+                                      <button 
+                                        onClick={() => startScenario(scenario)}
+                                        className="px-12 py-4 bg-rose-500 text-white font-bold rounded-2xl hover:bg-rose-600 transition-all uppercase tracking-[0.2em] text-[11px] shadow-lg shadow-rose-500/20 flex items-center gap-3 group"
+                                      >
+                                        Начать разбор <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                      </motion.button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </section>
               </div>
@@ -2344,9 +2410,6 @@ function AppContent() {
                             className="w-1.5 h-1.5 bg-accent rounded-full" 
                           />
                         </div>
-                        <span className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] animate-pulse">
-                          Собеседник даёт ответ
-                        </span>
                       </div>
                     </div>
                   </div>
