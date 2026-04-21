@@ -149,6 +149,19 @@ function AppContent() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    // Update theme-color meta tag dynamically
+    const themeColor = theme === 'light' ? '#FFFFFF' : '#1C1C18';
+    let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement;
+    if (meta) meta.content = themeColor;
+    
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -1126,7 +1139,7 @@ function AppContent() {
         )}
 
         {user && (
-          <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300">
+          <header className="sticky top-0 z-50 bg-card/85 backdrop-blur-xl border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300 pt-safe">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20 shrink-0">
                 <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
