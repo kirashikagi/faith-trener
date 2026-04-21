@@ -202,7 +202,13 @@ function AppContent() {
   const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [showIOSInstallGuide, setShowIOSInstallGuide] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+
+  const isIOS = useMemo(() => {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }, []);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -1127,33 +1133,45 @@ function AppContent() {
       <div className="relative z-10">
         {/* PWA Install Prompt */}
         <AnimatePresence>
-          {showInstallPrompt && (
+          {(showInstallPrompt || (showIOSInstallGuide && isIOS)) && (
             <motion.div 
               initial={{ opacity: 0, y: -50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -50 }}
-              className="sticky top-0 z-[100] bg-accent text-white px-4 py-3 flex items-center justify-between shadow-lg"
+              className="fixed top-4 left-4 right-4 z-[200] bg-accent text-white p-5 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-xl"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-5 h-5" />
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+                  <Sparkles className="w-6 h-6" />
                 </div>
-                <div className="text-xs font-bold uppercase tracking-wider">Установите приложение для удобства</div>
-              </div>
-              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <h4 className="text-sm font-black uppercase tracking-widest mb-1">Установите приложение</h4>
+                  <p className="text-[10px] text-white/80 font-medium leading-relaxed">
+                    {isIOS 
+                      ? 'Нажмите «Поделиться», затем выберите «На экран „Домой“» для установки без адресной строки.'
+                      : 'Добавьте приложение на рабочий стол для быстрого доступа и работы во весь экран.'}
+                  </p>
+                </div>
                 <button 
-                  onClick={handleInstallClick}
-                  className="bg-white text-accent px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-white/90 transition-colors"
+                  onClick={() => {
+                    setShowInstallPrompt(false);
+                    setShowIOSInstallGuide(false);
+                  }}
+                  className="p-2 hover:bg-white/10 rounded-xl transition-colors"
                 >
-                  Установить
-                </button>
-                <button 
-                  onClick={() => setShowInstallPrompt(false)}
-                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
+              {!isIOS && deferredPrompt && (
+                <div className="mt-4 flex gap-2">
+                  <button 
+                    onClick={handleInstallClick}
+                    className="flex-1 bg-white text-accent py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/90 transition-all active:scale-95"
+                  >
+                    Установить сейчас
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -2865,11 +2883,27 @@ function AppContent() {
 
                 {deferredPrompt && (
                   <button 
-                    onClick={handleInstallClick}
+                    onClick={() => {
+                      handleInstallClick();
+                      setShowMobileMenu(false);
+                    }}
                     className="w-full flex items-center gap-4 p-4 rounded-2xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all font-bold uppercase tracking-[0.2em] text-[10px] mt-6"
                   >
                     <Sparkles className="w-5 h-5" />
-                    Установить PWA
+                    Установить на рабочий стол
+                  </button>
+                )}
+
+                {!isStandalone && isIOS && (
+                  <button 
+                    onClick={() => {
+                      setShowIOSInstallGuide(true);
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all font-bold uppercase tracking-[0.2em] text-[10px] mt-6"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                    Инструкция по установке
                   </button>
                 )}
               </div>
