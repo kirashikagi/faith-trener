@@ -1097,7 +1097,7 @@ function AppContent() {
       // Check Achievements
       unlockAchievement('first_step');
       if (result.score === 10 && selectedScenario?.mode === 'criticism') unlockAchievement('master_of_calm');
-      if (result.metrics && result.metrics.speed < 10) unlockAchievement('speed_demon');
+      if (result.metrics && result.metrics.speed < 10) unlockAchievement('inspired_impulse');
       if (result.metrics && result.metrics.theologicalAccuracy > 9) unlockAchievement('theological_master');
       if (selectedScenario?.id === 'skeptic' && result.score > 8 && result.metrics && result.metrics.logic > 8) unlockAchievement('apologetic_expert');
       if (selectedScenario?.id === 'crisis' && result.score > 8) unlockAchievement('empathy_pro');

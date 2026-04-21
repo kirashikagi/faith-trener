@@ -129,7 +129,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'master_of_calm', title: 'Мастер спокойствия', description: 'Получи оценку 10/10 в режиме критики.', icon: 'Sun', unlocked: true },
   { id: 'apologetic_expert', title: 'Мастер свидетельства', description: 'Убеди интеллектуального скептика с высокой точностью.', icon: 'Shield', unlocked: true },
   { id: 'empathy_pro', title: 'Профи эмпатии', description: 'Помоги человеку в кризисе, сохранив дух любви.', icon: 'Heart', unlocked: true },
-  { id: 'speed_demon', title: 'Демон скорости', description: 'Отвечай в среднем быстрее чем за 10 секунд.', icon: 'Zap', unlocked: true },
+  { id: 'inspired_impulse', title: 'Мгновенное вдохновение', description: 'Отвечай в среднем быстрее чем за 10 секунд.', icon: 'Zap', unlocked: true },
   { id: 'theological_master', title: 'Магистр богословия', description: 'Максимальный балл за библейскую точность в 3 сессиях.', icon: 'Smile', unlocked: true },
 ];
 
