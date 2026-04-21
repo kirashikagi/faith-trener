@@ -618,7 +618,15 @@ function AppContent() {
       setShowFeedbackForm(false);
       addNotification("Спасибо за отзыв! Мы обязательно его прочтем.", 'success');
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'feedback');
+      console.error("Feedback submission error:", error);
+      addNotification("Не удалось отправить отзыв. Пожалуйста, проверьте интернет или попробуйте позже.", 'error');
+      // We still log the detailed error as per instructions
+      try {
+        handleFirestoreError(error, OperationType.WRITE, 'feedback');
+      } catch (e) {
+        // handleFirestoreError throws, which is expected by the system, 
+        // but we already showed a UI notification.
+      }
     }
   };
 

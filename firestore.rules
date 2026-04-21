@@ -80,7 +80,7 @@ service cloud.firestore {
 
     function isValidFeedback(data) {
       return hasRequiredFields(['uid', 'message', 'createdAt']) &&
-             hasOnlyAllowedFields(['uid', 'email', 'message', 'createdAt']) &&
+             hasOnlyAllowedFields(['uid', 'email', 'message', 'createdAt', 'type']) &&
              data.uid == request.auth.uid &&
              data.message is string && data.message.size() > 0 && data.message.size() < 2000 &&
              data.createdAt is timestamp;
