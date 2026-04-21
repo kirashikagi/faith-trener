@@ -56,7 +56,6 @@ import {
   UserMinus,
   Microscope,
   Briefcase,
-  DownloadCloud,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -201,63 +200,8 @@ function AppContent() {
   const [isTyping, setIsTyping] = useState(false);
   const [expandedScenarioId, setExpandedScenarioId] = useState<string | null>(null);
   const [currentMood, setCurrentMood] = useState<'neutral' | 'calm' | 'tense' | 'warm' | 'cold'>('neutral');
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [isInIframe, setIsInIframe] = useState(false);
 
-  useEffect(() => {
-    setIsInIframe(window.self !== window.top);
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
-      setIsStandalone(true);
-    }
-  }, []);
-
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [showIOSInstallGuide, setShowIOSInstallGuide] = useState(false);
-  const [showGeneralInstallGuide, setShowGeneralInstallGuide] = useState(false);
-
-  const isIOS = useMemo(() => {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  }, []);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const handler = (e: any) => {
-      console.log('PWA: beforeinstallprompt event fired');
-      e.preventDefault();
-      setDeferredPrompt(e);
-      // Only show prompt if not already installed/standalone and NOT in iframe
-      if (!isStandalone && !isInIframe) {
-        setShowInstallPrompt(true);
-      }
-    };
-
-    const installedHandler = () => {
-      console.log('PWA: App installed successfully');
-      setShowInstallPrompt(false);
-      setIsStandalone(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handler);
-    window.addEventListener('appinstalled', installedHandler);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
-      window.removeEventListener('appinstalled', installedHandler);
-    };
-  }, [isStandalone]);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
-    }
-    setDeferredPrompt(null);
-    setShowInstallPrompt(false);
-  };
 
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed || userProfile?.role === 'admin', [userProfile]);
 
@@ -755,7 +699,18 @@ function AppContent() {
   const [stats, setStats] = useState<UserStats>(() => {
     try {
       const saved = localStorage.getItem('faith_trainer_stats');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Sync achievement titles and descriptions from constants
+        parsed.achievements = ACHIEVEMENTS.map(ref => {
+          const userAch = parsed.achievements?.find((a: any) => a.id === ref.id);
+          return {
+            ...ref,
+            unlocked: userAch ? !!userAch.unlocked : !!ref.unlocked
+          };
+        });
+        return parsed;
+      }
     } catch (e) {
       console.error("Error loading stats:", e);
     }
@@ -1136,51 +1091,6 @@ function AppContent() {
       </div>
 
       <div className="relative z-10">
-        {/* PWA Install Prompt */}
-        <AnimatePresence>
-          {(showInstallPrompt || (showIOSInstallGuide && isIOS)) && (
-            <motion.div 
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
-              className="fixed top-4 left-4 right-4 z-[200] bg-accent text-white p-5 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-xl"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-black uppercase tracking-widest mb-1">Установите приложение</h4>
-                  <p className="text-[10px] text-white/80 font-medium leading-relaxed">
-                    {isIOS 
-                      ? 'Нажмите «Поделиться», затем выберите «На экран „Домой“» для установки без адресной строки.'
-                      : 'Добавьте приложение на рабочий стол для быстрого доступа и работы во весь экран.'}
-                  </p>
-                </div>
-                <button 
-                  onClick={() => {
-                    setShowInstallPrompt(false);
-                    setShowIOSInstallGuide(false);
-                  }}
-                  className="p-2 hover:bg-white/10 rounded-xl transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              {!isIOS && deferredPrompt && (
-                <div className="mt-4 flex gap-2">
-                  <button 
-                    onClick={handleInstallClick}
-                    className="flex-1 bg-white text-accent py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/90 transition-all active:scale-95"
-                  >
-                    Установить сейчас
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Manual Key Input Fallback */}
         {showKeyInput && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
@@ -2885,27 +2795,6 @@ function AppContent() {
                   <MessageSquare className="w-5 h-5" />
                   Обратная связь
                 </button>
-
-                {!isStandalone && (
-                  <button 
-                    onClick={() => {
-                      if (isInIframe) {
-                        setShowGeneralInstallGuide(true);
-                      } else if (deferredPrompt) {
-                        handleInstallClick();
-                      } else if (isIOS) {
-                        setShowIOSInstallGuide(true);
-                      } else {
-                        setShowGeneralInstallGuide(true);
-                      }
-                      setShowMobileMenu(false);
-                    }}
-                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-accent/10 text-accent hover:bg-accent hover:text-white transition-all font-bold uppercase tracking-[0.2em] text-[10px] mt-6"
-                  >
-                    <DownloadCloud className="w-5 h-5" />
-                    Установить приложение
-                  </button>
-                )}
               </div>
 
               <div className="pt-8 border-t border-border mt-8 space-y-2">
@@ -2930,92 +2819,6 @@ function AppContent() {
                   <LogOut className="w-4 h-4" />
                   Выйти из системы
                 </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* General Installation Guide (for Iframe and other browsers) */}
-      <AnimatePresence>
-        {showGeneralInstallGuide && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowGeneralInstallGuide(false)}
-              className="absolute inset-0 bg-bg/80 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="glass-card w-full max-w-lg relative overflow-hidden p-8"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
-                    <DownloadCloud className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-2xl font-serif text-fg tracking-tight">Установка приложения</h3>
-                </div>
-                <button 
-                  onClick={() => setShowGeneralInstallGuide(false)}
-                  className="p-3 text-muted hover:text-accent transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                {isInIframe ? (
-                  <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-[2rem] space-y-4">
-                    <p className="text-amber-600 font-bold flex items-center gap-2">
-                      <AlertCircle className="w-5 h-5 font-black shrink-0" />
-                      Вы находитесь в режиме предпросмотра
-                    </p>
-                    <p className="text-sm text-fg/80 leading-relaxed font-medium">
-                      Установка приложения напрямую из этого окна невозможна. Чтобы установить «Вера +1» на рабочий стол:
-                    </p>
-                    <ol className="list-decimal list-inside text-sm font-bold text-fg space-y-2 pl-2">
-                      <li>Откройте приложение в новой вкладке браузера</li>
-                      <li>Нажмите на кнопку «Установить» в меню</li>
-                    </ol>
-                    <button 
-                      onClick={() => window.open(window.location.href, '_blank')}
-                      className="w-full py-4 bg-accent text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-accent/20 flex items-center justify-center gap-2"
-                    >
-                      <ArrowRight className="w-4 h-4" />
-                      Открыть в новой вкладке
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    <p className="text-sm text-muted font-medium leading-relaxed">
-                      Если автоматическое окно установки не появилось, вы можете добавить приложение вручную через настройки вашего браузера:
-                    </p>
-                    
-                    <div className="space-y-4">
-                      <div className="p-4 bg-bg/50 border border-border/50 rounded-2xl">
-                        <p className="text-xs font-black uppercase tracking-widest text-accent mb-2">Для Chrome / Edge</p>
-                        <p className="text-sm text-fg font-medium">Нажмите на три точки (меню) в углу браузера и выберите <span className="text-accent underline font-bold">«Установить приложение»</span>.</p>
-                      </div>
-
-                      <div className="p-4 bg-bg/50 border border-border/50 rounded-2xl">
-                        <p className="text-xs font-black uppercase tracking-widest text-accent mb-2">Для iPhone (Safari)</p>
-                        <p className="text-sm text-fg font-medium">Нажмите на значок «Поделиться» <span className="inline-block px-2 py-0.5 bg-bg border border-border rounded text-[10px]">↑</span> и выберите <span className="text-accent underline font-bold">«На экран „Домой“»</span>.</p>
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={() => setShowGeneralInstallGuide(false)}
-                      className="w-full py-5 bg-border hover:bg-border/80 text-fg rounded-2xl font-black transition-all uppercase tracking-[0.2em] text-[10px]"
-                    >
-                      Понятно
-                    </button>
-                  </div>
-                )}
               </div>
             </motion.div>
           </div>
