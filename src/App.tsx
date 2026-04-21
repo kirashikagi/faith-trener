@@ -246,7 +246,7 @@ function AppContent() {
     setShowInstallPrompt(false);
   };
 
-  const isSubscribed = useMemo(() => !!userProfile?.isSubscribed, [userProfile]);
+  const isSubscribed = useMemo(() => !!userProfile?.isSubscribed || userProfile?.role === 'admin', [userProfile]);
 
   const [notifications, setNotifications] = useState<{ id: string; message: string; type: 'info' | 'error' | 'success' }[]>([]);
 
