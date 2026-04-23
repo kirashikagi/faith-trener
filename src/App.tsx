@@ -56,6 +56,7 @@ import {
   UserMinus,
   Microscope,
   Briefcase,
+  Key
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -180,7 +181,10 @@ function AppContent() {
   const [adminFeedback, setAdminFeedback] = useState<FeedbackSubmission[]>([]);
   const [showAdmin, setShowAdmin] = useState(false);
   const [systemStats, setSystemStats] = useState<{ users: number; feedback: number }>({ users: 0, feedback: 0 });
-  const [adminTab, setAdminTab] = useState<'feedback' | 'system'>('feedback');
+  const [adminTab, setAdminTab] = useState<'feedback' | 'system' | 'users'>('feedback');
+  const [userManagerEmail, setUserManagerEmail] = useState('');
+  const [foundUsers, setFoundUsers] = useState<UserProfile[]>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [viewingSession, setViewingSession] = useState<SessionRecord | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<LibraryArticle | null>(null);
@@ -325,6 +329,40 @@ function AppContent() {
     return BIBLICAL_FACTS[(day - 1) % BIBLICAL_FACTS.length];
   }, []);
   
+  const searchUsersByEmail = async () => {
+    if (!userManagerEmail.trim()) {
+      addNotification("Введите email для поиска", 'info');
+      return;
+    }
+    setIsSearchingUsers(true);
+    try {
+      const q = query(collection(db, 'users'), where('email', '==', userManagerEmail.trim().toLowerCase()), limit(10));
+      const querySnapshot = await getDocs(q);
+      const users: UserProfile[] = [];
+      querySnapshot.forEach((doc) => {
+        users.push(doc.data() as UserProfile);
+      });
+      setFoundUsers(users);
+      if (users.length === 0) addNotification("Пользователь не найден", 'info');
+    } catch (e: any) {
+      addNotification("Ошибка поиска: " + e.message, 'error');
+    } finally {
+      setIsSearchingUsers(false);
+    }
+  };
+
+  const toggleUserPremium = async (uid: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'users', uid), { 
+        isSubscribed: !currentStatus,
+        subscriptionExpiresAt: !currentStatus ? Date.now() + (365 * 24 * 60 * 60 * 1000) : null 
+      });
+      setFoundUsers(prev => prev.map(u => u.uid === uid ? { ...u, isSubscribed: !currentStatus } : u));
+      addNotification(`Премиум статус ${!currentStatus ? 'активирован' : 'деактивирован'}`, 'success');
+    } catch (e: any) {
+      addNotification("Ошибка обновления: " + e.message, 'error');
+    }
+  };
   const handleFirestoreError = (error: unknown, operation: string, path: string) => {
     const errInfo = {
       error: error instanceof Error ? error.message : String(error),
@@ -1131,7 +1169,7 @@ function AppContent() {
                   onClick={() => setShowKeyInput(false)}
                   className="flex-1 py-4 bg-accent hover:bg-emerald-600 text-white rounded-2xl font-black transition-all shadow-xl shadow-accent/20 uppercase tracking-[0.2em] text-[10px]"
                 >
-                  Сохранить
+                  Применить
                 </button>
               </div>
             </div>
@@ -1417,6 +1455,15 @@ function AppContent() {
                     Отзывы
                   </button>
                   <button 
+                    onClick={() => setAdminTab('users')}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                      adminTab === 'users' ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-bg border border-border text-muted hover:text-fg"
+                    )}
+                  >
+                    Пользователи
+                  </button>
+                  <button 
                     onClick={() => setAdminTab('system')}
                     className={cn(
                       "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
@@ -1463,6 +1510,72 @@ function AppContent() {
                           </div>
                         </div>
                         <p className="text-fg/90 text-lg leading-relaxed font-medium italic">«{f.message}»</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : adminTab === 'users' ? (
+              <div className="space-y-10">
+                <div className="sber-card p-8">
+                  <h3 className="text-lg font-bold text-fg mb-6">Управление премиум-доступом</h3>
+                  <div className="flex gap-4">
+                    <div className="flex-1 relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                      <input 
+                        type="text" 
+                        value={userManagerEmail}
+                        onChange={(e) => setUserManagerEmail(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && searchUsersByEmail()}
+                        placeholder="Email пользователя..."
+                        className="w-full bg-bg border border-border rounded-xl pl-12 pr-4 py-3 text-sm focus:border-accent outline-none transition-all"
+                      />
+                    </div>
+                    <button 
+                      onClick={searchUsersByEmail}
+                      disabled={isSearchingUsers}
+                      className="px-8 bg-accent text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-accent/20 hover:bg-accent/90 disabled:opacity-50 transition-all"
+                    >
+                      {isSearchingUsers ? 'Поиск...' : 'Найти'}
+                    </button>
+                  </div>
+                </div>
+
+                {foundUsers.length > 0 && (
+                  <div className="space-y-4">
+                    {foundUsers.map(u => (
+                      <div key={u.uid} className="sber-card flex items-center justify-between p-6 hover:border-accent/30 transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center text-accent">
+                            <User className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <div className="text-fg font-bold text-sm tracking-tight">{u.displayName || 'Без имени'}</div>
+                            <div className="text-muted text-[10px] font-medium">{u.email}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                           <div className="text-right">
+                              <div className="text-[9px] font-bold uppercase tracking-widest text-muted mb-1">Статус</div>
+                              <div className={cn(
+                                "text-[10px] font-black uppercase tracking-tighter",
+                                u.isSubscribed ? "text-amber-500" : "text-muted/60"
+                              )}>
+                                {u.isSubscribed ? 'Premium' : 'Free'}
+                              </div>
+                           </div>
+
+                           <button 
+                            onClick={() => toggleUserPremium(u.uid, !!u.isSubscribed)}
+                            className={cn(
+                              "px-6 py-3 rounded-xl font-bold text-[9px] uppercase tracking-[0.1em] transition-all",
+                              u.isSubscribed ? "bg-rose-500/10 text-rose-500 hover:bg-rose-500/20" : "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
+                            )}
+                           >
+                              {u.isSubscribed ? 'Снять Премиум' : 'Дать Премиум'}
+                           </button>
+                        </div>
                       </div>
                     ))}
                   </div>
