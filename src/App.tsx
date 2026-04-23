@@ -80,6 +80,7 @@ import {
   query, 
   where, 
   getDocs, 
+  limit,
   orderBy,
   Timestamp,
   getDocFromServer,
