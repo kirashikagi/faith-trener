@@ -1,23 +1,23 @@
 {
+  "id": "com.vera.app",
   "name": "Вера +1",
-  "short_name": "Вера +1",
-  "description": "Тренажёр духовного общения и навыков евангелизации",
-  "start_url": "/",
+  "short_name": "Вера",
+  "description": "Тренажёр духовного общения",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#FDFCF8",
   "theme_color": "#5A5A40",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "logo.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "/logo.png",
+      "src": "logo.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }
