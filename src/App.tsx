@@ -56,7 +56,8 @@ import {
   UserMinus,
   Microscope,
   Briefcase,
-  Key
+  Key,
+  Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -182,7 +183,7 @@ function AppContent() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [systemStats, setSystemStats] = useState<{ users: number; feedback: number }>({ users: 0, feedback: 0 });
   const [adminTab, setAdminTab] = useState<'feedback' | 'system' | 'users'>('feedback');
-  const [userManagerEmail, setUserManagerEmail] = useState('');
+  const [userManagerSearchQuery, setUserManagerSearchQuery] = useState('');
   const [foundUsers, setFoundUsers] = useState<UserProfile[]>([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
@@ -329,21 +330,53 @@ function AppContent() {
     return BIBLICAL_FACTS[(day - 1) % BIBLICAL_FACTS.length];
   }, []);
   
-  const searchUsersByEmail = async () => {
-    if (!userManagerEmail.trim()) {
-      addNotification("Введите email для поиска", 'info');
+  const searchUsers = async () => {
+    const queryStr = userManagerSearchQuery.trim();
+    if (!queryStr) {
+      addNotification("Введите Email или имя для поиска", 'info');
       return;
     }
     setIsSearchingUsers(true);
     try {
-      const q = query(collection(db, 'users'), where('email', '==', userManagerEmail.trim().toLowerCase()), limit(10));
-      const querySnapshot = await getDocs(q);
       const users: UserProfile[] = [];
-      querySnapshot.forEach((doc) => {
-        users.push(doc.data() as UserProfile);
-      });
+      const seenUids = new Set<string>();
+
+      const addResults = (snapshot: any) => {
+        snapshot.forEach((doc: any) => {
+          const data = doc.data() as UserProfile;
+          if (!seenUids.has(data.uid)) {
+            users.push(data);
+            seenUids.add(data.uid);
+          }
+        });
+      };
+
+      // Query 1: Exact Email
+      const qEmail = query(collection(db, 'users'), where('email', '==', queryStr.toLowerCase()), limit(5));
+      const snapEmail = await getDocs(qEmail);
+      addResults(snapEmail);
+
+      // Query 2: Exact Name (if not many results yet)
+      if (users.length < 10) {
+        const qName = query(collection(db, 'users'), where('displayName', '==', queryStr), limit(5));
+        const snapName = await getDocs(qName);
+        addResults(snapName);
+      }
+
+      // Query 3: Name prefix (optional, for broader search)
+      if (users.length < 10 && queryStr.length >= 3) {
+        const qNamePrefix = query(
+          collection(db, 'users'), 
+          where('displayName', '>=', queryStr), 
+          where('displayName', '<=', queryStr + '\uf8ff'),
+          limit(5)
+        );
+        const snapPrefix = await getDocs(qNamePrefix);
+        addResults(snapPrefix);
+      }
+
       setFoundUsers(users);
-      if (users.length === 0) addNotification("Пользователь не найден", 'info');
+      if (users.length === 0) addNotification("Пользователи не найдены", 'info');
     } catch (e: any) {
       addNotification("Ошибка поиска: " + e.message, 'error');
     } finally {
@@ -1521,18 +1554,18 @@ function AppContent() {
                   <h3 className="text-lg font-bold text-fg mb-6">Управление премиум-доступом</h3>
                   <div className="flex gap-4">
                     <div className="flex-1 relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                       <input 
                         type="text" 
-                        value={userManagerEmail}
-                        onChange={(e) => setUserManagerEmail(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && searchUsersByEmail()}
-                        placeholder="Email пользователя..."
+                        value={userManagerSearchQuery}
+                        onChange={(e) => setUserManagerSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && searchUsers()}
+                        placeholder="Email или имя пользователя..."
                         className="w-full bg-bg border border-border rounded-xl pl-12 pr-4 py-3 text-sm focus:border-accent outline-none transition-all"
                       />
                     </div>
                     <button 
-                      onClick={searchUsersByEmail}
+                      onClick={searchUsers}
                       disabled={isSearchingUsers}
                       className="px-8 bg-accent text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-accent/20 hover:bg-accent/90 disabled:opacity-50 transition-all"
                     >
