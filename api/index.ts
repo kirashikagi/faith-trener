@@ -82,12 +82,12 @@ async function getDb() {
         });
       } else {
         admin.initializeApp({
-          projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'the-sentinel-490819'
+          projectId: process.env.VITE_FIREBASE_PROJECT_ID
         });
       }
     }
     
-    const databaseId = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-869f31c2-5b90-4d7e-8ae0-6d60d83bc4b5';
+    const databaseId = process.env.VITE_FIREBASE_DATABASE_ID;
     const appInstance = admin.apps[0];
     _db = getFirestore(appInstance, databaseId);
     return _db;
@@ -101,8 +101,12 @@ async function getDb() {
 app.post("/api/auth/proxy", async (req, res) => {
   try {
     const { action, email, password } = req.body;
-    const apiKey = process.env.VITE_FIREBASE_API_KEY || 'AIzaSyBr--JSzibS0CXR6B1WDKOngML5LYsn7_I';
+    const apiKey = process.env.VITE_FIREBASE_API_KEY;
     await loadDependencies();
+
+    if (!apiKey) {
+      return res.status(500).json({ error: "Firebase API Key is not configured on the server." });
+    }
 
     if (action === 'signIn') {
       // 1. Verify credentials via Identity Toolkit REST API

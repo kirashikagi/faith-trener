@@ -5,6 +5,8 @@
   "description": "Тренажёр духовного общения",
   "start_url": ".",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "scope": "/",
   "background_color": "#FDFCF8",
   "theme_color": "#5A5A40",
   "orientation": "portrait",

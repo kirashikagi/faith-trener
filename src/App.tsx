@@ -193,6 +193,28 @@ function AppContent() {
   const [showSubscription, setShowSubscription] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+
+  useEffect(() => {
+    // Check if app is running in standalone mode (installed)
+    const checkStandalone = () => {
+      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
+                               (window.navigator as any).standalone || 
+                               document.referrer.includes('android-app://');
+      setIsStandalone(isStandaloneMode);
+      
+      // If NOT standalone and is mobile, show prompt after 5 seconds
+      if (!isStandaloneMode && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        const hasSeenPrompt = localStorage.getItem('hasSeenInstallPrompt');
+        if (!hasSeenPrompt) {
+          setTimeout(() => setShowInstallPrompt(true), 5000);
+        }
+      }
+    };
+    
+    checkStandalone();
+  }, []);
 
   const isUserAdmin = userProfile?.role === 'admin' || 
                      user?.email === 'arunavsharmanaba@gmail.com' || 
@@ -232,6 +254,11 @@ function AppContent() {
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 5000);
+  };
+
+  const closeInstallPrompt = () => {
+    setShowInstallPrompt(false);
+    localStorage.setItem('hasSeenInstallPrompt', 'true');
   };
 
   const promoteToAdmin = async (uid: string) => {
@@ -1505,6 +1532,15 @@ function AppContent() {
                     )}
                   >
                     Система
+                  </button>
+                  <button 
+                    onClick={() => setAdminTab('users')}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                      adminTab === 'users' ? "bg-accent text-white shadow-lg shadow-accent/20" : "bg-bg border border-border text-muted hover:text-fg"
+                    )}
+                  >
+                    Пользователи
                   </button>
                 </div>
               </div>
@@ -3198,6 +3234,54 @@ function AppContent() {
         )}
       </AnimatePresence>
       
+      {/* PWA Install Prompt */}
+      <AnimatePresence>
+        {showInstallPrompt && (
+          <div className="fixed bottom-0 left-0 w-full z-[250] p-4 pointer-events-none">
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="max-w-md mx-auto sber-card p-6 shadow-2xl pointer-events-auto border-t-4 border-t-accent"
+            >
+              <div className="flex gap-5">
+                <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center shrink-0">
+                  <Sparkles className="w-8 h-8" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <h4 className="text-base font-bold text-fg tracking-tight">Установите приложение</h4>
+                  <p className="text-muted text-xs leading-relaxed">
+                    Добавьте "Вера +1" на главный экран, чтобы убрать адресную строку и пользоваться тренажёром как обычным приложением.
+                  </p>
+                  <div className="pt-2 flex flex-col gap-3">
+                    {/iPhone|iPad|iPod/i.test(navigator.userAgent) ? (
+                      <div className="p-3 bg-accent/5 rounded-xl border border-accent/10">
+                        <p className="text-[10px] text-accent font-bold uppercase tracking-wider mb-2">Для iPhone/iPad:</p>
+                        <ol className="text-[11px] text-muted space-y-1">
+                          <li>1. Нажмите на кнопку «Поделиться» <span className="inline-block p-1 bg-white border border-border rounded text-[14px]">⎋</span> в браузере.</li>
+                          <li>2. Прокрутите вниз и выберите «На экран „Домой“».</li>
+                        </ol>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-muted italic">Нажмите на три точки в браузере и выберите «Установить приложение».</p>
+                    )}
+                    <button 
+                      onClick={closeInstallPrompt}
+                      className="w-full py-3 bg-accent/10 text-accent text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl hover:bg-accent/20 transition-all"
+                    >
+                      Понятно
+                    </button>
+                  </div>
+                </div>
+                <button onClick={closeInstallPrompt} className="p-2 text-muted hover:text-fg h-fit">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Notifications */}
       <div className="fixed bottom-8 right-8 z-[200] flex flex-col gap-4 pointer-events-none">
         <AnimatePresence>
