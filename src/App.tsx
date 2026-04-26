@@ -206,6 +206,10 @@ function AppContent() {
     return 'light';
   });
 
+  if (MAINTENANCE_MODE) {
+    return <MaintenanceView theme={theme} />;
+  }
+
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {
@@ -311,10 +315,6 @@ function AppContent() {
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed || userProfile?.role === 'admin', [userProfile]);
 
   const [notifications, setNotifications] = useState<{ id: string; message: string; type: 'info' | 'error' | 'success' }[]>([]);
-
-  if (MAINTENANCE_MODE && !isUserAdmin && !isAuthLoading) {
-    return <MaintenanceView theme={theme} />;
-  }
 
   const addNotification = (message: string, type: 'info' | 'error' | 'success' = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);

@@ -4,14 +4,21 @@ import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
-const app = initializeApp(firebaseConfig);
+let app;
+let db: any;
+let auth: any;
 
-// Initialize Firestore with settings to help bypass some network restrictions
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-}, firebaseConfig.firestoreDatabaseId);
+try {
+  app = initializeApp(firebaseConfig);
+  db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  }, firebaseConfig.firestoreDatabaseId);
+  auth = getAuth(app);
+} catch (e) {
+  console.error("Firebase initialization failed:", e);
+}
 
-export const auth = getAuth();
+export { db, auth };
