@@ -101,6 +101,8 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const MAINTENANCE_MODE = true;
+
 const AchievementIcons: Record<string, React.ReactNode> = {
   Flag: <Flag className="w-6 h-6" />,
   Sun: <Sun className="w-6 h-6" />,
@@ -129,6 +131,68 @@ export default function App() {
     <ErrorBoundary>
       <AppContent />
     </ErrorBoundary>
+  );
+}
+
+function MaintenanceView({ theme }: { theme: 'light' | 'dark' }) {
+  return (
+    <div className={cn("min-h-screen transition-colors duration-500 font-sans flex flex-col items-center justify-center p-6 text-center relative overflow-hidden", theme, theme === 'dark' ? 'bg-bg' : 'bg-[#FDFCF8]')}>
+      {/* Background Accents */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-[180px] animate-pulse" />
+        <div className="absolute top-[20%] -right-[5%] w-[30%] h-[30%] bg-emerald-500/5 rounded-full blur-[160px]" />
+        <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[200px]" />
+      </div>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-md w-full space-y-10 relative z-10"
+      >
+        <div className="relative mx-auto w-24 h-24 bg-accent/10 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-accent/10">
+          <Settings className="w-10 h-10 text-accent animate-spin-slow" />
+          <div className="absolute -top-1 -right-1 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center border-4 border-bg shadow-lg">
+            <X className="w-3 h-3 text-white" />
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <h1 className="text-3xl font-black text-fg tracking-tight leading-tight">Технические работы</h1>
+          <p className="text-muted text-base leading-relaxed font-medium">
+            Приносим свои глубочайшие извинения! В данный момент приложение находится на техническом обслуживании. 
+          </p>
+          <p className="text-muted text-sm leading-relaxed">
+            Мы работаем над восстановлением доступа после попытки несанкционированного доступа к нашей инфраструктуре. Ваши данные в безопасности.
+          </p>
+        </div>
+
+        <div className="p-8 bg-card rounded-[2.5rem] border border-border shadow-2xl space-y-6">
+          <div className="space-y-2">
+            <p className="text-xs font-black text-accent uppercase tracking-[0.2em]">Статус восстановления</p>
+            <p className="text-sm font-bold text-fg">Идёт развёртывание новой системы</p>
+          </div>
+          <div className="h-2 w-full bg-border rounded-full overflow-hidden">
+            <motion.div 
+              className="h-full bg-accent"
+              initial={{ width: "0%" }}
+              animate={{ width: "65%" }}
+              transition={{ duration: 3, ease: "easeOut" }}
+            />
+          </div>
+          <p className="text-[10px] text-muted italic">Ожидаемое время завершения: несколько часов</p>
+        </div>
+
+        <div className="flex flex-col items-center gap-6">
+          <div className="flex items-center gap-3 px-6 py-3 bg-accent/5 rounded-2xl border border-accent/10">
+            <Sparkles className="w-5 h-5 text-accent" />
+            <span className="text-[11px] font-bold text-accent uppercase tracking-[0.1em]">Вера +1 скоро вернётся</span>
+          </div>
+          <p className="text-[10px] text-muted/60 max-w-[240px] leading-relaxed italic">
+            Спасибо за ваше безграничное терпение. Мы делаем всё возможное, чтобы вы могли продолжить свое духовное развитие.
+          </p>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -247,6 +311,10 @@ function AppContent() {
   const isSubscribed = useMemo(() => !!userProfile?.isSubscribed || userProfile?.role === 'admin', [userProfile]);
 
   const [notifications, setNotifications] = useState<{ id: string; message: string; type: 'info' | 'error' | 'success' }[]>([]);
+
+  if (MAINTENANCE_MODE && !isUserAdmin && !isAuthLoading) {
+    return <MaintenanceView theme={theme} />;
+  }
 
   const addNotification = (message: string, type: 'info' | 'error' | 'success' = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
