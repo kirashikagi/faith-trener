@@ -1,123 +1,119 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {uid}
-    // Fields:
-    //   - uid: string (required, immutable) - Firebase Auth UID
-    //   - email: string (required) - User email
-    //   - displayName: string (optional) - User name
-    //   - role: string (required, enum: ["user", "admin"]) - User role
-    //   - createdAt: timestamp (required) - Creation time
-    //
-    // Collection: feedback
-    // Document ID: {feedbackId}
-    // Fields:
-    //   - uid: string (required) - User who submitted feedback
-    //   - email: string (optional) - User email
-    //   - message: string (required, size < 2000) - Feedback message
-    //   - createdAt: timestamp (required) - Creation time
-    //
-    // Collection: sessions
-    // Document ID: {sessionId}
-    // Fields:
-    //   - uid: string (required, immutable) - User ID
-    //   - scenarioId: string (required) - Scenario ID
-    //   - score: number (required, range: 0-100) - Session score
-    //   - detailedAnalysis: string (optional, size < 10000) - AI feedback
-    //   - isUnlocked: bool (optional) - Paid status
-    //   - createdAt: timestamp (required) - Creation time
-    //
-    // ===============================================================
+    // 0. Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
     
-    function isAuthenticated() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
-        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-         (request.auth.token.email == "arunavsharmanaba@gmail.com") ||
-         (request.auth.token.email.matches(".*@vera\\.plus")));
+      return isVerified() && (
+        request.auth.token.email == "arunavsharmanaba@gmail.com" || 
+        request.auth.token.email.matches(".*@vera\\.plus")
+      );
     }
 
-    function isValidEmail(email) {
-      return email is string && email.matches(".+@.+\\..+");
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
+    function incoming() {
+      return request.resource.data;
     }
 
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
+    function existing() {
+      return resource.data;
     }
 
     // ===============================================================
-    // Domain Validators
+    // Validation Helpers
     // ===============================================================
 
     function isValidUser(data) {
-      return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
-             hasOnlyAllowedFields(['uid', 'email', 'role', 'createdAt', 'displayName', 'isSubscribed', 'subscriptionExpiresAt', 'hasSeenWelcome', 'streak', 'lastVisit', 'purchasedArticles', 'achievements']) &&
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
              data.uid == request.auth.uid &&
-             isValidEmail(data.email) &&
+             data.email is string && data.email.size() <= 256 &&
              data.role in ['user', 'admin'] &&
-             data.createdAt is timestamp;
+             data.createdAt == request.time;
     }
 
     function isValidFeedback(data) {
-      return hasRequiredFields(['uid', 'message', 'createdAt']) &&
-             hasOnlyAllowedFields(['uid', 'email', 'message', 'createdAt', 'type']) &&
+      return data.keys().hasAll(['uid', 'message', 'createdAt']) &&
              data.uid == request.auth.uid &&
-             data.message is string && data.message.size() > 0 && data.message.size() < 2000 &&
-             data.createdAt is timestamp;
+             data.message is string && data.message.size() > 0 && data.message.size() <= 2000 &&
+             data.createdAt == request.time;
     }
 
     function isValidSession(data) {
-      return hasRequiredFields(['uid', 'scenarioId', 'score', 'createdAt']) &&
-             hasOnlyAllowedFields(['uid', 'scenarioId', 'score', 'detailedAnalysis', 'isUnlocked', 'createdAt', 'messages']) &&
+      return data.keys().hasAll(['uid', 'scenarioId', 'score', 'createdAt']) &&
              data.uid == request.auth.uid &&
+             data.scenarioId is string && data.scenarioId.size() <= 64 &&
              data.score is number && data.score >= 0 && data.score <= 100 &&
-             data.createdAt is timestamp;
+             data.createdAt == request.time;
     }
 
     // ===============================================================
-    // Rules
+    // Collection Rules
     // ===============================================================
 
     match /users/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
-      allow create: if isAuthenticated() && (isAdmin() || request.resource.data.role == 'user');
-      allow update: if isAuthenticated() && (isOwner(uid) || isAdmin());
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      
+      allow create: if isSignedIn() && isValidUser(incoming()) && (
+        !incoming().keys().contains('role') || 
+        incoming().role == 'user' || 
+        isAdmin()
+      );
+      
+      allow update: if isSignedIn() && (
+        (isOwner(uid) && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'hasSeenWelcome', 'streak', 'lastVisit', 'achievements', 'purchasedArticles']) &&
+         incoming().uid == existing().uid &&
+         incoming().email == existing().email &&
+         incoming().role == existing().role &&
+         incoming().createdAt == existing().createdAt
+        ) || isAdmin()
+      );
     }
 
     match /feedback/{feedbackId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated() && isValidFeedback(request.resource.data);
+      allow create: if isSignedIn() && isValidFeedback(incoming());
     }
 
     match /sessions/{sessionId} {
-      allow read: if isOwner(resource.data.uid) || isAdmin();
-      allow create: if isAuthenticated() && isValidSession(request.resource.data);
-      allow update: if isAuthenticated() && isValidSession(request.resource.data) && (isOwner(resource.data.uid) || isAdmin());
-    }
-
-    // Default deny
-    match /{path=**} {
-      allow read, write: if false;
+      allow get: if isOwner(existing().uid) || isAdmin();
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      
+      allow create: if isSignedIn() && isValidSession(incoming());
+      
+      allow update: if isSignedIn() && (
+        (isOwner(existing().uid) && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['detailedAnalysis', 'isUnlocked', 'messages', 'score']) &&
+         isValidSession(incoming()) &&
+         incoming().uid == existing().uid &&
+         incoming().createdAt == existing().createdAt
+        ) || isAdmin()
+      );
+      
+      allow delete: if isAdmin();
     }
   }
 }

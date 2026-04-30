@@ -2,10 +2,23 @@ import express from "express";
 import cors from "cors";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
 
 dotenv.config();
 
 const app = express();
+
+// Load Firebase config from file as a fallback/source of truth
+let firebaseAppletConfig: any = {};
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    firebaseAppletConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  }
+} catch (e) {
+  console.error("Failed to load firebase-applet-config.json:", e);
+}
 
 // Absolute most permissive CORS policy for debugging
 app.use((req, res, next) => {
@@ -81,13 +94,15 @@ async function getDb() {
           credential: admin.credential.cert(serviceAccount)
         });
       } else {
-        admin.initializeApp({
-          projectId: process.env.VITE_FIREBASE_PROJECT_ID
-        });
+        const projectId = process.env.VITE_FIREBASE_PROJECT_ID || firebaseAppletConfig.projectId;
+        if (!projectId) {
+          throw new Error("Firebase Project ID not found in environment or config file.");
+        }
+        admin.initializeApp({ projectId });
       }
     }
     
-    const databaseId = process.env.VITE_FIREBASE_DATABASE_ID;
+    const databaseId = process.env.VITE_FIREBASE_DATABASE_ID || firebaseAppletConfig.firestoreDatabaseId;
     const appInstance = admin.apps[0];
     _db = getFirestore(appInstance, databaseId);
     return _db;
@@ -101,7 +116,7 @@ async function getDb() {
 app.post("/api/auth/proxy", async (req, res) => {
   try {
     const { action, email, password } = req.body;
-    const apiKey = process.env.VITE_FIREBASE_API_KEY;
+    const apiKey = process.env.VITE_FIREBASE_API_KEY || firebaseAppletConfig.apiKey;
     await loadDependencies();
 
     if (!apiKey) {
