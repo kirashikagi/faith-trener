@@ -89,7 +89,7 @@ import {
 import { auth, db } from './firebase';
 
 import { Scenario, Message, Feedback, Role, ResponseOption, Achievement, UserStats, UserProfile, FeedbackSubmission, LibraryArticle, SessionRecord } from './types';
-import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES, SUBSCRIPTION_PLANS } from './constants';
+import { SCENARIOS, ACHIEVEMENTS, PHILOSOPHY, BIBLICAL_FACTS, LIBRARY_ARTICLES } from './constants';
 import { getChatResponse, getFeedback, getResponseOptions, getInitialMessage } from './services/gemini';
 import ErrorBoundary from './components/ErrorBoundary';
 import { handleFirestoreError, OperationType } from './lib/firebase-utils';
@@ -255,7 +255,6 @@ function AppContent() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [viewingSession, setViewingSession] = useState<SessionRecord | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<LibraryArticle | null>(null);
-  const [showSubscription, setShowSubscription] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -291,12 +290,6 @@ function AppContent() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
-  const [paymentConfirmation, setPaymentConfirmation] = useState<{
-    type: 'article' | 'subscription';
-    id?: string;
-    title: string;
-    price: string | number;
-  } | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [options, setOptions] = useState<ResponseOption[]>([]);
@@ -309,7 +302,7 @@ function AppContent() {
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const isSubscribed = true; // Temporary set to true for basic access for all users
+  const isSubscribed = true; // Use true for free access to everything in this simplified version
 
   const [notifications, setNotifications] = useState<{ id: string; message: string; type: 'info' | 'error' | 'success' }[]>([]);
 
@@ -357,65 +350,7 @@ function AppContent() {
   };
 
   const buyArticle = async (articleId: string) => {
-    if (!user || !userProfile) {
-      setAuthMode('login');
-      addNotification("Пожалуйста, войдите в систему, чтобы совершать покупки", 'error');
-      return;
-    }
-    const article = LIBRARY_ARTICLES.find(a => a.id === articleId);
-    if (!article) return;
-
-    const purchased = userProfile.purchasedArticles || [];
-    if (purchased.includes(articleId) || isSubscribed) {
-      addNotification("У вас уже есть доступ к этой статье", 'info');
-      return;
-    }
-
-    setPaymentConfirmation({
-      type: 'article',
-      id: articleId,
-      title: article.title,
-      price: article.price
-    });
-  };
-
-  const processArticlePurchase = async (articleId: string) => {
-    const article = LIBRARY_ARTICLES.find(a => a.id === articleId);
-    if (!article || !userProfile) return;
-
-    setLoadingItemId(articleId);
-    try {
-      const response = await fetch('/api/payments/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: article.price,
-          description: `Покупка статьи: ${article.title}`,
-          metadata: { userId: userProfile.uid, articleId, type: 'article' },
-          return_url: window.location.href
-        })
-      });
-      
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        throw new Error(`Сервер вернул невалидный JSON (${response.status}): ${text.substring(0, 100)}...`);
-      }
-
-      if (response.ok && data.confirmation_url) {
-        window.location.href = data.confirmation_url;
-      } else {
-        throw new Error(data.error || `Ошибка сервера (${response.status}): ${text.substring(0, 100)}`);
-      }
-    } catch (error: any) {
-      console.error("Error buying article:", error);
-      addNotification("Ошибка при создании платежа: " + error.message, 'error');
-    } finally {
-      setLoadingItemId(null);
-      setPaymentConfirmation(null);
-    }
+    addNotification("Вы получили доступ к статье", 'success');
   };
 
   const dailyFact = useMemo(() => {
@@ -753,58 +688,7 @@ function AppContent() {
   };
 
   const buySubscription = async () => {
-    if (!user || !userProfile) {
-      setAuthMode('login');
-      addNotification("Пожалуйста, войдите в систему, чтобы оформить подписку", 'error');
-      return;
-    }
-    const plan = SUBSCRIPTION_PLANS[0]; // Assuming first plan for now
-    
-    setPaymentConfirmation({
-      type: 'subscription',
-      title: plan.title,
-      price: plan.price
-    });
-  };
-
-  const processSubscriptionPurchase = async () => {
-    if (!userProfile) return;
-    const plan = SUBSCRIPTION_PLANS[0];
-    
-    setLoadingItemId('subscription');
-    try {
-      const priceValue = parseFloat(plan.price.replace(/[^0-9.]/g, ''));
-      const response = await fetch('/api/payments/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: priceValue,
-          description: `Подписка: ${plan.title}`,
-          metadata: { userId: userProfile.uid, type: 'subscription' },
-          return_url: window.location.href
-        })
-      });
-      
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        throw new Error(`Сервер вернул невалидный JSON (${response.status}): ${text.substring(0, 100)}...`);
-      }
-
-      if (response.ok && data.confirmation_url) {
-        window.location.href = data.confirmation_url;
-      } else {
-        throw new Error(data.error || `Ошибка сервера (${response.status}): ${text.substring(0, 100)}`);
-      }
-    } catch (error: any) {
-      console.error("Error buying subscription:", error);
-      addNotification("Ошибка при создании платежа: " + error.message, 'error');
-    } finally {
-      setLoadingItemId(null);
-      setPaymentConfirmation(null);
-    }
+    addNotification("Подписка активирована", 'success');
   };
 
   const fetchAdminFeedback = async () => {
@@ -1124,7 +1008,7 @@ function AppContent() {
       let finalMessage = `Ошибка API: ${errorMessage}.`;
       
       if (errorMessage.includes("Quota exceeded") || errorMessage.includes("429")) {
-        finalMessage = "Лимит запросов ИИ исчерпан (Quota Exceeded). В бесплатном режиме Google Gemini API доступно всего 20 запросов в день. Пожалуйста, подождите до завтра или перейдите на платный тариф (Pay-as-you-go) в Google AI Studio.";
+        finalMessage = "Лимит запросов ИИ исчерпан (Quota Exceeded). В бесплатном режиме Google Gemini API доступно всего 20 запросов в день. Пожалуйста, подождите до завтра.";
       } else if (errorMessage.includes("Failed to fetch")) {
         finalMessage = "Ошибка сети: Не удалось связаться с сервером. Возможно, домен заблокирован вашим провайдером. Попробуйте использовать другой браузер или привязать свой домен в Cloudflare.";
       } else if (isPlaceholder || !apiKey) {
