@@ -251,7 +251,7 @@ function AppContent() {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [adminFeedback, setAdminFeedback] = useState<FeedbackSubmission[]>([]);
   const [showAdmin, setShowAdmin] = useState(false);
-  const [systemStats, setSystemStats] = useState<{ users: number; feedback: number }>({ users: 0, feedback: 0 });
+  const [systemStats, setSystemStats] = useState<{ users: number; feedback: number; sessions: number; cost: number }>({ users: 0, feedback: 0, sessions: 0, cost: 0 });
   const [adminTab, setAdminTab] = useState<'feedback' | 'system' | 'users'>('feedback');
   const [userManagerSearchQuery, setUserManagerSearchQuery] = useState('');
   const [foundUsers, setFoundUsers] = useState<UserProfile[]>([]);
@@ -710,10 +710,22 @@ function AppContent() {
       
       // Fetch system stats
       try {
-        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const [usersSnapshot, feedbackSnapshot, sessionsSnapshot] = await Promise.all([
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'feedback')),
+          getDocs(collection(db, 'sessions'))
+        ]);
+        
+        const totalSessions = sessionsSnapshot.size;
+        // Cost estimation: $0.001 per session (average for gemini-pro/flash for small context)
+        // or let's use the user's suggestion of $0.01 per 10 sessions = $0.001 per session
+        const estimatedCost = totalSessions * 0.001;
+
         setSystemStats({
           users: usersSnapshot.size,
-          feedback: querySnapshot.size
+          feedback: feedbackSnapshot.size,
+          sessions: totalSessions,
+          cost: estimatedCost
         });
       } catch (statsError) {
         console.error("Error fetching system stats:", statsError);
@@ -775,8 +787,23 @@ function AppContent() {
     };
   });
 
-  const [manualKey, setManualKey] = useState<string>("");
+  const [manualKey, setManualKey] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('faith_trainer_manual_key') || "";
+    }
+    return "";
+  });
   const [showKeyInput, setShowKeyInput] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (manualKey) {
+        localStorage.setItem('faith_trainer_manual_key', manualKey);
+      } else {
+        localStorage.removeItem('faith_trainer_manual_key');
+      }
+    }
+  }, [manualKey]);
 
   const getEffectiveApiKey = () => {
     if (manualKey) return manualKey;
@@ -1149,16 +1176,36 @@ function AppContent() {
             <div className="bg-card rounded-[2rem] p-10 max-w-md w-full shadow-2xl border border-border">
               <h3 className="text-2xl font-black mb-4 tracking-tight text-fg">Настройка API ключа</h3>
               <p className="text-sm text-muted mb-8 leading-relaxed">
-                Если у вас не получается настроить ключ через панель Secrets, вы можете временно ввести его здесь. 
-                Ключ не сохраняется на сервере и будет активен только в этой сессии.
+                Если у вас не получается настроить ключ через панель Secrets, вы можете ввести его здесь. 
+                Ключ будет сохранен локально в вашем браузере.
+                <br /><br />
+                <span className="text-xs text-rose-500 font-bold">Важно:</span> Если вы видите ошибку "API key expired", скорее всего у вашего ключа истек срок или вы превысили лимит (20 запросов в день для бесплатного уровня).
               </p>
-              <input
-                type="password"
-                value={manualKey}
-                onChange={(e) => setManualKey(e.target.value)}
-                placeholder="AIza..."
-                className="w-full p-4 bg-bg border border-border rounded-2xl mb-8 focus:ring-2 focus:ring-accent outline-none text-fg transition-all"
-              />
+              <div className="space-y-4 mb-8">
+                <input
+                  type="password"
+                  value={manualKey}
+                  onChange={(e) => setManualKey(e.target.value)}
+                  placeholder="Введите ваш API ключ (AIza...)"
+                  className="w-full p-4 bg-bg border border-border rounded-2xl focus:ring-2 focus:ring-accent outline-none text-fg transition-all"
+                />
+                {manualKey && (
+                  <button 
+                    onClick={() => setManualKey("")}
+                    className="text-[9px] font-black text-rose-500 uppercase tracking-widest hover:underline"
+                  >
+                    Сбросить ключ
+                  </button>
+                )}
+                {manualKey && (
+                  <div className="p-3 bg-accent/5 rounded-xl border border-accent/10">
+                    <p className="text-[9px] font-bold text-accent uppercase tracking-wider mb-1">Отладка (текущий ключ):</p>
+                    <p className="text-[10px] font-mono text-muted break-all">
+                      {manualKey.substring(0, 8)}...{manualKey.substring(manualKey.length - 4)}
+                    </p>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-4">
                 <button
                   onClick={() => setShowKeyInput(false)}
@@ -1620,6 +1667,35 @@ function AppContent() {
                         />
                       </div>
                       <p className="text-[11px] text-muted font-medium italic opacity-60">Активный рост клиентской базы: {((systemStats.users / 10000) * 100).toFixed(1)}%</p>
+                    </div>
+                  </div>
+
+                  <div className="glass-panel p-12 space-y-10 overflow-hidden relative group">
+                    <div className="absolute -right-6 -top-6 opacity-[0.04] group-hover:scale-125 transition-transform duration-[2000ms]">
+                      <Cpu className="w-40 h-40" />
+                    </div>
+                    <div className="flex items-center gap-6 relative z-10">
+                      <div className="w-16 h-16 bg-orange-500/10 text-orange-500 rounded-[2rem] flex items-center justify-center border border-orange-500/10 shadow-inner">
+                        <Key className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <div className="text-muted font-black text-[11px] uppercase tracking-[0.5em] leading-none mb-3">API Расходы</div>
+                        <div className="text-5xl font-serif text-fg tracking-tight leading-none">${systemStats.cost.toFixed(3)}</div>
+                      </div>
+                    </div>
+                    <div className="space-y-6 relative z-10">
+                      <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.3em]">
+                        <span className="text-muted opacity-60">Сессий: {systemStats.sessions}</span>
+                        <span className="text-orange-500 font-black italic">~$0.01 / 10 сессий</span>
+                      </div>
+                      <div className="h-3 bg-border/30 rounded-full overflow-hidden p-0.5 border border-border/10">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min((systemStats.cost / 5) * 100, 100)}%` }}
+                          className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full shadow-[0_2px_15px_rgba(249,115,22,0.5)]"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted font-medium italic opacity-60">Текущий бюджет (лимит $5.00)</p>
                     </div>
                   </div>
 

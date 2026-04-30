@@ -341,7 +341,26 @@ app.post("/api/chat", async (req, res) => {
     res.json({ text: response.text });
   } catch (error: any) {
     console.error("Chat API Error:", error);
-    res.status(500).json({ error: error.message || "Unknown AI error" });
+    
+    let status = 500;
+    let message = error.message || "Unknown AI error";
+    
+    // Categorize common Gemini errors
+    if (message.includes("API_KEY_INVALID")) {
+      message = "Неверный API ключ. Пожалуйста, проверьте правильность ключа в настройках или Secrets.";
+      status = 401;
+    } else if (message.includes("expired") || message.includes("EXPIRED")) {
+      message = "Срок действия API ключа истек. Пожалуйста, обновите ключ в Google AI Studio.";
+      status = 401;
+    } else if (message.includes("quota") || message.includes("429") || message.includes("QUOTA_EXCEEDED")) {
+      message = "Лимит бесплатных запросов исчерпан (Quota Exceeded). Пожалуйста, подождите или используйте платный ключ.";
+      status = 429;
+    } else if (message.includes("region") || message.includes("not available")) {
+      message = "К сожалению, сервис Gemini недоступен в вашем регионе через этот прокси.";
+      status = 403;
+    }
+    
+    res.status(status).json({ error: message, originalError: error.message });
   }
 });
 
@@ -371,7 +390,22 @@ app.post("/api/generate", async (req, res) => {
     res.json({ text: response.text });
   } catch (error: any) {
     console.error("Generate API Error:", error);
-    res.status(500).json({ error: error.message || "Unknown AI error" });
+    
+    let status = 500;
+    let message = error.message || "Unknown AI error";
+    
+    if (message.includes("API_KEY_INVALID")) {
+      message = "Неверный API ключ.";
+      status = 401;
+    } else if (message.includes("expired")) {
+      message = "Срок действия API ключа истек.";
+      status = 401;
+    } else if (message.includes("quota") || message.includes("429")) {
+      message = "Лимит квоты исчерпан.";
+      status = 429;
+    }
+    
+    res.status(status).json({ error: message });
   }
 });
 
