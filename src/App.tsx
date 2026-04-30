@@ -35,11 +35,8 @@ import {
   BookOpen,
   Sparkles,
   ArrowRight,
-  Lock,
   X,
-  Crown,
   Check,
-  CreditCard,
   Sun,
   Moon,
   Home,
@@ -101,7 +98,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 const AchievementIcons: Record<string, React.ReactNode> = {
   Flag: <Flag className="w-6 h-6" />,
@@ -312,7 +309,7 @@ function AppContent() {
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const isSubscribed = useMemo(() => !!userProfile?.isSubscribed || userProfile?.role === 'admin', [userProfile]);
+  const isSubscribed = true; // Temporary set to true for basic access for all users
 
   const [notifications, setNotifications] = useState<{ id: string; message: string; type: 'info' | 'error' | 'success' }[]>([]);
 
@@ -480,18 +477,6 @@ function AppContent() {
     }
   };
 
-  const toggleUserPremium = async (uid: string, currentStatus: boolean) => {
-    try {
-      await updateDoc(doc(db, 'users', uid), { 
-        isSubscribed: !currentStatus,
-        subscriptionExpiresAt: !currentStatus ? Date.now() + (365 * 24 * 60 * 60 * 1000) : null 
-      });
-      setFoundUsers(prev => prev.map(u => u.uid === uid ? { ...u, isSubscribed: !currentStatus } : u));
-      addNotification(`Премиум статус ${!currentStatus ? 'активирован' : 'деактивирован'}`, 'success');
-    } catch (e: any) {
-      addNotification("Ошибка обновления: " + e.message, 'error');
-    }
-  };
   const handleFirestoreError = (error: unknown, operation: string, path: string) => {
     const errInfo = {
       error: error instanceof Error ? error.message : String(error),
@@ -1187,9 +1172,8 @@ function AppContent() {
         throw new Error("Анализ диалога не удался. Проверьте API ключ.");
       }
 
-      // Only unlock full feedback if subscribed
-      const feedbackWithLock: Feedback = { ...result, isUnlocked: isSubscribed };
-      setFeedback(feedbackWithLock);
+      const feedbackResult: Feedback = { ...result, isUnlocked: true };
+      setFeedback(feedbackResult);
 
       // Save to Firestore
       if (user && selectedScenario) {
@@ -1199,7 +1183,7 @@ function AppContent() {
             scenarioId: selectedScenario.id,
             score: result.score || 0,
             detailedAnalysis: result.summary || "",
-            isUnlocked: isSubscribed,
+            isUnlocked: true,
             createdAt: Timestamp.now(),
             messages: messages.map(m => ({
               role: m.role,
@@ -1696,23 +1680,10 @@ function AppContent() {
                         <div className="flex items-center gap-6">
                            <div className="text-right">
                               <div className="text-[9px] font-bold uppercase tracking-widest text-muted mb-1">Статус</div>
-                              <div className={cn(
-                                "text-[10px] font-black uppercase tracking-tighter",
-                                u.isSubscribed ? "text-amber-500" : "text-muted/60"
-                              )}>
-                                {u.isSubscribed ? 'Premium' : 'Free'}
+                              <div className="text-[10px] font-black uppercase tracking-tighter text-muted">
+                                Пользователь
                               </div>
                            </div>
-
-                           <button 
-                            onClick={() => toggleUserPremium(u.uid, !!u.isSubscribed)}
-                            className={cn(
-                              "px-6 py-3 rounded-xl font-bold text-[9px] uppercase tracking-[0.1em] transition-all",
-                              u.isSubscribed ? "bg-rose-500/10 text-rose-500 hover:bg-rose-500/20" : "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
-                            )}
-                           >
-                              {u.isSubscribed ? 'Снять Премиум' : 'Дать Премиум'}
-                           </button>
                         </div>
                       </div>
                     ))}
@@ -1957,57 +1928,35 @@ function AppContent() {
                       <div className="h-[1px] flex-1 bg-border" />
                     </div>
                     
-                    <div className="relative">
-                      {!isSubscribed && (
-                        <div className="absolute inset-0 bg-bg/60 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-12 text-center rounded-[2.5rem] border border-border/50">
-                          <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
-                            <Lock className="w-8 h-8" />
-                          </div>
-                          <h4 className="text-xl font-bold text-fg mb-3 tracking-tight">Достижения и история</h4>
-                          <p className="text-muted text-sm max-w-xs mb-8 font-medium">Оформите подписку, чтобы видеть свои награды и полный архив сессий.</p>
-                          <button 
-                            onClick={() => setShowSubscription(true)}
-                            className="sber-button"
-                          >
-                            Узнать больше
-                          </button>
-                        </div>
-                      )}
+                      {/* History and Achievements are now visible to all */}
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {stats.achievements.map((achievement, idx) => {
-                          const isLockedForFree = !isSubscribed && idx >= 3;
+                        {stats.achievements.map((achievement) => {
                           return (
                             <div 
                               key={achievement.id} 
                               className={cn(
                                 "sber-card !p-6 flex flex-col items-center text-center gap-3 transition-all relative overflow-hidden",
-                                achievement.unlocked && !isLockedForFree ? "border-accent/30 bg-accent/5" : "opacity-40 grayscale"
+                                achievement.unlocked ? "border-accent/30 bg-accent/5" : "opacity-40 grayscale"
                               )}
                             >
-                              {isLockedForFree && (
-                                <div className="absolute inset-0 bg-bg/40 backdrop-blur-[2px] flex items-center justify-center z-10">
-                                  <Lock className="w-5 h-5 text-accent" />
-                                </div>
-                              )}
                               <div className={cn(
                                 "w-12 h-12 rounded-xl flex items-center justify-center border",
-                                achievement.unlocked && !isLockedForFree ? "bg-accent text-white border-accent/20" : "bg-bg text-muted border-border"
+                                achievement.unlocked ? "bg-accent text-white border-accent/20" : "bg-bg text-muted border-border"
                               )}>
                                 {AchievementIcons[achievement.icon]}
                               </div>
                               <div className="space-y-1">
                                 <div className="text-[11px] font-bold text-fg tracking-tight leading-tight">
-                                  {isLockedForFree ? 'Премиум' : achievement.title}
+                                  {achievement.title}
                                 </div>
                                 <div className="text-[9px] text-muted font-medium leading-tight">
-                                  {isLockedForFree ? 'Доступно в подписке' : achievement.description}
+                                  {achievement.description}
                                 </div>
                               </div>
                             </div>
                           );
                         })}
                       </div>
-                    </div>
                   </div>
 
                   <div className="space-y-6">
@@ -2346,25 +2295,7 @@ function AppContent() {
                   </div>
 
                   <div className="relative">
-                    {!isSubscribed && (
-                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-card/80 backdrop-blur-sm rounded-2xl border border-border">
-                        <div className="w-12 h-12 bg-accent text-white rounded-xl flex items-center justify-center mb-4">
-                          <Zap className="w-6 h-6" />
-                        </div>
-                        <h4 className="text-lg font-bold text-fg mb-1 tracking-tight">Глубокий разбор</h4>
-                        <p className="text-xs text-muted mb-6 max-w-[200px] leading-relaxed">
-                          Узнайте скрытые ошибки и получите план роста
-                        </p>
-                        <button 
-                          onClick={() => setShowSubscription(true)}
-                          className="sber-button w-full py-3 text-sm"
-                        >
-                          Открыть за {SUBSCRIPTION_PLANS[0].price}
-                        </button>
-                      </div>
-                    )}
-                    
-                    <div className={cn("space-y-4", !isSubscribed && "blur-md select-none")}>
+                    <div className={cn("space-y-4")}>
                       <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] flex items-center gap-2">
                         <div className="w-4 h-[1px] bg-amber-500" />
                         Зоны роста
@@ -2382,17 +2313,8 @@ function AppContent() {
                 </div>
 
                 <div className="relative">
-                  {!isSubscribed && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center">
-                      <div className="bg-card px-4 py-2 rounded-full border border-border shadow-lg flex items-center gap-2">
-                        <Lock className="w-3 h-3 text-accent" />
-                        <span className="text-[9px] font-bold text-accent uppercase tracking-[0.1em]">Резюме скрыто</span>
-                      </div>
-                    </div>
-                  )}
                   <div className={cn(
-                    "bg-bg p-6 rounded-2xl border border-border transition-all duration-500",
-                    !isSubscribed && "blur-md opacity-30"
+                    "bg-bg p-6 rounded-2xl border border-border transition-all duration-500"
                   )}>
                     <h3 className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mb-4">
                       Резюме наставника
@@ -2403,14 +2325,6 @@ function AppContent() {
                   </div>
                 </div>
 
-                {!isSubscribed && (
-                  <div className="bg-accent/5 border border-accent/20 p-6 rounded-2xl">
-                    <h4 className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] mb-3">Поверхностный анализ</h4>
-                    <p className="text-xs text-muted leading-relaxed">
-                      Ваш ответ был в целом корректен, но требует более глубокой проработки библейских оснований. Для детального разбора оформите подписку.
-                    </p>
-                  </div>
-                )}
 
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button 
@@ -2421,22 +2335,15 @@ function AppContent() {
                   </button>
                   <button 
                     onClick={() => {
-                      if (!isSubscribed) {
-                        setShowSubscription(true);
-                        return;
-                      }
                       const text = `Результат тренировки в "Вера +1":\nБалл: ${feedback.score}/10\n\nРезюме: ${feedback.summary}\n\nСильные стороны:\n${feedback.strengths.join('\n')}\n\nЗоны роста:\n${feedback.improvements.join('\n')}`;
                       navigator.clipboard.writeText(text);
                       addNotification("Результат скопирован! Теперь вы можете отправить его наставнику.", 'success');
                     }}
                     className={cn(
-                      "flex-1 px-8 font-bold rounded-xl transition-all uppercase tracking-[0.1em] text-[10px] py-4 flex items-center justify-center gap-2",
-                      isSubscribed 
-                        ? "bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white" 
-                        : "bg-bg border border-border text-muted hover:border-accent hover:text-accent"
+                      "flex-1 px-8 font-bold rounded-xl transition-all uppercase tracking-[0.1em] text-[10px] py-4 flex items-center justify-center gap-2 bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white"
                     )}
                   >
-                    {isSubscribed ? <Send className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                    <Send className="w-4 h-4" />
                     Поделиться с наставником
                   </button>
                   <button 
@@ -2817,9 +2724,6 @@ function AppContent() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {LIBRARY_ARTICLES.map((article, idx) => {
-                    const isPurchased = userProfile?.purchasedArticles?.includes(article.id);
-                    const canRead = !article.isPremium || isPurchased || isSubscribed;
-
                     return (
                       <motion.div 
                         key={article.id} 
@@ -2828,47 +2732,11 @@ function AppContent() {
                         transition={{ delay: idx * 0.1 }}
                         className="sber-card relative group p-10 flex flex-col h-full bg-card/50 backdrop-blur-sm cursor-pointer overflow-hidden"
                         onClick={() => {
-                          if (canRead) {
-                            setSelectedArticle(article);
-                          }
+                          setSelectedArticle(article);
                         }}
                       >
-                        {article.isPremium && !isPurchased && !isSubscribed && (
-                          <div className="absolute inset-0 bg-bg/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-10 text-center rounded-2xl border border-border/50">
-                            <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6">
-                              <Lock className="w-7 h-7" />
-                            </div>
-                            <h4 className="font-bold text-fg mb-3 uppercase tracking-wider text-xs">Доступно после покупки</h4>
-                            <p className="text-muted text-xs mb-8 max-w-[200px] leading-relaxed">{article.description}</p>
-                            <div className="flex flex-col gap-3 w-full max-w-[200px]">
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  buyArticle(article.id);
-                                }}
-                                disabled={loadingItemId === article.id}
-                                className="sber-button py-3 px-8 text-xs flex items-center justify-center gap-2"
-                              >
-                                {loadingItemId === article.id ? (
-                                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : null}
-                                Купить за {article.price} ₽
-                              </button>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowSubscription(true);
-                                }}
-                                className="text-accent font-bold text-[10px] uppercase tracking-widest hover:underline"
-                              >
-                                Или по подписке
-                              </button>
-                            </div>
-                          </div>
-                        )}
                         <div className="flex items-center justify-between mb-6">
                           <div className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] bg-accent/5 px-3 py-1 rounded-lg border border-accent/10">{article.category}</div>
-                          {article.isPremium && <Sparkles className="w-4 h-4 text-amber-500" />}
                         </div>
                         <h3 className="text-2xl font-semibold text-fg mb-6 tracking-tight leading-tight">{article.title}</h3>
                         <p className="text-muted text-sm leading-relaxed font-medium opacity-90 flex-grow line-clamp-3">{article.description}</p>
@@ -2877,13 +2745,11 @@ function AppContent() {
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (canRead) {
-                                setSelectedArticle(article);
-                              }
+                              setSelectedArticle(article);
                             }}
                             className="text-accent font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 group-hover:gap-3 transition-all"
                           >
-                            {canRead ? 'Читать полностью' : 'Заблокировано'} <ArrowRight className="w-3 h-3" />
+                            Читать полностью <ArrowRight className="w-3 h-3" />
                           </button>
                         </div>
                       </motion.div>
@@ -3162,145 +3028,7 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {/* Subscription Modal */}
-      <AnimatePresence>
-        {showSubscription && (
-          <div className="fixed inset-0 z-[120] flex items-start justify-center p-4 sm:p-8 overflow-y-auto bg-bg/80 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowSubscription(false)}
-              className="absolute inset-0"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="glass-card w-full max-w-2xl relative overflow-hidden my-auto"
-            >
-              <div className="absolute top-0 right-0 p-12 opacity-5">
-                <Crown className="w-48 h-48 text-accent" />
-              </div>
-              
-              <div className="relative z-10">
-                <div className="flex items-center gap-5 mb-10">
-                  <div className="w-14 h-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center border border-accent/20">
-                    <Crown className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-semibold text-fg tracking-tight">Премиум доступ</h2>
-                    <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Раскройте полный потенциал</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12">
-                  {SUBSCRIPTION_PLANS[0].features.map((feature, i) => (
-                    <div key={i} className="flex items-center gap-4 p-4 bg-bg/30 rounded-2xl border border-border/50">
-                      <div className="w-8 h-8 bg-accent/10 text-accent rounded-xl flex items-center justify-center shrink-0">
-                        <Check className="w-4 h-4" />
-                      </div>
-                      <span className="text-sm text-fg font-medium">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-accent/5 border border-accent/20 rounded-[2rem] p-10 mb-12 text-center">
-                  <div className="text-[10px] font-bold text-accent uppercase tracking-[0.4em] mb-4">Ежемесячная подписка</div>
-                  <div className="flex items-baseline justify-center gap-2">
-                    <span className="text-5xl font-semibold text-fg tracking-tighter">{SUBSCRIPTION_PLANS[0].price}</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-6">
-                  <button 
-                    onClick={buySubscription}
-                    disabled={loadingItemId === 'subscription'}
-                    className="sber-button w-full py-6 text-lg flex items-center justify-center gap-3"
-                  >
-                    {loadingItemId === 'subscription' ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Обработка...
-                      </>
-                    ) : (
-                      <>Подключить сейчас</>
-                    )}
-                  </button>
-                  <button 
-                    onClick={() => setShowSubscription(false)}
-                    className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] hover:text-fg transition-colors"
-                  >
-                    Вернуться назад
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Payment Confirmation Modal */}
-      <AnimatePresence>
-        {paymentConfirmation && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-bg/80 backdrop-blur-xl">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="sber-card max-w-md w-full p-10 space-y-8 relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-20" />
-              
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <CreditCard className="w-8 h-8" />
-                </div>
-                <h3 className="text-2xl font-semibold text-fg tracking-tight">Подтверждение покупки</h3>
-                <p className="text-muted text-sm leading-relaxed">
-                  Вы собираетесь приобрести: <br/>
-                  <span className="text-fg font-bold">«{paymentConfirmation.title}»</span> <br/>
-                  Стоимость: <span className="text-accent font-bold">{paymentConfirmation.price}</span>
-                </p>
-              </div>
-
-              <div className="p-6 bg-accent/5 rounded-2xl border border-accent/10 text-xs text-muted leading-relaxed italic">
-                Для завершения оплаты вы будете перенаправлены на защищенную страницу платежной системы ЮKassa.
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <button
-                  onClick={() => {
-                    if (paymentConfirmation.type === 'article' && paymentConfirmation.id) {
-                      processArticlePurchase(paymentConfirmation.id);
-                    } else {
-                      processSubscriptionPurchase();
-                    }
-                  }}
-                  disabled={!!loadingItemId}
-                  className="sber-button w-full py-5 text-base flex items-center justify-center gap-3"
-                >
-                  {loadingItemId ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Переход...
-                    </>
-                  ) : (
-                    <>Перейти к оплате</>
-                  )}
-                </button>
-                <button
-                  onClick={() => setPaymentConfirmation(null)}
-                  disabled={!!loadingItemId}
-                  className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] hover:text-fg transition-colors"
-                >
-                  Отмена
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Subscription and Payment modals removed for now */}
       
       {/* PWA Install Prompt */}
       <AnimatePresence>
