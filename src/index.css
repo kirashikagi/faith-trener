@@ -42,6 +42,17 @@
     --glass-border: rgba(255, 255, 255, 0.05);
   }
 
+  .vibrant {
+    --bg: #FDF2F8; /* Light pink/rose background */
+    --fg: #4C1D95; /* Deep purple text */
+    --card: #FFFFFF;
+    --border: #FAE8FF;
+    --muted: #9333EA;
+    --accent: #DB2777; /* Vibrant pink accent */
+    --glass: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(219, 39, 119, 0.1);
+  }
+
   body {
     @apply antialiased font-sans transition-colors duration-500;
     background-color: var(--bg);

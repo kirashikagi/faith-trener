@@ -102,7 +102,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const MAINTENANCE_MODE = false;
+const MAINTENANCE_MODE = true;
 
 const AchievementIcons: Record<string, React.ReactNode> = {
   Flag: <Flag className="w-6 h-6" />,
@@ -135,9 +135,9 @@ export default function App() {
   );
 }
 
-function MaintenanceView({ theme }: { theme: 'light' | 'dark' }) {
+function MaintenanceView({ theme }: { theme: 'light' | 'dark' | 'vibrant' }) {
   return (
-    <div className={cn("min-h-screen transition-colors duration-500 font-sans flex flex-col items-center justify-center p-6 text-center relative overflow-hidden", theme, theme === 'dark' ? 'bg-bg' : 'bg-[#FDFCF8]')}>
+    <div className={cn("min-h-screen transition-colors duration-500 font-sans flex flex-col items-center justify-center p-6 text-center relative overflow-hidden", theme, theme === 'dark' ? 'bg-bg' : theme === 'vibrant' ? 'bg-[#FDF2F8]' : 'bg-[#FDFCF8]')}>
       {/* Background Accents */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-[180px] animate-pulse" />
@@ -198,43 +198,34 @@ function MaintenanceView({ theme }: { theme: 'light' | 'dark' }) {
 }
 
 function AppContent() {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+  const [theme, setTheme] = useState<'light' | 'dark' | 'vibrant'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
-      if (saved) return saved as 'light' | 'dark';
+      if (saved) return saved as 'light' | 'dark' | 'vibrant';
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
     return 'light';
   });
 
-  if (MAINTENANCE_MODE) {
-    return <MaintenanceView theme={theme} />;
-  }
-
   useEffect(() => {
     const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    root.classList.remove('light', 'dark', 'vibrant');
+    root.classList.add(theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
 
   useEffect(() => {
     // Update theme-color meta tag dynamically
-    const themeColor = theme === 'light' ? '#FFFFFF' : '#1C1C18';
+    const themeColor = theme === 'light' ? '#FFFFFF' : theme === 'dark' ? '#1C1C18' : '#FDF2F8';
     let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement;
     if (meta) meta.content = themeColor;
-    
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  const toggleTheme = () => setTheme(prev => {
+    if (prev === 'light') return 'dark';
+    if (prev === 'dark') return 'vibrant';
+    return 'light';
+  });
 
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -1160,6 +1151,22 @@ function AppContent() {
     setIsDialogueEnded(false);
   };
 
+  if (MAINTENANCE_MODE && !isUserAdmin && user && !isAuthLoading && !isProfileLoading) {
+    return (
+      <div className={cn("min-h-screen relative", theme)}>
+        <MaintenanceView theme={theme} />
+        <div className="fixed bottom-12 left-0 w-full flex justify-center z-50">
+          <button 
+            onClick={() => signOut(auth)}
+            className="px-8 py-4 bg-bg/80 backdrop-blur-md border border-border text-muted rounded-2xl hover:text-rose-500 hover:border-rose-500/30 transition-all font-bold text-[11px] uppercase tracking-[0.3em] shadow-2xl"
+          >
+            Выйти из системы (Switch Account)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("min-h-screen bg-bg transition-colors duration-500 font-sans selection:bg-accent/20 selection:text-accent overflow-x-hidden relative", theme)}>
       {/* Background Accents */}
@@ -1224,7 +1231,7 @@ function AppContent() {
           </div>
         )}
 
-        {user && (
+        {user && (!MAINTENANCE_MODE || isUserAdmin) && (
           <header className="sticky top-0 z-50 bg-card/85 backdrop-blur-xl border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300 pt-safe">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-accent/20 shrink-0">
@@ -1239,8 +1246,9 @@ function AppContent() {
                 <button 
                   onClick={toggleTheme}
                   className="p-2 sm:p-2.5 rounded-xl bg-bg border border-border hover:border-accent transition-all text-muted hover:text-accent shadow-sm shrink-0"
+                  title={theme === 'light' ? 'Переключить на темную' : theme === 'dark' ? 'Переключить на красочную' : 'Переключить на светлую'}
                 >
-                  {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                  {theme === 'light' ? <Sun className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sparkles className="w-4 h-4 text-accent" />}
                 </button>
                 
                 <div className="h-6 w-[1px] bg-border mx-0.5" />
@@ -2040,7 +2048,12 @@ function AppContent() {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="glass-card bg-accent text-white p-10 sm:p-12 relative overflow-hidden group shadow-2xl shadow-accent/30 rounded-[2.5rem] border-none"
+                    className={cn(
+                      "glass-card p-10 sm:p-12 relative overflow-hidden group shadow-2xl rounded-[2.5rem] border-none text-white",
+                      theme === 'vibrant' 
+                        ? "bg-gradient-to-br from-[#DB2777] via-[#9333EA] to-[#4C1D95] shadow-pink-500/20" 
+                        : "bg-accent shadow-accent/30"
+                    )}
                   >
                     <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-125 transition-transform duration-1000">
                       <Sparkles className="w-32 h-32 text-white" />
@@ -2963,7 +2976,37 @@ function AppContent() {
                 </button>
               </div>
 
-              <div className="pt-8 border-t border-border mt-8 space-y-2">
+              <div className="pt-8 border-t border-border mt-8 space-y-4">
+                <div className="px-1 mb-4">
+                  <div className="text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                    <Sparkles className="w-3 h-3 text-accent" />
+                    Тема оформления
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button 
+                      onClick={() => setTheme('light')}
+                      className={cn("p-2.5 rounded-xl border flex flex-col items-center gap-2 transition-all", theme === 'light' ? "bg-accent/10 border-accent text-accent" : "bg-bg border-border text-muted hover:border-accent/30")}
+                    >
+                      <Sun className="w-3.5 h-3.5" />
+                      <span className="text-[8px] font-bold uppercase tracking-widest leading-none">Свет</span>
+                    </button>
+                    <button 
+                      onClick={() => setTheme('dark')}
+                      className={cn("p-2.5 rounded-xl border flex flex-col items-center gap-2 transition-all", theme === 'dark' ? "bg-accent/10 border-accent text-accent" : "bg-bg border-border text-muted hover:border-accent/30")}
+                    >
+                      <Moon className="w-3.5 h-3.5" />
+                      <span className="text-[8px] font-bold uppercase tracking-widest leading-none">Тьма</span>
+                    </button>
+                    <button 
+                      onClick={() => setTheme('vibrant')}
+                      className={cn("p-2.5 rounded-xl border flex flex-col items-center gap-2 transition-all", theme === 'vibrant' ? "bg-accent/10 border-accent text-accent" : "bg-bg border-border text-muted hover:border-accent/30")}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span className="text-[8px] font-bold uppercase tracking-widest leading-none">Яркая</span>
+                    </button>
+                  </div>
+                </div>
+
                 <button 
                   onClick={() => {
                     setShowAgreement(true);
