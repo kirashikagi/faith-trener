@@ -323,7 +323,7 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const chat = ai.chats.create({
-      model: model || "gemini-3-flash-preview",
+      model: model || "gemini-1.5-flash",
       history: contents,
       config: {
         systemInstruction,
@@ -332,7 +332,7 @@ app.post("/api/chat", async (req, res) => {
       }
     });
 
-    const response = await chat.sendMessage({ message });
+    const response = await chat.sendMessage(message);
     const text = response.text;
 
     if (!text) {
@@ -376,7 +376,7 @@ app.post("/api/generate", async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { 
         responseMimeType: config?.responseMimeType || "text/plain",

@@ -1033,7 +1033,11 @@ function AppContent() {
         }
       }
 
-      let finalMessage = `Ошибка API: ${errorMessage}.`;
+      let finalMessage = `Ошибка API: ${errorMessage}. Если ошибка повторяется, попробуйте изменить API ключ в Настройках API (в меню ☰).`;
+      
+      if (errorMessage.includes("API_KEY_INVALID")) {
+        finalMessage = `Ошибка API: Неверный ключ. Попробуйте обновить его в "Настройках API" (в меню ☰). ${errorMessage.includes('Manual') ? '' : 'Если вы изменили ключ в Secrets, проверьте его там.'}`;
+      }
       
       if (errorMessage.includes("Quota exceeded") || errorMessage.includes("429")) {
         finalMessage = "Лимит запросов ИИ исчерпан (Quota Exceeded). В бесплатном режиме Google Gemini API доступно всего 20 запросов в день. Пожалуйста, подождите до завтра.";
