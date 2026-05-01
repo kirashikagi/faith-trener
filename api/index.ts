@@ -323,23 +323,23 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const chat = ai.chats.create({
-      model: model || "gemini-1.5-flash",
+      model: model || "gemini-3-flash-preview",
       history: contents,
       config: {
         systemInstruction,
         temperature: 0.7,
-        topP: 0.95,
-        topK: 64
+        maxOutputTokens: 800,
       }
     });
 
     const response = await chat.sendMessage({ message });
+    const text = response.text;
 
-    if (!response.text) {
+    if (!text) {
       throw new Error("AI returned an empty response.");
     }
 
-    res.json({ text: response.text });
+    res.json({ text });
   } catch (error: any) {
     console.error("Chat API Error:", error);
     
@@ -349,7 +349,7 @@ app.post("/api/chat", async (req, res) => {
     // Categorize common Gemini errors
     if (message.includes("API_KEY_INVALID")) {
       const keyHint = apiKey ? ` (Ключ: ${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}, Источник: ${source})` : "";
-      message = "Неверный API ключ. Пожалуйста, проверьте правильность ключа в настройках или Secrets." + keyHint + ". Убедитесь, что вы нажали \"Apply changes\" в разделе Secrets.";
+      message = "Неверный API ключ Gemini. " + (clientApiKey ? "Пожалуйста, проверьте правильность ключа в настройках приложения." : "Пожалуйста, обновите GEMINI_API_KEY в разделе Secrets и нажмите 'Apply changes'.") + keyHint;
       status = 401;
     } else if (message.includes("expired") || message.includes("EXPIRED")) {
       message = "Срок действия API ключа истек. Пожалуйста, обновите ключ в Google AI Studio.";
@@ -376,7 +376,7 @@ app.post("/api/generate", async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { 
         responseMimeType: config?.responseMimeType || "text/plain",

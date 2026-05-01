@@ -1199,7 +1199,7 @@ function AppContent() {
                   type="password"
                   value={manualKey}
                   onChange={(e) => setManualKey(e.target.value)}
-                  placeholder="Введите ваш API ключ (AIza...)"
+                  placeholder="Введите Gemini API Key из Google AI Studio"
                   className="w-full p-4 bg-bg border border-border rounded-2xl focus:ring-2 focus:ring-accent outline-none text-fg transition-all"
                 />
                 {manualKey && (

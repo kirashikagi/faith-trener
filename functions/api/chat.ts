@@ -20,7 +20,7 @@ export const onRequestPost = async (context) => {
 
     const ai = new GoogleGenAI({ apiKey });
     const chat = ai.chats.create({
-      model: model || "gemini-1.5-flash",
+      model: model || "gemini-3-flash-preview",
       config: { systemInstruction },
       history: history.map((m: any) => ({
         role: m.role,
