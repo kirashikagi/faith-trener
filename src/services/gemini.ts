@@ -1,4 +1,3 @@
-import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Message, Feedback, ResponseOption } from "../types";
 
 // Helper to get the API key from various possible sources
