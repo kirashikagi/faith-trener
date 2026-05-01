@@ -2991,6 +2991,17 @@ function AppContent() {
                   <MessageSquare className="w-5 h-5" />
                   Обратная связь
                 </button>
+
+                <button 
+                  onClick={() => {
+                    setShowKeyInput(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-[0.2em] text-[10px]"
+                >
+                  <Key className="w-5 h-5" />
+                  Настройки API
+                </button>
               </div>
 
               <div className="pt-8 border-t border-border mt-8 space-y-4">
