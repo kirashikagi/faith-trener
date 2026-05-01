@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
@@ -309,11 +309,7 @@ app.post("/api/chat", async (req, res) => {
   try {
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const genModel = genAI.getGenerativeModel({ 
-      model: model || "gemini-1.5-flash",
-      systemInstruction: systemInstruction ? { role: 'system', parts: [{ text: systemInstruction }] } as any : undefined
-    });
+    const ai = new GoogleGenAI({ apiKey });
     
     // Construct contents for multi-turn chat
     const contents = (history || []).map((m: any) => ({
@@ -321,21 +317,18 @@ app.post("/api/chat", async (req, res) => {
       parts: [{ text: m.text || m.parts?.[0]?.text || '' }]
     }));
     
-    // Handle model-first history
-    if (contents.length > 0 && contents[0].role === 'model') {
-      contents.unshift({ role: 'user', parts: [{ text: 'Привет' }] });
-    }
-
-    const chat = genModel.startChat({
+    const chat = ai.chats.create({
+      model: model || "gemini-3-flash-preview",
       history: contents,
-      generationConfig: {
+      config: {
+        systemInstruction,
         temperature: 0.7,
         maxOutputTokens: 800,
       }
     });
 
-    const result = await chat.sendMessage(message);
-    const text = result.response.text();
+    const response = await chat.sendMessage({ message });
+    const text = response.text;
 
     if (!text) {
       throw new Error("AI returned an empty response.");
@@ -376,11 +369,11 @@ app.post("/api/generate", async (req, res) => {
   try {
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const genModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await genModel.generateContent({
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { 
+      config: { 
         responseMimeType: config?.responseMimeType || "text/plain",
         temperature: config?.temperature || 0.7,
         topP: config?.topP || 0.95,
@@ -388,7 +381,7 @@ app.post("/api/generate", async (req, res) => {
       }
     });
 
-    const text = result.response.text();
+    const text = response.text;
     if (!text) {
       throw new Error("Model returned an empty response.");
     }
