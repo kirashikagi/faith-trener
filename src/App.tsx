@@ -102,7 +102,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 const AchievementIcons: Record<string, React.ReactNode> = {
   Flag: <Flag className="w-6 h-6" />,
@@ -2112,10 +2112,14 @@ function AppContent() {
                             >
                               <div className="flex items-center gap-6">
                                 <div className={cn(
-                                  "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border",
+                                  "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border overflow-hidden",
                                   isExpanded ? "bg-accent text-white border-accent/20 rotate-12 scale-110" : "bg-bg text-accent border-accent/10 group-hover:scale-105"
                                 )}>
-                                  {ScenarioIcons[scenario.icon as string]}
+                                  {scenario.avatarUrl ? (
+                                    <img src={scenario.avatarUrl} alt={scenario.title} className="w-full h-full object-cover" />
+                                  ) : (
+                                    ScenarioIcons[scenario.icon as string]
+                                  )}
                                 </div>
                                 <div>
                                   <h3 className={cn(
@@ -2202,10 +2206,14 @@ function AppContent() {
                           >
                             <div className="flex items-center gap-10">
                               <div className={cn(
-                                "w-20 h-20 rounded-3xl flex items-center justify-center transition-all duration-700 border shadow-inner",
+                                "w-20 h-20 rounded-3xl flex items-center justify-center transition-all duration-700 border shadow-inner overflow-hidden",
                                 isExpanded ? "bg-accent text-white border-accent/20 scale-110 -rotate-6" : "bg-bg text-accent border-accent/10 group-hover:scale-105"
                               )}>
-                                {ScenarioIcons[scenario.icon as string]}
+                                {scenario.avatarUrl ? (
+                                  <img src={scenario.avatarUrl} alt={scenario.title} className="w-full h-full object-cover" />
+                                ) : (
+                                  ScenarioIcons[scenario.icon as string]
+                                )}
                               </div>
                               <div className="space-y-3">
                                 <h3 className={cn(
@@ -2441,8 +2449,12 @@ function AppContent() {
                   >
                     <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
-                  <div className="w-10 h-10 sm:w-14 h-14 bg-accent/10 text-accent rounded-xl sm:rounded-2xl flex items-center justify-center border border-accent/20 shrink-0">
-                    <User className="w-5 h-5 sm:w-7 sm:h-7" />
+                  <div className="w-10 h-10 sm:w-14 h-14 bg-accent/10 text-accent rounded-xl sm:rounded-2xl flex items-center justify-center border border-accent/20 shrink-0 overflow-hidden">
+                    {selectedScenario.avatarUrl ? (
+                      <img src={selectedScenario.avatarUrl} alt={selectedScenario.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-5 h-5 sm:w-7 sm:h-7" />
+                    )}
                   </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="text-base sm:text-2xl font-serif text-fg tracking-tight leading-tight truncate">{selectedScenario.title}</h3>
