@@ -305,6 +305,7 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
     const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+    const source = clientApiKey ? 'Manual (User Settings)' : (process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None'));
     
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
 
@@ -347,7 +348,8 @@ app.post("/api/chat", async (req, res) => {
     
     // Categorize common Gemini errors
     if (message.includes("API_KEY_INVALID")) {
-      message = "Неверный API ключ. Пожалуйста, проверьте правильность ключа в настройках или Secrets.";
+      const keyHint = apiKey ? ` (Ключ: ${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}, Источник: ${source})` : "";
+      message = "Неверный API ключ. Пожалуйста, проверьте правильность ключа в настройках или Secrets." + keyHint + ". Убедитесь, что вы нажали \"Apply changes\" в разделе Secrets.";
       status = 401;
     } else if (message.includes("expired") || message.includes("EXPIRED")) {
       message = "Срок действия API ключа истек. Пожалуйста, обновите ключ в Google AI Studio.";
@@ -368,6 +370,7 @@ app.post("/api/generate", async (req, res) => {
   try {
     const { prompt, config, apiKey: clientApiKey } = req.body;
     const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+    const source = clientApiKey ? 'Manual (User Settings)' : (process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None'));
     
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
 
@@ -395,7 +398,8 @@ app.post("/api/generate", async (req, res) => {
     let message = error.message || "Unknown AI error";
     
     if (message.includes("API_KEY_INVALID")) {
-      message = "Неверный API ключ.";
+      const keyHint = apiKey ? ` (Ключ: ${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}, Источник: ${source})` : "";
+      message = "Неверный API ключ. Пожалуйста, проверьте правильность ключа в настройках или Secrets." + keyHint + ". Убедитесь, что вы нажали \"Apply changes\" в разделе Secrets.";
       status = 401;
     } else if (message.includes("expired")) {
       message = "Срок действия API ключа истек.";

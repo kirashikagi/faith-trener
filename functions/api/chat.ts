@@ -5,13 +5,14 @@ export const onRequestPost = async (context) => {
   
   try {
     const body: any = await request.json();
-    const { model, systemInstruction, history, message } = body;
+    const { model, systemInstruction, history, message, apiKey: clientApiKey } = body;
     
-    // В Cloudflare переменные окружения берутся из env
-    const apiKey = env.GEMINI_API_KEY;
+    // В Cloudflare переменные окружения берутся из env.
+    // Приоритет: ключ от клиента -> env.GEMINI_API_KEY -> env.VITE_GEMINI_API_KEY
+    const apiKey = (clientApiKey || env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || '').trim();
     
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not configured on Cloudflare." }), {
+      return new Response(JSON.stringify({ error: "API Key missing. Please configure GEMINI_API_KEY or provide one in settings." }), {
         status: 500,
         headers: { "Content-Type": "application/json" }
       });
@@ -19,7 +20,7 @@ export const onRequestPost = async (context) => {
 
     const ai = new GoogleGenAI({ apiKey });
     const chat = ai.chats.create({
-      model: model || "gemini-3-flash-preview",
+      model: model || "gemini-1.5-flash",
       config: { systemInstruction },
       history: history.map((m: any) => ({
         role: m.role,

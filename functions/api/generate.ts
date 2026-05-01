@@ -5,12 +5,12 @@ export const onRequestPost = async (context) => {
   
   try {
     const body: any = await request.json();
-    const { prompt, config } = body;
+    const { prompt, config, apiKey: clientApiKey } = body;
     
-    const apiKey = env.GEMINI_API_KEY;
+    const apiKey = (clientApiKey || env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || '').trim();
     
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not configured on Cloudflare." }), {
+      return new Response(JSON.stringify({ error: "API Key missing. Please configure GEMINI_API_KEY or provide one in settings." }), {
         status: 500,
         headers: { "Content-Type": "application/json" }
       });
@@ -18,7 +18,7 @@ export const onRequestPost = async (context) => {
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [{ parts: [{ text: prompt }] }],
       config: config || { responseMimeType: "application/json" }
     });

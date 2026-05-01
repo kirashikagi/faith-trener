@@ -797,14 +797,20 @@ function AppContent() {
   }, [manualKey]);
 
   const getEffectiveApiKey = () => {
-    if (manualKey) return manualKey;
-    const envKeys = [
-      process.env.GEMINI_API_KEY,
-      process.env.VITE_GEMINI_API_KEY,
-      process.env.GOOGLE_API_KEY,
-      (import.meta as any).env?.VITE_GEMINI_API_KEY
-    ];
-    return envKeys.find(k => k && k.trim() !== '' && k.trim() !== 'MY_GEMINI_API_KEY') || "";
+    // 1. Priority: User's manual entry in Settings (stored in localStorage)
+    if (manualKey && manualKey.trim().length > 10) return manualKey.trim();
+    
+    // 2. Next: Environment variables provided by the platform/secrets
+    const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+                   process.env.VITE_GEMINI_API_KEY || 
+                   process.env.GEMINI_API_KEY || 
+                   process.env.GOOGLE_API_KEY;
+                   
+    if (envKey && envKey.trim() !== '' && envKey.trim() !== 'MY_GEMINI_API_KEY') {
+      return envKey.trim();
+    }
+    
+    return "";
   };
 
   const apiKeyMissing = !getEffectiveApiKey();
