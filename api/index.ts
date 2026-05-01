@@ -302,11 +302,11 @@ app.post("/api/payments/webhook", async (req, res) => {
 
 // Gemini Chat
 app.post("/api/chat", async (req, res) => {
+  const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
+  const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+  const source = clientApiKey ? 'Manual (User Settings)' : (process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None'));
+
   try {
-    const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
-    const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-    const source = clientApiKey ? 'Manual (User Settings)' : (process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None'));
-    
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
 
     const ai = new GoogleGenAI({ apiKey });
@@ -321,12 +321,10 @@ app.post("/api/chat", async (req, res) => {
     if (contents.length > 0 && contents[0].role === 'model') {
       contents.unshift({ role: 'user', parts: [{ text: 'Привет' }] });
     }
-    
-    contents.push({ role: 'user', parts: [{ text: message }] });
 
-    const response = await ai.models.generateContent({
+    const chat = ai.chats.create({
       model: model || "gemini-1.5-flash",
-      contents,
+      history: contents,
       config: {
         systemInstruction,
         temperature: 0.7,
@@ -334,6 +332,8 @@ app.post("/api/chat", async (req, res) => {
         topK: 64
       }
     });
+
+    const response = await chat.sendMessage({ message });
 
     if (!response.text) {
       throw new Error("AI returned an empty response.");
@@ -367,11 +367,11 @@ app.post("/api/chat", async (req, res) => {
 });
 
 app.post("/api/generate", async (req, res) => {
+  const { prompt, config, apiKey: clientApiKey } = req.body;
+  const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+  const source = clientApiKey ? 'Manual (User Settings)' : (process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None'));
+
   try {
-    const { prompt, config, apiKey: clientApiKey } = req.body;
-    const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-    const source = clientApiKey ? 'Manual (User Settings)' : (process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None'));
-    
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
 
     const ai = new GoogleGenAI({ apiKey });
