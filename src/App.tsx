@@ -104,6 +104,37 @@ function cn(...inputs: ClassValue[]) {
 
 const MAINTENANCE_MODE = false;
 
+const AvatarImage = ({ src, alt, fallback }: { src: string, alt: string, fallback: React.ReactNode }) => {
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  return (
+    <div className="relative w-full h-full flex items-center justify-center">
+      {!hasError && (
+        <img 
+          src={src} 
+          alt={alt} 
+          className={cn(
+            "w-full h-full object-cover transition-opacity duration-300",
+            isLoading ? "opacity-0" : "opacity-100"
+          )}
+          onLoad={() => setIsLoading(false)}
+          onError={() => setHasError(true)}
+          referrerPolicy="no-referrer"
+        />
+      )}
+      {(hasError || (isLoading && !hasError)) && (
+        <div className={cn(
+          "absolute inset-0 flex items-center justify-center transition-opacity duration-300",
+          isLoading ? "opacity-100" : "opacity-0"
+        )}>
+           {fallback}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AchievementIcons: Record<string, React.ReactNode> = {
   Flag: <Flag className="w-6 h-6" />,
   Sun: <Sun className="w-6 h-6" />,
@@ -2116,7 +2147,7 @@ function AppContent() {
                                   isExpanded ? "bg-accent text-white border-accent/20 rotate-12 scale-110" : "bg-bg text-accent border-accent/10 group-hover:scale-105"
                                 )}>
                                   {scenario.avatarUrl ? (
-                                    <img src={scenario.avatarUrl} alt={scenario.title} className="w-full h-full object-cover" />
+                                    <AvatarImage src={scenario.avatarUrl} alt={scenario.title} fallback={ScenarioIcons[scenario.icon as string]} />
                                   ) : (
                                     ScenarioIcons[scenario.icon as string]
                                   )}
@@ -2210,7 +2241,7 @@ function AppContent() {
                                 isExpanded ? "bg-accent text-white border-accent/20 scale-110 -rotate-6" : "bg-bg text-accent border-accent/10 group-hover:scale-105"
                               )}>
                                 {scenario.avatarUrl ? (
-                                  <img src={scenario.avatarUrl} alt={scenario.title} className="w-full h-full object-cover" />
+                                  <AvatarImage src={scenario.avatarUrl} alt={scenario.title} fallback={ScenarioIcons[scenario.icon as string]} />
                                 ) : (
                                   ScenarioIcons[scenario.icon as string]
                                 )}
@@ -2451,7 +2482,7 @@ function AppContent() {
                   </button>
                   <div className="w-10 h-10 sm:w-14 h-14 bg-accent/10 text-accent rounded-xl sm:rounded-2xl flex items-center justify-center border border-accent/20 shrink-0 overflow-hidden">
                     {selectedScenario.avatarUrl ? (
-                      <img src={selectedScenario.avatarUrl} alt={selectedScenario.title} className="w-full h-full object-cover" />
+                      <AvatarImage src={selectedScenario.avatarUrl} alt={selectedScenario.title} fallback={<User className="w-5 h-5 sm:w-7 sm:h-7" />} />
                     ) : (
                       <User className="w-5 h-5 sm:w-7 sm:h-7" />
                     )}
