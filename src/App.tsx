@@ -934,9 +934,9 @@ function AppContent() {
       const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу. Также в самом начале сообщения всегда добавляй тег настроения в формате [MOOD: mood_name], где mood_name может быть: neutral, calm, tense, warm, cold. Например: [MOOD: calm] Приветствую тебя...\n\nСТИЛЬ ОБЩЕНИЯ: Отвечай естественно, как живой человек. Не обязательно всегда заканчивать сообщение вопросом, если это не требуется по контексту. Будь разнообразен в своих реакциях.";
       
       const result = await getChatResponse(
-        "gemini-1.5-flash",
+        "", // Server will use default model
         selectedScenario.systemInstruction + commonInstruction,
-        messages, // Pass only previous messages as history
+        messages, 
         textToSend,
         getEffectiveApiKey()
       );

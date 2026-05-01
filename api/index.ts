@@ -317,8 +317,11 @@ app.post("/api/chat", async (req, res) => {
       parts: [{ text: m.text || m.parts?.[0]?.text || '' }]
     }));
     
+    const modelToUse = model || "gemini-3-flash-preview";
+    console.log(`Using model: ${modelToUse}`);
+
     const chat = ai.chats.create({
-      model: model || "gemini-3-flash-preview",
+      model: modelToUse,
       history: contents,
       config: {
         systemInstruction,
