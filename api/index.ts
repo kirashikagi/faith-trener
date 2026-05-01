@@ -324,7 +324,7 @@ app.post("/api/chat", async (req, res) => {
     contents.push({ role: 'user', parts: [{ text: message }] });
 
     const response = await ai.models.generateContent({
-      model: model || "gemini-3-flash-preview",
+      model: model || "gemini-1.5-flash",
       contents,
       config: {
         systemInstruction,
@@ -373,7 +373,7 @@ app.post("/api/generate", async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { 
         responseMimeType: config?.responseMimeType || "text/plain",

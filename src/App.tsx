@@ -928,7 +928,7 @@ function AppContent() {
       const commonInstruction = "\n\nВАЖНО: Если ты чувствуешь, что диалог логически завершен (например, собеседник поблагодарил, согласился или, наоборот, окончательно отказался продолжать), обязательно добавь в самый конец своего сообщения тег [КОНЕЦ_ДИАЛОГА]. Это позволит системе предложить пользователю перейти к анализу. Также в самом начале сообщения всегда добавляй тег настроения в формате [MOOD: mood_name], где mood_name может быть: neutral, calm, tense, warm, cold. Например: [MOOD: calm] Приветствую тебя...\n\nСТИЛЬ ОБЩЕНИЯ: Отвечай естественно, как живой человек. Не обязательно всегда заканчивать сообщение вопросом, если это не требуется по контексту. Будь разнообразен в своих реакциях.";
       
       const result = await getChatResponse(
-        "gemini-3-flash-preview",
+        "gemini-1.5-flash",
         selectedScenario.systemInstruction + commonInstruction,
         messages, // Pass only previous messages as history
         textToSend,
@@ -1436,7 +1436,10 @@ function AppContent() {
 
                   <div className="space-y-8">
                     <div className="flex items-center gap-6">
-                      <div className="text-[10px] font-black text-muted/30 uppercase tracking-[0.5em] whitespace-nowrap">Процесс</div>
+                      <div className={cn(
+                        "text-[10px] font-black uppercase tracking-[0.5em] whitespace-nowrap transition-colors duration-500",
+                        theme === 'light' ? "text-muted/60" : "text-muted/30"
+                      )}>Процесс</div>
                       <div className="h-[1px] flex-1 bg-border/40" />
                     </div>
                     
@@ -1449,7 +1452,10 @@ function AppContent() {
                           transition={{ delay: 0.5 + i * 0.1 }}
                           className="flex items-start gap-8 group"
                         >
-                          <span className="text-2xl font-serif text-accent/20 group-hover:text-accent transition-colors duration-500 font-bold leading-none translate-y-1">0{i + 1}</span>
+                          <span className={cn(
+                            "text-2xl font-serif font-bold leading-none translate-y-1 transition-colors duration-500",
+                            theme === 'light' ? "text-accent/40 group-hover:text-accent" : "text-accent/20 group-hover:text-accent"
+                          )}>0{i + 1}</span>
                           <p className="text-lg text-fg/70 font-medium leading-relaxed group-hover:text-fg transition-colors duration-500">
                             {text}
                           </p>
@@ -2049,24 +2055,29 @@ function AppContent() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className={cn(
-                      "glass-card p-10 sm:p-12 relative overflow-hidden group shadow-2xl rounded-[2.5rem] border-none text-white",
-                      theme === 'vibrant' 
-                        ? "bg-gradient-to-br from-[#DB2777] via-[#9333EA] to-[#4C1D95] shadow-pink-500/20" 
-                        : "bg-accent shadow-accent/30"
+                      "p-10 sm:p-12 relative overflow-hidden group shadow-2xl rounded-[2.5rem] border transition-all duration-500",
+                      theme === 'light'
+                        ? "bg-card border-accent/20 text-fg shadow-accent/5"
+                        : theme === 'vibrant' 
+                          ? "bg-gradient-to-br from-[#DB2777] via-[#9333EA] to-[#4C1D95] shadow-pink-500/20 text-white border-none" 
+                          : "bg-accent shadow-accent/30 text-white border-none"
                     )}
                   >
                     <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-125 transition-transform duration-1000">
                       <Sparkles className="w-32 h-32 text-white" />
                     </div>
                     <div className="flex items-center gap-3 mb-8">
-                       <div className="w-8 h-[1px] bg-white/40" />
-                       <div className="text-[10px] font-black uppercase tracking-[0.4em] text-white/70">Ежедневное вдохновение</div>
+                       <div className={cn("w-8 h-[1px]", theme === 'light' ? "bg-accent/30" : "bg-white/40")} />
+                       <div className={cn("text-[10px] font-black uppercase tracking-[0.4em]", theme === 'light' ? "text-accent/60" : "text-white/70")}>Ежедневное вдохновение</div>
                     </div>
                     <motion.p 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.5, duration: 1 }}
-                      className="text-2xl sm:text-3xl font-serif italic leading-snug tracking-tight text-white mb-4"
+                      className={cn(
+                        "text-2xl sm:text-3xl font-serif italic leading-snug tracking-tight mb-4",
+                        theme === 'light' ? "text-fg" : "text-white"
+                      )}
                     >
                       {dailyFact}
                     </motion.p>
