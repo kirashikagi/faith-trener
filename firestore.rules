@@ -100,7 +100,7 @@ service cloud.firestore {
 
     match /sessions/{sessionId} {
       allow get: if isOwner(existing().uid) || isAdmin();
-      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
       
       allow create: if isSignedIn() && isValidSession(incoming());
       

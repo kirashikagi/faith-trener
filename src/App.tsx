@@ -87,7 +87,8 @@ import {
   getDocFromServer,
   updateDoc,
   onSnapshot,
-  deleteDoc
+  deleteDoc,
+  getCountFromServer
 } from 'firebase/firestore';
 
 import { auth, db } from './firebase';
@@ -717,6 +718,33 @@ function AppContent() {
     addNotification("Подписка активирована", 'success');
   };
 
+  useEffect(() => {
+    if (isUserAdmin) {
+      // Fetch stats silently for admin
+      const fetchStats = async () => {
+        try {
+          const [usersCount, feedbackCount, sessionsCount] = await Promise.all([
+            getCountFromServer(collection(db, 'users')),
+            getCountFromServer(collection(db, 'feedback')),
+            getCountFromServer(collection(db, 'sessions'))
+          ]).catch(() => [null, null, null]);
+          
+          if (usersCount || feedbackCount || sessionsCount) {
+            setSystemStats(prev => ({
+              users: usersCount ? usersCount.data().count : prev.users,
+              feedback: feedbackCount ? feedbackCount.data().count : prev.feedback,
+              sessions: sessionsCount ? sessionsCount.data().count : prev.sessions,
+              cost: sessionsCount ? sessionsCount.data().count * 0.001 : prev.cost
+            }));
+          }
+        } catch (e) {
+          console.error("Auto-fetch stats error:", e);
+        }
+      };
+      fetchStats();
+    }
+  }, [isUserAdmin]);
+
   const fetchAdminFeedback = async () => {
     if (!isUserAdmin) return;
     setShowAdmin(true);
@@ -732,20 +760,25 @@ function AppContent() {
       
       // Fetch system stats
       try {
-        const [usersSnapshot, feedbackSnapshot, sessionsSnapshot] = await Promise.all([
-          getDocs(collection(db, 'users')),
-          getDocs(collection(db, 'feedback')),
-          getDocs(collection(db, 'sessions'))
-        ]);
+        const [usersCount, feedbackCount, sessionsCount] = await Promise.all([
+          getCountFromServer(collection(db, 'users')),
+          getCountFromServer(collection(db, 'feedback')),
+          getCountFromServer(collection(db, 'sessions'))
+        ]).catch(err => {
+          console.error("Error in individual count fetch:", err);
+          return [null, null, null];
+        });
         
-        const totalSessions = sessionsSnapshot.size;
+        const totalUsers = usersCount ? usersCount.data().count : systemStats.users;
+        const totalFeedback = feedbackCount ? feedbackCount.data().count : systemStats.feedback;
+        const totalSessions = sessionsCount ? sessionsCount.data().count : systemStats.sessions;
+        
         // Cost estimation: $0.001 per session (average for gemini-pro/flash for small context)
-        // or let's use the user's suggestion of $0.01 per 10 sessions = $0.001 per session
         const estimatedCost = totalSessions * 0.001;
 
         setSystemStats({
-          users: usersSnapshot.size,
-          feedback: feedbackSnapshot.size,
+          users: totalUsers,
+          feedback: totalFeedback,
           sessions: totalSessions,
           cost: estimatedCost
         });
@@ -2078,7 +2111,7 @@ function AppContent() {
                     Практикуйте искусство свидетельства и защиты веры в современных реалиях.
                   </p>
                   
-                  <div className="pt-8 flex gap-8">
+                  <div className="pt-8 flex flex-wrap gap-8">
                     <div className="space-y-1">
                       <div className="text-2xl font-bold text-fg tracking-tight">{SCENARIOS.length}</div>
                       <div className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">Сценариев</div>
@@ -2088,6 +2121,15 @@ function AppContent() {
                       <div className="text-2xl font-bold text-fg tracking-tight">AI</div>
                       <div className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">Обратная связь</div>
                     </div>
+                    {isUserAdmin && (
+                      <>
+                        <div className="w-[1px] h-12 bg-border/40" />
+                        <div className="space-y-1">
+                          <div className="text-2xl font-bold text-fg tracking-tight">{systemStats.users}</div>
+                          <div className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">Участников</div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
