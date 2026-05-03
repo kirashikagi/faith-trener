@@ -69,7 +69,7 @@ import {
   createUserWithEmailAndPassword, 
   signInWithCustomToken,
   signOut, 
-  onAuthStateChanged, 
+  onAuthStateChanged,
   User as FirebaseUser 
 } from 'firebase/auth';
 import { 
@@ -308,9 +308,8 @@ function AppContent() {
   }, []);
 
   const isUserAdmin = userProfile?.role === 'admin' || 
-                     user?.email === 'arunavsharmanaba@gmail.com' || 
-                     userProfile?.email === 'arunavsharmanaba@gmail.com' ||
-                     user?.email === 'admin@vera.plus';
+                     user?.email === 'kiraishikagi@vera.plus' || 
+                     userProfile?.email === 'kiraishikagi@vera.plus';
 
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -536,11 +535,14 @@ function AppContent() {
               setShowIntro(false);
             }
           } else {
-            // Create profile if it doesn't exist
+            const role = (
+              firebaseUser.email === 'kiraishikagi@vera.plus'
+            ) ? 'admin' : 'user';
+
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
-              role: (firebaseUser.email === 'arunavsharmanaba@gmail.com' || firebaseUser.email === 'admin@vera.plus') ? 'admin' : 'user',
+              role: role,
               createdAt: Timestamp.now() as any,
               displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
               hasSeenWelcome: false,
@@ -640,11 +642,8 @@ function AppContent() {
       // but if we want to ensure special naming/admin status during registration:
       if (authMode === 'register' && auth.currentUser) {
         const newUser = auth.currentUser;
-        const isAdminEmail = internalEmail === 'admin@vera.plus' || 
-                           newUser.email === 'arunavsharmanaba@gmail.com' ||
-                           password === 'MASTER_ADMIN' ||
-                           email.toLowerCase().trim() === 'admin' ||
-                           email.toLowerCase().trim() === 'superadmin';
+        const isAdminEmail = internalEmail === 'kiraishikagi@vera.plus' || 
+                           internalEmail === 'kiraishikagi';
         
         // Check if profile exists before setting
         const profileSnap = await getDoc(doc(db, 'users', newUser.uid));
@@ -842,29 +841,8 @@ function AppContent() {
     };
   });
 
-  const [manualKey, setManualKey] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('faith_trainer_manual_key') || "";
-    }
-    return "";
-  });
-  const [showKeyInput, setShowKeyInput] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (manualKey) {
-        localStorage.setItem('faith_trainer_manual_key', manualKey);
-      } else {
-        localStorage.removeItem('faith_trainer_manual_key');
-      }
-    }
-  }, [manualKey]);
-
   const getEffectiveApiKey = () => {
-    // 1. Priority: User's manual entry in Settings (stored in localStorage)
-    if (manualKey && manualKey.trim().length > 10) return manualKey.trim();
-    
-    // 2. Next: Environment variables provided by the platform/secrets
+    // Environment variables provided by the platform/secrets
     const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
                    process.env.VITE_GEMINI_API_KEY || 
                    process.env.GEMINI_API_KEY || 
@@ -1251,60 +1229,6 @@ function AppContent() {
       </div>
 
       <div className="relative z-10">
-        {/* Manual Key Input Fallback */}
-        {showKeyInput && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
-            <div className="bg-card rounded-[2rem] p-10 max-w-md w-full shadow-2xl border border-border">
-              <h3 className="text-2xl font-black mb-4 tracking-tight text-fg">Настройка API ключа</h3>
-              <p className="text-sm text-muted mb-8 leading-relaxed">
-                Если у вас не получается настроить ключ через панель Secrets, вы можете ввести его здесь. 
-                Ключ будет сохранен локально в вашем браузере.
-                <br /><br />
-                <span className="text-xs text-rose-500 font-bold">Важно:</span> Если вы видите ошибку "API key expired", скорее всего у вашего ключа истек срок или вы превысили лимит (20 запросов в день для бесплатного уровня).
-              </p>
-              <div className="space-y-4 mb-8">
-                <input
-                  type="password"
-                  value={manualKey}
-                  onChange={(e) => setManualKey(e.target.value)}
-                  placeholder="Введите Gemini API Key из Google AI Studio"
-                  className="w-full p-4 bg-bg border border-border rounded-2xl focus:ring-2 focus:ring-accent outline-none text-fg transition-all"
-                />
-                {manualKey && (
-                  <button 
-                    onClick={() => setManualKey("")}
-                    className="text-[9px] font-black text-rose-500 uppercase tracking-widest hover:underline"
-                  >
-                    Сбросить ключ
-                  </button>
-                )}
-                {manualKey && (
-                  <div className="p-3 bg-accent/5 rounded-xl border border-accent/10">
-                    <p className="text-[9px] font-bold text-accent uppercase tracking-wider mb-1">Отладка (текущий ключ):</p>
-                    <p className="text-[10px] font-mono text-muted break-all">
-                      {manualKey.substring(0, 8)}...{manualKey.substring(manualKey.length - 4)}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setShowKeyInput(false)}
-                  className="flex-1 py-4 bg-border hover:bg-border/80 text-fg rounded-2xl font-black transition-all uppercase tracking-[0.2em] text-[10px]"
-                >
-                  Закрыть
-                </button>
-                <button
-                  onClick={() => setShowKeyInput(false)}
-                  className="flex-1 py-4 bg-accent hover:bg-emerald-600 text-white rounded-2xl font-black transition-all shadow-xl shadow-accent/20 uppercase tracking-[0.2em] text-[10px]"
-                >
-                  Применить
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {user && (!MAINTENANCE_MODE || isUserAdmin) && (
           <header className="sticky top-0 z-50 bg-card/85 backdrop-blur-xl border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300 pt-safe">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -3079,17 +3003,6 @@ function AppContent() {
                 >
                   <MessageSquare className="w-5 h-5" />
                   Обратная связь
-                </button>
-
-                <button 
-                  onClick={() => {
-                    setShowKeyInput(true);
-                    setShowMobileMenu(false);
-                  }}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-accent/5 text-muted hover:text-accent transition-all font-bold uppercase tracking-[0.2em] text-[10px]"
-                >
-                  <Key className="w-5 h-5" />
-                  Настройки API
                 </button>
               </div>
 
