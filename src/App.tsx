@@ -56,6 +56,7 @@ import {
   Key,
   Search,
   Users,
+  Scale,
   Quote,
   Database,
   Cpu
@@ -110,24 +111,27 @@ const AvatarImage = ({ src, alt, fallback }: { src: string, alt: string, fallbac
   const [isLoading, setIsLoading] = useState(true);
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
+    <div className="relative w-full h-full flex items-center justify-center bg-accent/5">
       {!hasError && (
         <img 
           src={src} 
           alt={alt} 
           className={cn(
-            "w-full h-full object-cover transition-opacity duration-300",
+            "w-full h-full object-cover transition-opacity duration-500",
             isLoading ? "opacity-0" : "opacity-100"
           )}
           onLoad={() => setIsLoading(false)}
-          onError={() => setHasError(true)}
-          referrerPolicy="no-referrer"
+          onError={() => {
+            console.error(`Failed to load image: ${src}`);
+            setHasError(true);
+            setIsLoading(false);
+          }}
         />
       )}
-      {(hasError || (isLoading && !hasError)) && (
+      {(hasError || isLoading) && (
         <div className={cn(
-          "absolute inset-0 flex items-center justify-center transition-opacity duration-300",
-          isLoading ? "opacity-100" : "opacity-0"
+          "absolute inset-0 flex items-center justify-center transition-opacity duration-500",
+          isLoading && !hasError ? "opacity-100" : hasError ? "opacity-100" : "opacity-0"
         )}>
            {fallback}
         </div>
@@ -151,9 +155,12 @@ const ScenarioIcons: Record<string, React.ReactNode> = {
   Compass: <Compass className="w-6 h-6" />,
   ShieldAlert: <ShieldAlert className="w-6 h-6" />,
   Zap: <Zap className="w-6 h-6" />,
+  UserMinus: <UserMinus className="w-6 h-6" />,
+  History: <History className="w-6 h-6" />,
+  Scale: <Scale className="w-6 h-6" />,
+  Users: <Users className="w-6 h-6" />,
   UserX: <UserX className="w-6 h-6" />,
   MessageSquareX: <MessageSquareX className="w-6 h-6" />,
-  UserMinus: <UserMinus className="w-6 h-6" />,
   Microscope: <Microscope className="w-6 h-6" />,
   Briefcase: <Briefcase className="w-6 h-6" />,
   Sparkles: <Sparkles className="w-6 h-6" />,
@@ -1075,10 +1082,10 @@ function AppContent() {
         }
       }
 
-      let finalMessage = `Ошибка API: ${errorMessage}. Если ошибка повторяется, попробуйте изменить API ключ в Настройках API (в меню ☰).`;
+      let finalMessage = `Ошибка API: ${errorMessage}. Если ошибка повторяется, проверьте настройки ключа в разделе Secrets.`;
       
       if (errorMessage.includes("API_KEY_INVALID")) {
-        finalMessage = `Ошибка API: Неверный ключ. Попробуйте обновить его в "Настройках API" (в меню ☰). ${errorMessage.includes('Manual') ? '' : 'Если вы изменили ключ в Secrets, проверьте его там.'}`;
+        finalMessage = `Ошибка API: Неверный ключ. Проверьте его в разделе Secrets и убедитесь, что вы нажали "Apply changes".`;
       }
       
       if (errorMessage.includes("Quota exceeded") || errorMessage.includes("429")) {
@@ -1086,8 +1093,7 @@ function AppContent() {
       } else if (errorMessage.includes("Failed to fetch")) {
         finalMessage = "Ошибка сети: Не удалось связаться с сервером. Возможно, домен заблокирован вашим провайдером. Попробуйте использовать другой браузер или привязать свой домен в Cloudflare.";
       } else if (isPlaceholder || !apiKey) {
-        finalMessage += ` Пожалуйста, добавьте новый секрет с именем "VITE_GEMINI_API_KEY" и вашим реальным ключом в разделе Secrets, затем нажмите "Apply changes". Также вы можете ввести ключ вручную в настройках приложения.`;
-        setShowKeyInput(true);
+        finalMessage += ` Пожалуйста, добавьте новый секрет с именем "VITE_GEMINI_API_KEY" и вашим реальным ключом в разделе Secrets, затем нажмите "Apply changes".`;
       } else {
         finalMessage += ` (Ключ: ${maskedKey}). Убедитесь, что вы нажали "Apply changes" в разделе Secrets.`;
       }
