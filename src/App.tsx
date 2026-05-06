@@ -841,23 +841,8 @@ function AppContent() {
     };
   });
 
-  const getEffectiveApiKey = () => {
-    // Environment variables provided by the platform/secrets
-    const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-                   process.env.VITE_GEMINI_API_KEY || 
-                   process.env.GEMINI_API_KEY || 
-                   process.env.GOOGLE_API_KEY;
-                   
-    if (envKey && envKey.trim() !== '' && envKey.trim() !== 'MY_GEMINI_API_KEY') {
-      return envKey.trim();
-    }
-    
-    return "";
-  };
-
-  const apiKeyMissing = !getEffectiveApiKey();
-  // We don't show the warning if we are in production-like environment where server key is expected
-  const showApiKeyWarning = apiKeyMissing && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const apiKeyMissing = false;
+  const showApiKeyWarning = false;
 
   useEffect(() => {
     localStorage.setItem('faith_trainer_stats', JSON.stringify(stats));
@@ -900,19 +885,15 @@ function AppContent() {
     setIsDialogueEnded(false);
     setIsLoading(true);
     
-    // Remove random biblical fact logic
-    const apiKey = getEffectiveApiKey();
     let initialText = scenario.initialMessage;
 
-    if (apiKey) {
-      try {
-        // Generate a unique initial message based on scenario
-        initialText = await getInitialMessage(scenario.systemInstruction, apiKey);
-        // Clean up any potential tags like [greet] or greet:
-        initialText = initialText.replace(/\[.*?\]/g, '').replace(/greet:?/gi, '').trim();
-      } catch (e) {
-        console.error("Failed to generate initial message, using default", e);
-      }
+    try {
+      // Generate a unique initial message based on scenario
+      initialText = await getInitialMessage(scenario.systemInstruction);
+      // Clean up any potential tags like [greet] or greet:
+      initialText = initialText.replace(/\[.*?\]/g, '').replace(/greet:?/gi, '').trim();
+    } catch (e) {
+      console.error("Failed to generate initial message, using default", e);
     }
 
     const initialMsg: Message = { 
@@ -925,18 +906,8 @@ function AppContent() {
     setOptions([]);
 
     if (scenario.mode === 'criticism') {
-      if (!apiKey) {
-        setMessages(prev => [...prev, {
-          role: 'model',
-          text: "API ключ не настроен. Пожалуйста, добавьте VITE_GEMINI_API_KEY в Secrets или введите его в настройках.",
-          timestamp: Date.now()
-        }]);
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const opts = await getResponseOptions(scenario.systemInstruction, [initialMsg], apiKey);
+        const opts = await getResponseOptions(scenario.systemInstruction, [initialMsg]);
         if (!opts || opts.length === 0) {
           throw new Error("Модель не вернула варианты ответа.");
         }
@@ -945,7 +916,7 @@ function AppContent() {
         console.error("Error starting criticism scenario:", error);
         setMessages(prev => [...prev, {
           role: 'model',
-          text: `Ошибка при загрузке вариантов: ${error.message || "Неизвестная ошибка"}. Проверьте API ключ или попробуйте позже.`,
+          text: `Ошибка при загрузке вариантов: ${error.message || "Неизвестная ошибка"}. Проверьте соединение или попробуйте позже.`,
           timestamp: Date.now()
         }]);
       } finally {
@@ -979,8 +950,7 @@ function AppContent() {
         "", // Server will use default model
         selectedScenario.systemInstruction + commonInstruction,
         messages, 
-        textToSend,
-        getEffectiveApiKey()
+        textToSend
       );
       
       setIsLoading(false);
@@ -1041,8 +1011,7 @@ function AppContent() {
 
       if (selectedScenario.mode === 'criticism') {
         try {
-          const apiKey = getEffectiveApiKey();
-          const opts = await getResponseOptions(selectedScenario.systemInstruction, newHistory, apiKey);
+          const opts = await getResponseOptions(selectedScenario.systemInstruction, newHistory);
           if (!opts || opts.length === 0) {
             throw new Error("Не удалось получить варианты ответа для следующего шага.");
           }
@@ -1058,9 +1027,6 @@ function AppContent() {
       }
     } catch (error: any) {
       console.error("Gemini API Error:", error);
-      const apiKey = getEffectiveApiKey();
-      const isPlaceholder = apiKey.trim() === 'MY_GEMINI_API_KEY';
-      const maskedKey = apiKey ? `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}` : "отсутствует";
       let errorMessage = error?.message || "Неизвестная ошибка";
       
       // Try to parse JSON error if it's a stringified object
@@ -1084,11 +1050,7 @@ function AppContent() {
       if (errorMessage.includes("Quota exceeded") || errorMessage.includes("429")) {
         finalMessage = "Лимит запросов ИИ исчерпан (Quota Exceeded). В бесплатном режиме Google Gemini API доступно всего 20 запросов в день. Пожалуйста, подождите до завтра.";
       } else if (errorMessage.includes("Failed to fetch")) {
-        finalMessage = "Ошибка сети: Не удалось связаться с сервером. Возможно, домен заблокирован вашим провайдером. Попробуйте использовать другой браузер или привязать свой домен в Cloudflare.";
-      } else if (isPlaceholder || !apiKey) {
-        finalMessage += ` Пожалуйста, добавьте новый секрет с именем "VITE_GEMINI_API_KEY" и вашим реальным ключом в разделе Secrets, затем нажмите "Apply changes".`;
-      } else {
-        finalMessage += ` (Ключ: ${maskedKey}). Убедитесь, что вы нажали "Apply changes" в разделе Secrets.`;
+        finalMessage = "Ошибка сети: Не удалось связаться с сервером. Возможно, домен заблокирован вашим провайдером.";
       }
       
       setMessages(prev => [...prev, { 
@@ -1115,15 +1077,9 @@ function AppContent() {
       return;
     }
     
-    const apiKey = getEffectiveApiKey();
-    if (!apiKey) {
-      addNotification("API ключ не настроен. Анализ невозможен.", 'error');
-      return;
-    }
-
     setIsAnalyzing(true);
     try {
-      const result = await getFeedback(messages, apiKey);
+      const result = await getFeedback(messages);
       
       if (!result || (result.score === 0 && result.summary === "Ошибка при анализе диалога.")) {
         throw new Error("Анализ диалога не удался. Проверьте API ключ.");
@@ -1796,23 +1752,6 @@ function AppContent() {
           </div>
         ) : (
           <>
-            {showApiKeyWarning && (
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8 bg-rose-500/5 border border-rose-500/20 p-6 rounded-2xl flex items-start gap-5 shadow-sm"
-          >
-            <div className="w-12 h-12 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center shrink-0 border border-rose-500/20">
-              <ShieldAlert className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="font-bold text-rose-500 text-[10px] uppercase tracking-[0.1em]">Внимание: API ключ не настроен</h3>
-              <p className="text-muted text-xs mt-1.5 leading-relaxed font-medium">
-                Для работы приложения необходимо добавить <strong className="text-fg">GEMINI_API_KEY</strong> в настройках. Без этого ИИ не сможет отвечать на ваши сообщения.
-              </p>
-            </div>
-          </motion.div>
-        )}
         <AnimatePresence mode="wait">
           {showStats ? (
             <motion.div 
