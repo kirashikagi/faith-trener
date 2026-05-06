@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 
 export const onRequestPost = async (context) => {
   const { request, env } = context;
@@ -19,16 +19,36 @@ export const onRequestPost = async (context) => {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const chat = ai.chats.create({
-      model: model || "gemini-3-flash-preview",
-      config: { systemInstruction },
-      history: history.map((m: any) => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-      }))
+    
+    // Construct contents for multi-turn chat
+    const contents = (history || []).map((m: any) => ({
+      role: m.role === 'model' ? 'model' : 'user',
+      parts: [{ text: m.text || m.parts?.[0]?.text || '' }]
+    }));
+
+    // Add the current message
+    contents.push({
+      role: 'user',
+      parts: [{ text: message }]
     });
 
-    const response = await chat.sendMessage({ message });
+    const response = await ai.models.generateContent({
+      model: model || "gemini-3-flash-preview",
+      contents,
+      config: {
+        systemInstruction,
+        temperature: 0.7,
+        maxOutputTokens: 800,
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_JAILBREAK, threshold: HarmBlockThreshold.BLOCK_NONE },
+        ]
+      }
+    });
     
     return new Response(JSON.stringify({ text: response.text }), {
       headers: { "Content-Type": "application/json" }

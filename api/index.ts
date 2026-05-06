@@ -317,13 +317,19 @@ app.post("/api/chat", async (req, res) => {
       role: m.role === 'model' ? 'model' : 'user',
       parts: [{ text: m.text || m.parts?.[0]?.text || '' }]
     }));
+
+    // Add the current message
+    contents.push({
+      role: 'user',
+      parts: [{ text: message }]
+    });
     
     const modelToUse = model || "gemini-3-flash-preview";
     console.log(`Using model: ${modelToUse} with key ending in: ${apiKey.substring(apiKey.length - 4)}`);
 
-    const chat = ai.chats.create({
+    const response = await ai.models.generateContent({
       model: modelToUse,
-      history: contents,
+      contents,
       config: {
         systemInstruction,
         temperature: 0.7,
@@ -333,11 +339,12 @@ app.post("/api/chat", async (req, res) => {
           { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
           { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
           { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_JAILBREAK, threshold: HarmBlockThreshold.BLOCK_NONE },
         ]
       }
     });
 
-    const response = await chat.sendMessage({ message });
     const text = response.text;
 
     if (!text) {
@@ -394,6 +401,8 @@ app.post("/api/generate", async (req, res) => {
           { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
           { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
           { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_JAILBREAK, threshold: HarmBlockThreshold.BLOCK_NONE },
         ]
       }
     });
