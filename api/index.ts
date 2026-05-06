@@ -302,9 +302,10 @@ app.post("/api/payments/webhook", async (req, res) => {
 
 // Gemini Chat
 app.post("/api/chat", async (req, res) => {
-  const { model, systemInstruction, history, message, apiKey: clientApiKey } = req.body;
-  const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-  const source = clientApiKey ? 'Manual (User Settings)' : (process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None'));
+  const { model, systemInstruction, history, message } = req.body;
+  // Ignore client-provided API key to ensure server secrets are used
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+  const source = process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None');
 
   try {
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
@@ -347,7 +348,7 @@ app.post("/api/chat", async (req, res) => {
     // Categorize common Gemini errors
     if (message.includes("API_KEY_INVALID")) {
       const keyHint = apiKey ? ` (Ключ: ${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}, Источник: ${source})` : "";
-      message = "Неверный API ключ Gemini. " + (clientApiKey ? "Пожалуйста, проверьте правильность ключа в настройках приложения." : "Пожалуйста, обновите GEMINI_API_KEY в разделе Secrets и нажмите 'Apply changes'.") + keyHint;
+      message = "Неверный API ключ Gemini. Пожалуйста, обновите GEMINI_API_KEY в разделе Secrets и нажмите 'Apply changes'." + keyHint;
       status = 401;
     } else if (message.includes("expired") || message.includes("EXPIRED")) {
       message = "Срок действия API ключа истек. Пожалуйста, обновите ключ в Google AI Studio.";
@@ -365,9 +366,10 @@ app.post("/api/chat", async (req, res) => {
 });
 
 app.post("/api/generate", async (req, res) => {
-  const { prompt, config, apiKey: clientApiKey } = req.body;
-  const apiKey = (clientApiKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-  const source = clientApiKey ? 'Manual (User Settings)' : (process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None'));
+  const { prompt, config } = req.body;
+  // Ignore client-provided API key to ensure server secrets are used
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+  const source = process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None');
 
   try {
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });

@@ -841,9 +841,6 @@ function AppContent() {
     };
   });
 
-  const apiKeyMissing = false;
-  const showApiKeyWarning = false;
-
   useEffect(() => {
     localStorage.setItem('faith_trainer_stats', JSON.stringify(stats));
   }, [stats]);

@@ -17,11 +17,9 @@ export async function getChatResponse(
   modelName: string,
   systemInstruction: string,
   history: Message[],
-  userInput: string,
-  providedApiKey?: string
+  userInput: string
 ): Promise<string> {
-  // If we have a provided key, we might be in a special mode, 
-  // but normally we use the server proxy to bypass regional blocks.
+  // We use the server proxy to bypass regional blocks and use server-side secrets.
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
@@ -30,8 +28,7 @@ export async function getChatResponse(
         model: modelName,
         systemInstruction,
         history,
-        message: userInput,
-        apiKey: providedApiKey
+        message: userInput
       })
     });
 
@@ -67,8 +64,7 @@ export async function getChatResponse(
 
 export async function getResponseOptions(
   systemInstruction: string,
-  history: Message[],
-  providedApiKey?: string
+  history: Message[]
 ): Promise<ResponseOption[]> {
   const prompt = `
     Системная инструкция собеседника: ${systemInstruction}
@@ -104,7 +100,6 @@ export async function getResponseOptions(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
         prompt, 
-        apiKey: providedApiKey,
         config: { responseMimeType: "application/json" }
       })
     });
@@ -166,8 +161,7 @@ export async function getResponseOptions(
 }
 
 export async function getFeedback(
-  history: Message[],
-  providedApiKey?: string
+  history: Message[]
 ): Promise<Feedback> {
   const prompt = `
     Ты — строгий эксперт в области христианской апологетики и систематического богословия. 
@@ -209,7 +203,6 @@ export async function getFeedback(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
         prompt, 
-        apiKey: providedApiKey,
         config: { responseMimeType: "application/json" }
       })
     });
@@ -266,8 +259,7 @@ export async function getFeedback(
 }
 
 export async function getInitialMessage(
-  systemInstruction: string,
-  providedApiKey?: string
+  systemInstruction: string
 ): Promise<string> {
   const prompt = `
     На основе следующей системной инструкции для персонажа, напиши уникальное и вовлекающее приветственное сообщение (первую фразу в диалоге).
@@ -282,7 +274,7 @@ export async function getInitialMessage(
     const response = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, apiKey: providedApiKey })
+      body: JSON.stringify({ prompt })
     });
 
     if (!response.ok) {
