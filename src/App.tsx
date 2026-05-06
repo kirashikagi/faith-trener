@@ -108,35 +108,28 @@ const MAINTENANCE_MODE = false;
 
 const AvatarImage = ({ src, alt, fallback }: { src: string, alt: string, fallback: React.ReactNode }) => {
   const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [src]);
+
+  if (!src || hasError) {
+    return <div className="w-full h-full flex items-center justify-center bg-accent/10">{fallback}</div>;
+  }
+
+  // Ensure src starts with / if it's a local asset
+  const imageSrc = (src.startsWith('http') || src.startsWith('/')) ? src : `/${src}`;
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center bg-accent/5">
-      {!hasError && (
-        <img 
-          src={src} 
-          alt={alt} 
-          className={cn(
-            "w-full h-full object-cover transition-opacity duration-500",
-            isLoading ? "opacity-0" : "opacity-100"
-          )}
-          onLoad={() => setIsLoading(false)}
-          onError={() => {
-            console.error(`Failed to load image: ${src}`);
-            setHasError(true);
-            setIsLoading(false);
-          }}
-        />
-      )}
-      {(hasError || isLoading) && (
-        <div className={cn(
-          "absolute inset-0 flex items-center justify-center transition-opacity duration-500",
-          isLoading && !hasError ? "opacity-100" : hasError ? "opacity-100" : "opacity-0"
-        )}>
-           {fallback}
-        </div>
-      )}
-    </div>
+    <img 
+      src={imageSrc} 
+      alt={alt} 
+      className="w-full h-full object-cover"
+      onError={() => {
+        console.error("Failed to load avatar:", imageSrc);
+        setHasError(true);
+      }}
+    />
   );
 };
 
@@ -1626,7 +1619,7 @@ function AppContent() {
                         <div key={u.uid} className="glass-panel flex items-center justify-between p-10 hover:border-accent/50 transition-all duration-700 group relative overflow-hidden">
                           <div className="absolute inset-0 bg-accent/[0.01] opacity-0 group-hover:opacity-100 transition-opacity" />
                           <div className="flex items-center gap-8 relative z-10">
-                            <div className="w-20 h-20 bg-accent/5 rounded-3xl flex items-center justify-center text-accent border border-accent/10 group-hover:scale-110 group-hover:rotate-6 transition-all duration-700 shadow-inner">
+                            <div className="w-20 h-20 bg-accent/5 rounded-3xl flex items-center justify-center text-accent border border-accent/10 group-hover:scale-110 group-hover:rotate-6 transition-all duration-700 shadow-inner overflow-hidden">
                               <User className="w-10 h-10" />
                             </div>
                             <div className="space-y-1.5">

@@ -71,6 +71,7 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName?: string;
+  photoUrl?: string;
   role: 'user' | 'admin';
   createdAt: number;
   isSubscribed?: boolean;
