@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
@@ -321,25 +321,24 @@ app.post("/api/chat", async (req, res) => {
     const modelToUse = model || "gemini-3-flash-preview";
     console.log(`Using model: ${modelToUse} with key ending in: ${apiKey.substring(apiKey.length - 4)}`);
 
-    const chat = ai.getGenerativeModel({
+    const chat = ai.chats.create({
       model: modelToUse,
-      systemInstruction,
-      safetySettings: [
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-      ]
-    }).startChat({
       history: contents,
-      generationConfig: {
+      config: {
+        systemInstruction,
         temperature: 0.7,
         maxOutputTokens: 800,
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        ]
       }
     });
 
-    const result = await chat.sendMessage(message);
-    const text = result.response.text();
+    const response = await chat.sendMessage({ message });
+    const text = response.text;
 
     if (!text) {
       throw new Error("AI returned an empty response.");
@@ -382,27 +381,24 @@ app.post("/api/generate", async (req, res) => {
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
 
     const ai = new GoogleGenAI({ apiKey });
-    const model = ai.getGenerativeModel({ 
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      safetySettings: [
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-      ]
-    });
-
-    const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { 
+      config: { 
         responseMimeType: config?.responseMimeType || "text/plain",
         temperature: config?.temperature || 0.7,
         topP: config?.topP || 0.95,
-        topK: config?.topK || 40
+        topK: config?.topK || 40,
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        ]
       }
     });
 
-    const text = result.response.text();
+    const text = response.text;
     if (!text) {
       throw new Error("Model returned an empty response.");
     }
