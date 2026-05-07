@@ -303,9 +303,17 @@ app.post("/api/payments/webhook", async (req, res) => {
 // Gemini Chat
 app.post("/api/chat", async (req, res) => {
   const { model, systemInstruction, history, message } = req.body;
-  // Ignore client-provided API key to ensure server secrets are used
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-  const source = process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None');
+  
+  // Robust API key selection: ignore placeholders and prefer VITE_ prefix if GEMINI_API_KEY is legacy/placeholder
+  const rawKey = process.env.GEMINI_API_KEY || '';
+  const viteKey = process.env.VITE_GEMINI_API_KEY || '';
+  
+  let apiKey = rawKey.trim();
+  if (!apiKey || apiKey.includes('YOUR_') || apiKey.includes('MY_GEMINI') || apiKey.endsWith('_KEY')) {
+    apiKey = viteKey.trim();
+  }
+  
+  const source = apiKey === rawKey.trim() ? 'Secrets (GEMINI_API_KEY)' : 'Secrets (VITE_GEMINI_API_KEY)';
 
   try {
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
@@ -378,9 +386,17 @@ app.post("/api/chat", async (req, res) => {
 
 app.post("/api/generate", async (req, res) => {
   const { prompt, config } = req.body;
-  // Ignore client-provided API key to ensure server secrets are used
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-  const source = process.env.GEMINI_API_KEY ? 'Secrets (GEMINI_API_KEY)' : (process.env.VITE_GEMINI_API_KEY ? 'Secrets (VITE_GEMINI_API_KEY)' : 'Default/None');
+  
+  // Robust API key selection
+  const rawKey = process.env.GEMINI_API_KEY || '';
+  const viteKey = process.env.VITE_GEMINI_API_KEY || '';
+  
+  let apiKey = rawKey.trim();
+  if (!apiKey || apiKey.includes('YOUR_') || apiKey.includes('MY_GEMINI') || apiKey.endsWith('_KEY')) {
+    apiKey = viteKey.trim();
+  }
+  
+  const source = apiKey === rawKey.trim() ? 'Secrets (GEMINI_API_KEY)' : 'Secrets (VITE_GEMINI_API_KEY)';
 
   try {
     if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });

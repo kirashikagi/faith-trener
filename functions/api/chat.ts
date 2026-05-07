@@ -7,9 +7,15 @@ export const onRequestPost = async (context) => {
     const body: any = await request.json();
     const { model, systemInstruction, history, message, apiKey: clientApiKey } = body;
     
-    // В Cloudflare переменные окружения берутся из env.
-    // Приоритет: ключ от клиента -> env.GEMINI_API_KEY -> env.VITE_GEMINI_API_KEY
-    const apiKey = (clientApiKey || env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || '').trim();
+    // Robust API key selection: ignore placeholders and prefer VITE_ prefix if legacy env is poisoned
+    const rawEnvKey = env.GEMINI_API_KEY || '';
+    const viteEnvKey = env.VITE_GEMINI_API_KEY || '';
+    
+    let apiKey = (clientApiKey || rawEnvKey || viteEnvKey || '').trim();
+    
+    if (apiKey.includes('YOUR_') || apiKey.includes('MY_GEMINI') || apiKey.endsWith('_KEY')) {
+      apiKey = (viteEnvKey || '').trim();
+    }
     
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "API Key missing. Please configure GEMINI_API_KEY or provide one in settings." }), {
