@@ -40,17 +40,11 @@ export const onRequestPost = async (context) => {
 
     const response = await ai.models.generateContent({
       model: model || "gemini-3-flash-preview",
+      systemInstruction: { parts: [{ text: systemInstruction }] },
       contents,
       config: {
-        systemInstruction,
         temperature: 0.7,
-        maxOutputTokens: 800,
-        safetySettings: [
-          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        ]
+        maxOutputTokens: 1000,
       }
     });
     

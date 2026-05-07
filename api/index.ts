@@ -304,19 +304,25 @@ app.post("/api/payments/webhook", async (req, res) => {
 app.post("/api/chat", async (req, res) => {
   const { model, systemInstruction, history, message } = req.body;
   
-  // Robust API key selection: ignore placeholders and prefer VITE_ prefix if GEMINI_API_KEY is legacy/placeholder
-  const rawKey = process.env.GEMINI_API_KEY || '';
-  const viteKey = process.env.VITE_GEMINI_API_KEY || '';
+  // Robust API key selection: prefer VITE_ fallback if primary is a placeholder or invalid
+  const rawKey = (process.env.GEMINI_API_KEY || "").trim();
+  const viteKey = (process.env.VITE_GEMINI_API_KEY || "").trim();
   
-  let apiKey = rawKey.trim();
-  if (!apiKey || apiKey.includes('YOUR_') || apiKey.includes('MY_GEMINI') || apiKey.endsWith('_KEY')) {
-    apiKey = viteKey.trim();
+  let apiKey = rawKey;
+  // If rawKey is a placeholder or ends with _KEY, use viteKey
+  if (!apiKey || apiKey.includes("YOUR_") || apiKey.includes("MY_GEMINI") || apiKey.endsWith("_KEY") || apiKey.length < 20) {
+    apiKey = viteKey;
   }
   
-  const source = apiKey === rawKey.trim() ? 'Secrets (GEMINI_API_KEY)' : 'Secrets (VITE_GEMINI_API_KEY)';
+  const source = apiKey === rawKey ? "GEMINI_API_KEY" : "VITE_GEMINI_API_KEY";
+  const modelToUse = model || "gemini-3-flash-preview";
 
   try {
-    if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
+    if (!apiKey || apiKey.length < 10) {
+      return res.status(500).json({ error: "API key is missing or invalid in Secrets. Please ensure GEMINI_API_KEY is set correctly." });
+    }
+
+    console.log(`[Chat] Using model: ${modelToUse}, key source: ${source}, key ends with: ${apiKey.substring(apiKey.length - 4)}`);
 
     const ai = new GoogleGenAI({ apiKey });
     
@@ -326,28 +332,19 @@ app.post("/api/chat", async (req, res) => {
       parts: [{ text: m.text || m.parts?.[0]?.text || '' }]
     }));
 
-    // Add the current message
+    // Add current message
     contents.push({
       role: 'user',
       parts: [{ text: message }]
     });
-    
-    const modelToUse = model || "gemini-3-flash-preview";
-    console.log(`Using model: ${modelToUse} with key ending in: ${apiKey.substring(apiKey.length - 4)}`);
 
     const response = await ai.models.generateContent({
       model: modelToUse,
+      systemInstruction: { parts: [{ text: systemInstruction }] },
       contents,
       config: {
-        systemInstruction,
         temperature: 0.7,
-        maxOutputTokens: 800,
-        safetySettings: [
-          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        ]
+        maxOutputTokens: 1000,
       }
     });
 
@@ -388,18 +385,20 @@ app.post("/api/generate", async (req, res) => {
   const { prompt, config } = req.body;
   
   // Robust API key selection
-  const rawKey = process.env.GEMINI_API_KEY || '';
-  const viteKey = process.env.VITE_GEMINI_API_KEY || '';
+  const rawKey = (process.env.GEMINI_API_KEY || "").trim();
+  const viteKey = (process.env.VITE_GEMINI_API_KEY || "").trim();
   
-  let apiKey = rawKey.trim();
-  if (!apiKey || apiKey.includes('YOUR_') || apiKey.includes('MY_GEMINI') || apiKey.endsWith('_KEY')) {
-    apiKey = viteKey.trim();
+  let apiKey = rawKey;
+  if (!apiKey || apiKey.includes("YOUR_") || apiKey.includes("MY_GEMINI") || apiKey.endsWith("_KEY") || apiKey.length < 20) {
+    apiKey = viteKey;
   }
   
-  const source = apiKey === rawKey.trim() ? 'Secrets (GEMINI_API_KEY)' : 'Secrets (VITE_GEMINI_API_KEY)';
+  const source = apiKey === rawKey ? "GEMINI_API_KEY" : "VITE_GEMINI_API_KEY";
 
   try {
-    if (!apiKey) return res.status(500).json({ error: "API key missing. Please add GEMINI_API_KEY to your secrets." });
+    if (!apiKey || apiKey.length < 10) {
+      return res.status(500).json({ error: "API key is missing or invalid in Secrets." });
+    }
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
@@ -410,12 +409,6 @@ app.post("/api/generate", async (req, res) => {
         temperature: config?.temperature || 0.7,
         topP: config?.topP || 0.95,
         topK: config?.topK || 40,
-        safetySettings: [
-          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        ]
       }
     });
 
