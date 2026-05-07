@@ -25,18 +25,38 @@ export const onRequestPost = async (context) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const genModel = genAI.getGenerativeModel({
+    const genAIModel = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       systemInstruction,
     });
     
-    const chatHistory = (history || []).map((m: any) => ({
+    let chatHistory = (history || []).map((m: any) => ({
       role: m.role === 'model' ? 'model' : 'user',
-      parts: [{ text: m.text || m.parts?.[0]?.text || '' }]
-    }));
+      parts: [{ text: (m.text || m.parts?.[0]?.text || "").trim() }]
+    })).filter(m => m.parts[0].text !== "");
+    
+    // Gemini requires alternating roles and starts with 'user'
+    let mergedHistory = [];
+    for (const msg of chatHistory) {
+      if (mergedHistory.length > 0 && mergedHistory[mergedHistory.length - 1].role === msg.role) {
+        mergedHistory[mergedHistory.length - 1].parts[0].text += "\n" + msg.parts[0].text;
+      } else {
+        mergedHistory.push(msg);
+      }
+    }
+    
+    // Ensure it starts with 'user'
+    while (mergedHistory.length > 0 && mergedHistory[0].role !== 'user') {
+      mergedHistory.shift();
+    }
 
-    const chat = genModel.startChat({
-      history: chatHistory,
+    // Ensure it ends with 'model' to allow the next 'user' message
+    while (mergedHistory.length > 0 && mergedHistory[mergedHistory.length - 1].role !== 'model') {
+      mergedHistory.pop();
+    }
+
+    const chat = genAIModel.startChat({
+      history: mergedHistory,
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 1000,
