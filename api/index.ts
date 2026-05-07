@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
@@ -315,7 +315,7 @@ app.post("/api/chat", async (req, res) => {
   }
   
   const source = apiKey === rawKey ? "GEMINI_API_KEY" : "VITE_GEMINI_API_KEY";
-  const modelToUse = model || "gemini-3-flash-preview";
+  const modelToUse = "gemini-1.5-flash";
 
   try {
     if (!apiKey || apiKey.length < 10) {
@@ -324,31 +324,28 @@ app.post("/api/chat", async (req, res) => {
 
     console.log(`[Chat] Using model: ${modelToUse}, key source: ${source}, key ends with: ${apiKey.substring(apiKey.length - 4)}`);
 
-    const ai = new GoogleGenAI({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: modelToUse,
+      systemInstruction,
+    });
     
-    // Construct contents for multi-turn chat
-    const contents = (history || []).map((m: any) => ({
+    // Construct history for the chat
+    const chatHistory = (history || []).map((m: any) => ({
       role: m.role === 'model' ? 'model' : 'user',
       parts: [{ text: m.text || m.parts?.[0]?.text || '' }]
     }));
 
-    // Add current message
-    contents.push({
-      role: 'user',
-      parts: [{ text: message }]
-    });
-
-    const response = await ai.models.generateContent({
-      model: modelToUse,
-      systemInstruction: { parts: [{ text: systemInstruction }] },
-      contents,
-      config: {
+    const chat = model.startChat({
+      history: chatHistory,
+      generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 1000,
       }
     });
 
-    const text = response.text;
+    const result = await chat.sendMessage(message);
+    const text = result.response.text();
 
     if (!text) {
       throw new Error("AI returned an empty response.");
@@ -400,11 +397,12 @@ app.post("/api/generate", async (req, res) => {
       return res.status(500).json({ error: "API key is missing or invalid in Secrets." });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: { 
+      generationConfig: { 
         responseMimeType: config?.responseMimeType || "text/plain",
         temperature: config?.temperature || 0.7,
         topP: config?.topP || 0.95,
@@ -412,7 +410,7 @@ app.post("/api/generate", async (req, res) => {
       }
     });
 
-    const text = response.text;
+    const text = result.response.text();
     if (!text) {
       throw new Error("Model returned an empty response.");
     }
