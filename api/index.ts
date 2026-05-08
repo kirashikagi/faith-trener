@@ -309,17 +309,22 @@ app.post("/api/chat", async (req, res) => {
   const viteKey = (process.env.VITE_GEMINI_API_KEY || "").trim();
   
   let apiKey = rawKey;
-  // If rawKey is a placeholder or ends with _KEY, use viteKey
-  if (!apiKey || apiKey.includes("YOUR_") || apiKey.includes("MY_GEMINI") || apiKey.endsWith("_KEY") || apiKey.length < 20) {
-    apiKey = viteKey;
+  // If rawKey is suspicious (placeholder, too short, or known invalid suffix idf0), use viteKey
+  if (!apiKey || apiKey.includes("YOUR_") || apiKey.includes("MY_GEMINI") || apiKey.endsWith("_KEY") || apiKey.length < 20 || apiKey.endsWith("idf0")) {
+    if (viteKey && viteKey.startsWith("AIzaSy")) {
+      apiKey = viteKey;
+    }
   }
+  // If we still don't have a good key but viteKey is there
+  if (!apiKey && viteKey) apiKey = viteKey;
   
   const source = apiKey === rawKey ? "GEMINI_API_KEY" : "VITE_GEMINI_API_KEY";
+  const keyHint = apiKey ? ` (Ключ: ${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}, Источник: ${source})` : "";
   const modelToUse = "gemini-1.5-flash";
 
   try {
     if (!apiKey || apiKey.length < 10) {
-      return res.status(500).json({ error: "API key is missing or invalid in Secrets. Please ensure GEMINI_API_KEY is set correctly." });
+      return res.status(500).json({ error: "API ключ отсутствует или неверно указан в Secrets. Пожалуйста, убедитесь, что GEMINI_API_KEY установлен правильно." + keyHint });
     }
 
     console.log(`[Chat] Using model: ${modelToUse}, key source: ${source}, key ends with: ${apiKey.substring(apiKey.length - 4)}`);
@@ -408,15 +413,19 @@ app.post("/api/generate", async (req, res) => {
   const viteKey = (process.env.VITE_GEMINI_API_KEY || "").trim();
   
   let apiKey = rawKey;
-  if (!apiKey || apiKey.includes("YOUR_") || apiKey.includes("MY_GEMINI") || apiKey.endsWith("_KEY") || apiKey.length < 20) {
-    apiKey = viteKey;
+  if (!apiKey || apiKey.includes("YOUR_") || apiKey.includes("MY_GEMINI") || apiKey.endsWith("_KEY") || apiKey.length < 20 || apiKey.endsWith("idf0")) {
+    if (viteKey && viteKey.startsWith("AIzaSy")) {
+      apiKey = viteKey;
+    }
   }
+  if (!apiKey && viteKey) apiKey = viteKey;
   
   const source = apiKey === rawKey ? "GEMINI_API_KEY" : "VITE_GEMINI_API_KEY";
+  const keyHint = apiKey ? ` (Ключ: ${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}, Источник: ${source})` : "";
 
   try {
     if (!apiKey || apiKey.length < 10) {
-      return res.status(500).json({ error: "API key is missing or invalid in Secrets." });
+      return res.status(500).json({ error: "API ключ отсутствует или неверно указан в Secrets. Пожалуйста, убедитесь, что GEMINI_API_KEY установлен правильно." + keyHint });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);

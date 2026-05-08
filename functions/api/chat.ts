@@ -13,8 +13,13 @@ export const onRequestPost = async (context) => {
     
     let apiKey = (clientApiKey || rawEnvKey || viteEnvKey || "").trim();
     
-    if (!apiKey || apiKey.includes("YOUR_") || apiKey.includes("MY_GEMINI") || apiKey.endsWith("_KEY") || apiKey.length < 20) {
-      apiKey = viteEnvKey || (clientApiKey || "").trim();
+    // If current key is suspicious or matches known bad suffix, try to fallback to viteEnvKey
+    if (apiKey.includes("YOUR_") || apiKey.includes("MY_GEMINI") || apiKey.endsWith("_KEY") || apiKey.length < 20 || apiKey.endsWith("idf0")) {
+      if (viteEnvKey && viteEnvKey.startsWith("AIzaSy")) {
+        apiKey = viteEnvKey;
+      } else if (clientApiKey) {
+        apiKey = clientApiKey.trim();
+      }
     }
     
     if (!apiKey || apiKey.length < 10) {
