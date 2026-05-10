@@ -104,7 +104,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const MAINTENANCE_MODE = false;
+const MAINTENANCE_MODE = true;
 
 const AvatarImage = ({ src, alt, fallback }: { src: string, alt: string, fallback: React.ReactNode }) => {
   const [hasError, setHasError] = useState(false);
@@ -190,12 +190,9 @@ function MaintenanceView({ theme }: { theme: 'light' | 'dark' | 'vibrant' }) {
         </div>
         
         <div className="space-y-4">
-          <h1 className="text-3xl font-black text-fg tracking-tight leading-tight">Технические работы</h1>
+          <h1 className="text-3xl font-black text-fg tracking-tight leading-tight">Приложение временно недоступно</h1>
           <p className="text-muted text-base leading-relaxed font-medium">
-            Приносим свои глубочайшие извинения! В данный момент приложение находится на техническом обслуживании. 
-          </p>
-          <p className="text-muted text-sm leading-relaxed">
-            Мы работаем над восстановлением доступа после попытки несанкционированного доступа к нашей инфраструктуре. Ваши данные в безопасности.
+            Ведутся технические работы. Приносим свои извинения за неудобства.
           </p>
         </div>
 
@@ -308,8 +305,8 @@ function AppContent() {
   }, []);
 
   const isUserAdmin = userProfile?.role === 'admin' || 
-                     user?.email === 'kiraishikagi@vera.plus' || 
-                     userProfile?.email === 'kiraishikagi@vera.plus';
+                     user?.email?.split('@')[0] === 'kiraishikagi' ||
+                     userProfile?.email?.split('@')[0] === 'kiraishikagi';
 
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
